@@ -54,7 +54,7 @@ ledger-intent list --status pending
 1. Agent calls `ledger-intent send ...`
 2. Skill creates structured intent and POSTs to backend
 3. Backend queues intent, returns ID
-4. User opens Ledger Live → Agent Intents app
+4. User opens Ledger Live → Ledger Agent Payments app
 5. User reviews on device and signs (or rejects)
 6. Transaction broadcasts; agent can poll for status
 

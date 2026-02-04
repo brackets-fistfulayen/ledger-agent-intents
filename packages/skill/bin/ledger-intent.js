@@ -141,7 +141,7 @@ async function handleSend(args) {
 			);
 			console.log(`   Status:    ${data.intent.status}`);
 			console.log("");
-			console.log("📱 Open Ledger Live → Agent Intents to review and sign");
+			console.log("📱 Open Ledger Live → Ledger Agent Payments to review and sign");
 		} else {
 			console.error(`❌ Failed: ${data.error}`);
 			process.exit(1);

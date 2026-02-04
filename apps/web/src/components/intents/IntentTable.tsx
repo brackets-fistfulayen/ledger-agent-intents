@@ -12,6 +12,7 @@ import {
 } from "@agent-intents/shared";
 import { Button } from "@ledgerhq/lumen-ui-react";
 import { useState } from "react";
+import { IntentDetailDialog } from "./IntentDetailDialog";
 
 // =============================================================================
 // Types
@@ -26,6 +27,7 @@ interface IntentTableProps {
 
 interface IntentRowProps {
 	intent: Intent;
+	onSelectIntent: (intent: Intent) => void;
 }
 
 // =============================================================================
@@ -182,7 +184,7 @@ function LoadingRow() {
 // Intent Row Component
 // =============================================================================
 
-function IntentRow({ intent }: IntentRowProps) {
+function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 	const { chainId: walletChainId, sendTransaction, account } = useLedger();
 	const updateStatus = useUpdateIntentStatus();
 
@@ -253,10 +255,17 @@ function IntentRow({ intent }: IntentRowProps) {
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Transaction failed";
 
+			// Check if this is a user-initiated cancellation (not a real failure)
+			// This includes: rejecting on device, closing modal, cancelling action
+			const lowerMessage = message.toLowerCase();
 			const isUserRejection =
-				message.toLowerCase().includes("reject") ||
-				message.toLowerCase().includes("cancel") ||
-				message.toLowerCase().includes("denied");
+				lowerMessage.includes("reject") ||
+				lowerMessage.includes("cancel") ||
+				lowerMessage.includes("denied") ||
+				lowerMessage.includes("closed") ||
+				lowerMessage.includes("close") ||
+				lowerMessage.includes("user") ||
+				lowerMessage.includes("abort");
 
 			if (!isUserRejection) {
 				try {
@@ -296,12 +305,22 @@ function IntentRow({ intent }: IntentRowProps) {
 	// Render
 	// ==========================================================================
 
+	const handleRowClick = () => {
+		onSelectIntent(intent);
+	};
+
 	return (
 		<>
-			<tr className="group border-b border-muted-subtle last:border-b-0 transition-colors hover:bg-muted-transparent">
+			<tr
+				className="group border-b border-muted-subtle last:border-b-0 transition-colors hover:bg-muted-transparent cursor-pointer"
+				onClick={handleRowClick}
+			>
 				{/* Intent ID */}
 				<td className="py-20 px-24">
-					<code className="font-mono body-2 text-muted">{shortId}...</code>
+					<div className="flex items-center gap-8">
+						<code className="font-mono body-2 text-muted">{shortId}...</code>
+						<span className="body-2 text-base">{intent.agentName}</span>
+					</div>
 				</td>
 
 				{/* From */}
@@ -341,11 +360,11 @@ function IntentRow({ intent }: IntentRowProps) {
 				</td>
 
 				{/* Actions */}
-				<td className="py-20 px-24">
+				<td className="py-20 px-24" onClick={(e) => e.stopPropagation()}>
 					{isPending ? (
 						<div className="flex items-center gap-12">
 							<Button
-								appearance="accent"
+								appearance="base"
 								size="sm"
 								onClick={handleSign}
 								disabled={isSigning || isRejecting}
@@ -405,6 +424,21 @@ export function IntentTable({
 	isConnected = false,
 	className,
 }: IntentTableProps) {
+	const [selectedIntent, setSelectedIntent] = useState<Intent | null>(null);
+	const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+	const handleSelectIntent = (intent: Intent) => {
+		setSelectedIntent(intent);
+		setIsDialogOpen(true);
+	};
+
+	const handleDialogClose = (open: boolean) => {
+		setIsDialogOpen(open);
+		if (!open) {
+			setSelectedIntent(null);
+		}
+	};
+
 	// Determine what to show in the table body
 	const renderTableBody = () => {
 		// Loading state
@@ -423,17 +457,27 @@ export function IntentTable({
 		}
 
 		// Show intents
-		return intents.map((intent) => <IntentRow key={intent.id} intent={intent} />);
+		return intents.map((intent) => (
+			<IntentRow key={intent.id} intent={intent} onSelectIntent={handleSelectIntent} />
+		));
 	};
 
 	return (
-		<div className={cn("rounded-xl bg-muted-transparent overflow-hidden w-full", className)}>
-			<div className="overflow-x-auto">
-				<table className="w-full table-auto">
-					<TableHeader />
-					<tbody>{renderTableBody()}</tbody>
-				</table>
+		<>
+			<div className={cn("rounded-xl bg-muted-transparent overflow-hidden w-full", className)}>
+				<div className="overflow-x-auto">
+					<table className="w-full table-auto">
+						<TableHeader />
+						<tbody>{renderTableBody()}</tbody>
+					</table>
+				</div>
 			</div>
-		</div>
+
+			<IntentDetailDialog
+				intent={selectedIntent}
+				open={isDialogOpen}
+				onOpenChange={handleDialogClose}
+			/>
+		</>
 	);
 }

@@ -1,15 +1,19 @@
 /**
- * Test script to post an intent to send 2 USDC
+ * Test script to post an intent to send USDC
  *
  * Usage: npx tsx src/test-intent.ts
  */
 
-import { SUPPORTED_TOKENS, type CreateIntentRequest } from "@agent-intents/shared";
+import type { CreateIntentRequest } from "@agent-intents/shared";
 
 const API_BASE = process.env.API_URL || "http://localhost:3005";
 
-// Chain ID - using Base Sepolia for this test
-const CHAIN_ID = 84532;
+// Chain ID - using ETH Mainnet
+const CHAIN_ID = 1;
+
+// USDC on ETH Mainnet
+const USDC_ADDRESS = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
+const USDC_LOGO = "https://assets.coingecko.com/coins/images/6319/large/usdc.png";
 
 // Use your connected wallet address as the userId
 const USER_WALLET = "0x55862D0711Fe9CE125dCe1b46973Be99E5Fd2592";
@@ -21,11 +25,12 @@ const intentRequest: CreateIntentRequest & { userId: string } = {
 	details: {
 		type: "transfer",
 		token: "USDC",
-		tokenAddress: SUPPORTED_TOKENS[CHAIN_ID].USDC.address,
-		amount: "2",
+		tokenAddress: USDC_ADDRESS,
+		tokenLogo: USDC_LOGO,
+		amount: "10",
 		recipient: "0x73F3e0b80D7826F872CfF58d6FE06d87fBd13ACc",
 		chainId: CHAIN_ID,
-		memo: "Test transfer of 2 USDC",
+		memo: "Test transfer of 10 USDC",
 	},
 	urgency: "normal",
 	expiresInMinutes: 60,

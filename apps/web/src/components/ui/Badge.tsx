@@ -52,25 +52,49 @@ export function Badge({ className, variant, children, ...props }: BadgeProps) {
 // =============================================================================
 // Status Badge (convenience component for Intent status)
 // =============================================================================
+// Uses light transparent backgrounds with darker text of the same color family.
+// Background uses the "strong" color at low opacity for visibility.
+// Text uses the standard semantic color which is darker/more saturated.
+
+const statusBadgeVariants = cva(
+	"inline-flex items-center justify-center gap-4 rounded-xs px-8 py-4 body-3",
+	{
+		variants: {
+			status: {
+				pending: "bg-warning-strong/25 text-warning",
+				approved: "bg-accent/25 text-interactive",
+				signed: "bg-accent/25 text-interactive",
+				confirmed: "bg-success-strong/25 text-success",
+				rejected: "bg-error-strong/25 text-error",
+				failed: "bg-error-strong/25 text-error",
+				expired: "bg-muted-transparent text-muted",
+			},
+		},
+		defaultVariants: {
+			status: "pending",
+		},
+	},
+);
 
 const STATUS_LABELS: Record<IntentStatus, string> = {
 	pending: "Pending",
 	approved: "Approved",
-	rejected: "Rejected",
 	signed: "Signed",
 	confirmed: "Confirmed",
+	rejected: "Rejected",
 	failed: "Failed",
 	expired: "Expired",
 };
 
-interface StatusBadgeProps extends Omit<BadgeProps, "variant" | "children"> {
+interface StatusBadgeProps {
 	status: IntentStatus;
+	className?: string;
 }
 
-export function StatusBadge({ status, ...props }: StatusBadgeProps) {
+export function StatusBadge({ status, className }: StatusBadgeProps) {
 	return (
-		<Badge variant={status} {...props}>
+		<span className={cn(statusBadgeVariants({ status }), className)}>
 			{STATUS_LABELS[status]}
-		</Badge>
+		</span>
 	);
 }

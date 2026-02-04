@@ -1,46 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { SUPPORTED_CHAINS, SUPPORTED_TOKENS } from "@agent-intents/shared";
+import { Tag } from "@ledgerhq/lumen-ui-react";
+import { CodeBlock } from "@/components/ui";
 
 export const Route = createFileRoute("/docs")({
 	component: DocsPage,
 	head: () => ({
 		meta: [
-			{ title: "API Documentation | Agent Intents" },
+			{ title: "API Documentation | Ledger Agent Payments" },
 			{
 				name: "description",
-				content: "API documentation for AI agents to submit transaction intents for Ledger hardware signing.",
+				content:
+					"API documentation for AI agents to submit transaction intents for Ledger hardware signing.",
 			},
 		],
 	}),
 });
-
-// =============================================================================
-// Code Block Component
-// =============================================================================
-
-function CodeBlock({
-	children,
-	language = "json",
-	title,
-}: {
-	children: string;
-	language?: string;
-	title?: string;
-}) {
-	return (
-		<div className="rounded-md overflow-hidden border border-muted bg-surface">
-			{title && (
-				<div className="px-16 py-8 bg-muted border-b border-muted flex items-center justify-between">
-					<span className="body-3-semi-bold text-muted">{title}</span>
-					<span className="body-4 text-muted-subtle">{language}</span>
-				</div>
-			)}
-			<pre className="p-16 overflow-x-auto body-2">
-				<code className="text-base font-mono">{children}</code>
-			</pre>
-		</div>
-	);
-}
 
 // =============================================================================
 // Section Components
@@ -93,14 +68,14 @@ function Endpoint({
 	description: string;
 }) {
 	const methodColors = {
-		GET: "bg-success text-success",
-		POST: "bg-interactive text-interactive",
-		PATCH: "bg-warning text-warning",
-		DELETE: "bg-error text-error",
+		GET: "bg-success/20 text-success",
+		POST: "bg-interactive/20 text-interactive",
+		PATCH: "bg-warning/20 text-warning",
+		DELETE: "bg-error/20 text-error",
 	};
 
 	return (
-		<div className="flex items-start gap-12 p-16 rounded-md bg-surface border border-muted">
+		<div className="flex items-start gap-12 p-16 rounded-md bg-muted">
 			<span
 				className={`px-8 py-4 rounded-xs body-3-semi-bold ${methodColors[method]}`}
 			>
@@ -126,15 +101,15 @@ function Param({
 	description: string;
 }) {
 	return (
-		<div className="flex items-start gap-8 py-8 border-b border-muted last:border-0">
+		<div className="flex items-start gap-8 py-8 border-b border-[#30363d] last:border-0">
 			<code className="body-2 text-accent font-mono whitespace-nowrap">
 				{name}
 			</code>
-			<span className="body-4 text-muted-subtle bg-muted px-6 py-2 rounded-xs">
+			<span className="body-4 text-[#8b949e] bg-[#21262d] px-6 py-2 rounded-xs">
 				{type}
 			</span>
 			{required && (
-				<span className="body-4 text-error bg-error px-6 py-2 rounded-xs">
+				<span className="body-4 text-[#f85149] bg-[#f8514920] px-6 py-2 rounded-xs">
 					required
 				</span>
 			)}
@@ -211,17 +186,18 @@ function DocsPage() {
 						</Link>
 					</div>
 					<div>
-						<h1 className="heading-2-semi-bold text-base">Agent Intents API</h1>
+						<h1 className="heading-2-semi-bold text-base">Ledger Agent Payments API</h1>
 						<p className="body-1 text-muted mt-8">
 							Documentation for AI agents to submit transaction intents for Ledger hardware signing.
 						</p>
 					</div>
-					<div className="flex items-center gap-16 p-16 rounded-md bg-accent border border-accent">
+					<div className="flex items-center gap-16 p-16 rounded-md bg-accent/10">
 						<span className="text-2xl">🤖</span>
 						<div>
 							<p className="body-2-semi-bold text-accent">Built for Agents</p>
 							<p className="body-2 text-muted">
-								This API enables AI agents to propose transactions. Humans review and sign on Ledger hardware.
+								This API enables AI agents to propose transactions. Humans review
+								and sign on Ledger hardware.
 							</p>
 						</div>
 					</div>
@@ -230,33 +206,35 @@ function DocsPage() {
 				{/* Overview */}
 				<Section id="overview" title="Overview">
 					<p className="body-1 text-base">
-						The Agent Intents API allows AI agents to submit transaction intents that will be queued for human review and hardware signing. This creates a secure bridge where agents can propose transactions but never access private keys.
+						The Ledger Agent Payments API allows AI agents to submit transaction intents that will be queued for human review and hardware signing. This creates a secure bridge where agents can propose transactions but never access private keys.
 					</p>
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-16">
-						<div className="p-16 rounded-md bg-surface border border-muted">
+						<div className="p-16 rounded-md bg-muted">
 							<div className="text-2xl mb-8">📝</div>
 							<h4 className="body-1-semi-bold text-base">1. Agent Proposes</h4>
 							<p className="body-2 text-muted mt-4">
-								Submit a structured intent via API or CLI. Get an intent ID for tracking.
+								Submit a structured intent via API or CLI. Get an intent ID for
+								tracking.
 							</p>
 						</div>
-						<div className="p-16 rounded-md bg-surface border border-muted">
+						<div className="p-16 rounded-md bg-muted">
 							<div className="text-2xl mb-8">👀</div>
 							<h4 className="body-1-semi-bold text-base">2. Human Reviews</h4>
 							<p className="body-2 text-muted mt-4">
 								User sees the intent in the web app with full transaction details.
 							</p>
 						</div>
-						<div className="p-16 rounded-md bg-surface border border-muted">
+						<div className="p-16 rounded-md bg-muted">
 							<div className="text-2xl mb-8">🔐</div>
 							<h4 className="body-1-semi-bold text-base">3. Ledger Signs</h4>
 							<p className="body-2 text-muted mt-4">
-								Transaction is signed on Ledger device and broadcast to the blockchain.
+								Transaction is signed on Ledger device and broadcast to the
+								blockchain.
 							</p>
 						</div>
 					</div>
 
-					<CodeBlock language="text" title="Architecture">
+					<CodeBlock language="text" title="Architecture" className="font-mono">
 {`┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │   AI Agent      │────▶│   Intent Queue   │────▶│  Ledger Signer  │
 │   (You)         │     │   (This API)     │     │  (Human + HW)   │
@@ -326,13 +304,22 @@ function DocsPage() {
 
 				{/* Authentication */}
 				<Section id="authentication" title="Authentication">
-					<div className="p-16 rounded-md bg-interactive border border-interactive">
+					<div className="p-16 rounded-md bg-interactive/10">
 						<p className="body-2 text-interactive">
-							<strong>Hackathon Mode:</strong> No authentication required. Pass a <code className="bg-interactive px-4 py-2 rounded-xs">userId</code> in the request body to identify the user.
+							<strong>Hackathon Mode:</strong> No authentication required. Pass a{" "}
+							<code className="bg-interactive/20 px-4 py-2 rounded-xs">
+								userId
+							</code>{" "}
+							in the request body to identify the user.
 						</p>
 					</div>
 					<p className="body-1 text-base">
-						In production, agents would authenticate via API keys or OAuth. For the hackathon, simply include your <code className="bg-muted px-4 py-2 rounded-xs text-accent">userId</code> in requests.
+						In production, agents would authenticate via API keys or OAuth. For
+						the hackathon, simply include your{" "}
+						<code className="bg-muted px-4 py-2 rounded-xs text-accent">
+							userId
+						</code>{" "}
+						in requests.
 					</p>
 				</Section>
 
@@ -345,7 +332,7 @@ function DocsPage() {
 					/>
 
 					<Subsection id="create-intent-params" title="Request Body">
-						<div className="rounded-lg border border-neutral-800 p-16 bg-neutral-900/30">
+						<div className="rounded-lg p-16 bg-[#0d1117]">
 							<Param
 								name="agentId"
 								type="string"
@@ -384,7 +371,7 @@ function DocsPage() {
 					</Subsection>
 
 					<Subsection id="transfer-intent-schema" title="TransferIntent Schema">
-						<div className="rounded-lg border border-neutral-800 p-16 bg-neutral-900/30">
+						<div className="rounded-lg p-16 bg-[#0d1117]">
 							<Param
 								name="type"
 								type="string"
@@ -465,47 +452,84 @@ function DocsPage() {
 
 					<Subsection id="intent-status-lifecycle" title="Status Lifecycle">
 						<div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-							{[
-								{ status: "pending", icon: "⏳", desc: "Awaiting human review" },
-								{ status: "approved", icon: "✓", desc: "Human approved, ready to sign" },
-								{ status: "signed", icon: "📝", desc: "Signed, broadcasting tx" },
-								{ status: "confirmed", icon: "✅", desc: "Transaction confirmed" },
-								{ status: "rejected", icon: "✗", desc: "Human rejected" },
-								{ status: "failed", icon: "❌", desc: "Transaction failed" },
-								{ status: "expired", icon: "⌛", desc: "Intent expired" },
-							].map(({ status, icon, desc }) => (
+							{(
+								[
+									{
+										status: "pending",
+										appearance: "warning",
+										desc: "Awaiting human review",
+									},
+									{
+										status: "approved",
+										appearance: "accent",
+										desc: "Human approved, ready to sign",
+									},
+									{
+										status: "signed",
+										appearance: "accent",
+										desc: "Signed, broadcasting tx",
+									},
+									{
+										status: "confirmed",
+										appearance: "success",
+										desc: "Transaction confirmed",
+									},
+									{
+										status: "rejected",
+										appearance: "error",
+										desc: "Human rejected",
+									},
+									{
+										status: "failed",
+										appearance: "error",
+										desc: "Transaction failed",
+									},
+									{
+										status: "expired",
+										appearance: "gray",
+										desc: "Intent expired",
+									},
+								] as const
+							).map(({ status, appearance, desc }) => (
 								<div
 									key={status}
-									className="p-12 rounded-md bg-surface border border-muted text-center"
+									className="p-12 rounded-md bg-muted text-center flex flex-col items-center gap-8"
 								>
-									<div className="text-xl mb-4">{icon}</div>
-									<div className="body-2-semi-bold text-base">{status}</div>
-									<div className="body-3 text-muted-subtle mt-2">{desc}</div>
+									<Tag appearance={appearance} label={status} size="md" />
+									<div className="body-3 text-muted-subtle">{desc}</div>
 								</div>
 							))}
 						</div>
 					</Subsection>
 
 					<Subsection id="polling-strategy" title="Polling Strategy">
-						<div className="p-16 rounded-md bg-surface border border-muted">
+						<div className="p-16 rounded-md bg-muted">
 							<p className="body-2 text-base mb-12">
 								Recommended polling intervals based on urgency:
 							</p>
 							<div className="space-y-8">
 								<div className="flex items-center gap-12">
-									<code className="text-error bg-muted px-8 py-4 rounded-xs body-3">critical</code>
+									<code className="text-error bg-error/20 px-8 py-4 rounded-xs body-3">
+										critical
+									</code>
 									<span className="text-muted body-2">→ Every 5 seconds</span>
 								</div>
 								<div className="flex items-center gap-12">
-									<code className="text-warning bg-muted px-8 py-4 rounded-xs body-3">high</code>
+									<code className="text-warning bg-warning/20 px-8 py-4 rounded-xs body-3">
+										high
+									</code>
 									<span className="text-muted body-2">→ Every 15 seconds</span>
 								</div>
 								<div className="flex items-center gap-12">
-									<code className="text-interactive bg-muted px-8 py-4 rounded-xs body-3">normal</code>
+									<code className="text-interactive bg-interactive/20 px-8 py-4 rounded-xs body-3">
+										normal
+									</code>
 									<span className="text-muted body-2">→ Every 30 seconds</span>
 								</div>
 								<div className="flex items-center gap-12">
-									<code className="text-muted bg-muted px-8 py-4 rounded-xs body-3">low</code>
+									<code className="text-muted-subtle bg-[#21262d] px-8 py-4 rounded-xs body-3">
+										low
+									</code>
 									<span className="text-muted body-2">→ Every 60 seconds</span>
 								</div>
 							</div>
@@ -522,7 +546,7 @@ function DocsPage() {
 					/>
 
 					<Subsection id="list-intents-params" title="Query Parameters">
-						<div className="rounded-lg border border-neutral-800 p-16 bg-neutral-900/30">
+						<div className="rounded-lg p-16 bg-[#0d1117]">
 							<Param
 								name="status"
 								type="string"
@@ -545,9 +569,10 @@ function DocsPage() {
 						path="/api/intents/:id/status"
 						description="Update the status of an intent (typically called by the signing app, not agents)."
 					/>
-					<div className="p-16 rounded-md bg-warning border border-warning">
+					<div className="p-16 rounded-md bg-warning/10">
 						<p className="body-2 text-warning">
-							<strong>Note:</strong> This endpoint is primarily for the signing application. Agents should only poll status, not update it.
+							<strong>Note:</strong> This endpoint is primarily for the signing
+							application. Agents should only poll status, not update it.
 						</p>
 					</div>
 				</Section>
@@ -559,7 +584,7 @@ function DocsPage() {
 					</p>
 
 					<Subsection id="cli-env" title="Environment Variables">
-						<div className="rounded-lg border border-neutral-800 p-16 bg-neutral-900/30">
+						<div className="rounded-lg p-16 bg-[#0d1117]">
 							<Param
 								name="INTENT_API_URL"
 								type="string"
@@ -715,19 +740,27 @@ done`}
 					<p className="body-1 text-base mb-16">
 						Currently supporting testnet chains for the hackathon:
 					</p>
-					<div className="rounded-md border border-muted overflow-hidden">
+					<div className="rounded-md overflow-hidden bg-[#0d1117]">
 						<table className="w-full body-2">
-							<thead className="bg-muted">
+							<thead className="bg-[#161b22]">
 								<tr>
-									<th className="text-left p-12 text-muted body-2-semi-bold">Chain ID</th>
-									<th className="text-left p-12 text-muted body-2-semi-bold">Name</th>
-									<th className="text-left p-12 text-muted body-2-semi-bold">Native Token</th>
-									<th className="text-left p-12 text-muted body-2-semi-bold">Explorer</th>
+									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
+										Chain ID
+									</th>
+									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
+										Name
+									</th>
+									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
+										Native Token
+									</th>
+									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
+										Explorer
+									</th>
 								</tr>
 							</thead>
 							<tbody>
 								{Object.entries(SUPPORTED_CHAINS).map(([chainId, chain]) => (
-									<tr key={chainId} className="border-t border-muted">
+									<tr key={chainId} className="border-t border-[#30363d]">
 										<td className="p-12 font-mono text-accent">{chainId}</td>
 										<td className="p-12 text-base">{chain.name}</td>
 										<td className="p-12 text-base">{chain.symbol}</td>
@@ -757,23 +790,33 @@ done`}
 						{Object.entries(SUPPORTED_TOKENS).map(([chainId, tokens]) => (
 							<div key={chainId}>
 								<h4 className="body-1-semi-bold text-base mb-8">
-									{SUPPORTED_CHAINS[Number(chainId) as keyof typeof SUPPORTED_CHAINS]?.name || chainId}
+									{SUPPORTED_CHAINS[
+										Number(chainId) as keyof typeof SUPPORTED_CHAINS
+									]?.name || chainId}
 								</h4>
-								<div className="rounded-md border border-muted overflow-hidden">
+								<div className="rounded-md overflow-hidden bg-[#0d1117]">
 									<table className="w-full body-2">
-										<thead className="bg-muted">
+										<thead className="bg-[#161b22]">
 											<tr>
-												<th className="text-left p-12 text-muted body-2-semi-bold">Token</th>
-												<th className="text-left p-12 text-muted body-2-semi-bold">Decimals</th>
-												<th className="text-left p-12 text-muted body-2-semi-bold">Contract Address</th>
+												<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
+													Token
+												</th>
+												<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
+													Decimals
+												</th>
+												<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
+													Contract Address
+												</th>
 											</tr>
 										</thead>
 										<tbody>
 											{Object.entries(tokens).map(([symbol, token]) => (
-												<tr key={symbol} className="border-t border-muted">
-													<td className="p-12 body-2-semi-bold text-base">{symbol}</td>
+												<tr key={symbol} className="border-t border-[#30363d]">
+													<td className="p-12 body-2-semi-bold text-base">
+														{symbol}
+													</td>
 													<td className="p-12 text-base">{token.decimals}</td>
-													<td className="p-12 font-mono body-3 text-muted">
+													<td className="p-12 font-mono body-3 text-[#8b949e]">
 														{token.address}
 													</td>
 												</tr>
@@ -802,30 +845,40 @@ done`}
 					</Subsection>
 
 					<Subsection id="error-codes" title="Common Errors">
-						<div className="rounded-md border border-muted overflow-hidden">
+						<div className="rounded-md overflow-hidden bg-[#0d1117]">
 							<table className="w-full body-2">
-								<thead className="bg-muted">
+								<thead className="bg-[#161b22]">
 									<tr>
-										<th className="text-left p-12 text-muted body-2-semi-bold">Status</th>
-										<th className="text-left p-12 text-muted body-2-semi-bold">Error</th>
-										<th className="text-left p-12 text-muted body-2-semi-bold">Description</th>
+										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
+											Status
+										</th>
+										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
+											Error
+										</th>
+										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
+											Description
+										</th>
 									</tr>
 								</thead>
 								<tbody>
-									<tr className="border-t border-muted">
+									<tr className="border-t border-[#30363d]">
 										<td className="p-12 font-mono text-warning">400</td>
 										<td className="p-12 text-base">Missing required fields</td>
-										<td className="p-12 text-muted">Request body missing agentId or details</td>
+										<td className="p-12 text-[#8b949e]">
+											Request body missing agentId or details
+										</td>
 									</tr>
-									<tr className="border-t border-muted">
+									<tr className="border-t border-[#30363d]">
 										<td className="p-12 font-mono text-warning">404</td>
 										<td className="p-12 text-base">Intent not found</td>
-										<td className="p-12 text-muted">The requested intent ID does not exist</td>
+										<td className="p-12 text-[#8b949e]">
+											The requested intent ID does not exist
+										</td>
 									</tr>
-									<tr className="border-t border-muted">
+									<tr className="border-t border-[#30363d]">
 										<td className="p-12 font-mono text-error">500</td>
 										<td className="p-12 text-base">Internal server error</td>
-										<td className="p-12 text-muted">Unexpected server error</td>
+										<td className="p-12 text-[#8b949e]">Unexpected server error</td>
 									</tr>
 								</tbody>
 							</table>
@@ -833,25 +886,31 @@ done`}
 					</Subsection>
 
 					<Subsection id="retry-strategy" title="Retry Strategy">
-						<div className="p-16 rounded-md bg-surface border border-muted">
-							<p className="body-2 text-base mb-8">
-								Recommended retry behavior:
-							</p>
+						<div className="p-16 rounded-md bg-muted">
+							<p className="body-2 text-base mb-8">Recommended retry behavior:</p>
 							<ul className="body-2 text-muted space-y-4 list-disc list-inside">
-								<li><strong>4xx errors:</strong> Do not retry. Fix the request.</li>
-								<li><strong>5xx errors:</strong> Retry with exponential backoff (1s, 2s, 4s, max 30s)</li>
-								<li><strong>Network errors:</strong> Retry up to 3 times with 2s delay</li>
+								<li>
+									<strong>4xx errors:</strong> Do not retry. Fix the request.
+								</li>
+								<li>
+									<strong>5xx errors:</strong> Retry with exponential backoff
+									(1s, 2s, 4s, max 30s)
+								</li>
+								<li>
+									<strong>Network errors:</strong> Retry up to 3 times with 2s
+									delay
+								</li>
 							</ul>
 						</div>
 					</Subsection>
 				</Section>
 
 				{/* Footer */}
-				<div className="pt-32 border-t border-muted">
+				<div className="pt-32 border-t border-[#30363d]">
 					<div className="flex items-center justify-between">
 						<div>
 							<p className="body-2 text-muted-subtle">
-								Agent Intents API Documentation
+								Ledger Agent Payments API Documentation
 							</p>
 							<p className="body-3 text-muted-subtle mt-4">
 								Built for the USDC OpenClaw Hackathon on Moltbook

@@ -1,4 +1,4 @@
-# Agent Intents
+# Ledger Agent Payments
 
 > **"Agents propose, humans sign with hardware."**
 
@@ -175,10 +175,59 @@ Content-Type: application/json
     "amount": "50",
     "recipient": "0x...",
     "chainId": 1,
-    "memo": "podcast payment"
+    "memo": "podcast payment",
+    
+    // x402-aligned fields (optional)
+    "resource": "https://api.example.com/service",
+    "merchant": {
+      "name": "Example Service",
+      "url": "https://example.com",
+      "logo": "https://example.com/logo.png",
+      "verified": true
+    },
+    "category": "api_payment"
   }
 }
 ```
+
+#### TransferIntent Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | ✅ | Always `"transfer"` |
+| `token` | string | ✅ | Token symbol (e.g., `"USDC"`, `"ETH"`) |
+| `tokenAddress` | string | | ERC-20 contract address |
+| `amount` | string | ✅ | Human-readable amount |
+| `amountWei` | string | | Wei amount for precision |
+| `recipient` | string | ✅ | Destination address |
+| `recipientEns` | string | | ENS name if resolved |
+| `chainId` | number | ✅ | Chain ID (e.g., `84532` for Base Sepolia) |
+| `memo` | string | | Human-readable reason |
+| `resource` | string | | x402 resource URL (API endpoint) |
+| `merchant` | object | | Merchant/payee info (see below) |
+| `category` | string | | Payment category |
+
+#### Merchant Object
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Display name (e.g., `"OpenAI"`) |
+| `url` | string | Website or service URL |
+| `logo` | string | Logo URL for UI display |
+| `verified` | boolean | `true` if from x402 Bazaar or curated list |
+
+#### Payment Categories
+
+| Category | Description |
+|----------|-------------|
+| `api_payment` | x402 pay-per-call API |
+| `subscription` | Recurring service (Netflix, Spotify) |
+| `purchase` | One-time purchase |
+| `p2p_transfer` | Person-to-person transfer |
+| `defi` | DeFi operations (swap, stake, lend) |
+| `bill_payment` | Utilities, rent, invoices |
+| `donation` | Tips, charity |
+| `other` | Uncategorized |
 
 ### Get Intent Status
 

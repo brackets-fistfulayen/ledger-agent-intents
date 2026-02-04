@@ -3,7 +3,28 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Agent Intents</title>
+		<title>Ledger Agent Payments</title>
+		<script>
+			// Apply saved theme before page renders to avoid flash
+			(function() {
+				const theme = localStorage.getItem('theme') || 'dark';
+				const root = document.documentElement;
+				
+				function getSystemTheme() {
+					return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+				}
+				
+				const effectiveTheme = theme === 'system' ? getSystemTheme() : theme;
+				
+				if (effectiveTheme === 'dark') {
+					root.classList.add('dark');
+					root.style.colorScheme = 'dark';
+				} else {
+					root.classList.remove('dark');
+					root.style.colorScheme = 'light';
+				}
+			})();
+		</script>
 	</head>
 	<body>
 		<div id="root"></div>

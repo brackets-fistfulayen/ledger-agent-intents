@@ -1,5 +1,5 @@
 /**
- * Shared types for Agent Intents system
+ * Shared types for Ledger Agent Payments system
  */
 
 // Intent status lifecycle
@@ -22,17 +22,42 @@ export type IntentType =
 // Urgency levels affect how intents are displayed
 export type IntentUrgency = "low" | "normal" | "high" | "critical";
 
+// Payment category (can be enriched from x402 Bazaar or LLM-inferred)
+export type PaymentCategory =
+	| "api_payment" // x402 pay-per-call API
+	| "subscription" // Recurring service (Netflix, Spotify)
+	| "purchase" // One-time purchase
+	| "p2p_transfer" // Person-to-person transfer
+	| "defi" // DeFi operations (swap, stake, lend)
+	| "bill_payment" // Utilities, rent, invoices
+	| "donation" // Tips, charity
+	| "other";
+
+// Merchant/payee information (x402-aligned)
+export interface Merchant {
+	name: string; // Display name (e.g., "OpenAI", "Uniswap")
+	url?: string; // Website or service URL
+	logo?: string; // Logo URL for UI display
+	verified?: boolean; // True if from x402 Bazaar or curated list
+}
+
 // Token transfer intent
 export interface TransferIntent {
 	type: "transfer";
 	token: string; // e.g., 'USDC', 'ETH'
 	tokenAddress?: string; // Contract address for ERC-20
+	tokenLogo?: string; // URL to token logo image
 	amount: string; // Human-readable amount
 	amountWei?: string; // Wei amount for precision
 	recipient: string; // Destination address
 	recipientEns?: string; // ENS name if resolved
 	chainId: number; // e.g., 11155111 for Sepolia, 84532 for Base Sepolia
 	memo?: string; // Human-readable reason
+
+	// x402-aligned fields
+	resource?: string; // x402 resource URL (API endpoint being paid for)
+	merchant?: Merchant; // Merchant/payee information
+	category?: PaymentCategory; // Payment category
 }
 
 // Base intent structure

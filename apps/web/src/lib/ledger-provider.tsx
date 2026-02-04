@@ -78,7 +78,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 					ledgerCleanupFn = initializeLedgerProvider({
 						target: document.body,
 						floatingButtonPosition: "bottom-right",
-						dAppIdentifier: "agent-intents",
+						dAppIdentifier: "multisig",
 						apiKey: import.meta.env.VITE_LEDGER_API_KEY || "",
 						loggerLevel: "info",
 						devConfig: {

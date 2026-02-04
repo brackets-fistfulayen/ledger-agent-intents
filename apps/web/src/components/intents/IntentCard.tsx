@@ -96,11 +96,17 @@ export function IntentCard({ intent }: IntentCardProps) {
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Transaction failed";
 
-			// Check if user rejected on device - don't update status (allow retry)
+			// Check if this is a user-initiated cancellation (not a real failure)
+			// This includes: rejecting on device, closing modal, cancelling action
+			const lowerMessage = message.toLowerCase();
 			const isUserRejection =
-				message.toLowerCase().includes("reject") ||
-				message.toLowerCase().includes("cancel") ||
-				message.toLowerCase().includes("denied");
+				lowerMessage.includes("reject") ||
+				lowerMessage.includes("cancel") ||
+				lowerMessage.includes("denied") ||
+				lowerMessage.includes("closed") ||
+				lowerMessage.includes("close") ||
+				lowerMessage.includes("user") ||
+				lowerMessage.includes("abort");
 
 			if (!isUserRejection) {
 				// Transaction broadcast failed - mark as failed
@@ -191,7 +197,7 @@ export function IntentCard({ intent }: IntentCardProps) {
 			{isPending && (
 				<div className="flex gap-12">
 					<Button
-						appearance="accent"
+						appearance="base"
 						size="md"
 						onClick={handleSign}
 						disabled={isSigning || isRejecting || isWrongChain}
