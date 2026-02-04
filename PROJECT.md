@@ -173,24 +173,41 @@ ledger-intent send 100 USDC to 0x... for "podcast editing"
 
 ---
 
-## Questions for Ledger DevRel
+## Ledger DevRel Guidance ✅
 
-**Status:** ⏳ Ian asking directly — awaiting response
+**From Ledger Head of Product:**
 
-1. **Live App for Hackathon**  
-   Can we self-host and load via Developer Mode without formal review?
+> "If you start on ETH, you can use the Ledger button it will be easier than Wallet API 
+> and you have access to account via Ledger Sync. And it will broadcast also the TX."
 
-2. **Clear Signing for USDC**  
-   Is USDC already in the registry? Do we get Clear Signing automatically for ERC-20 transfers?
+### Updated Approach: Ledger Button (Connect Kit)
 
-3. **Agent Intent Metadata**  
-   Can we embed custom fields ("Requested by: Clouseau", "Reason: podcast payment") in EIP-712 and have it Clear Signed?
+Instead of building a Ledger Live App with Wallet API, we use:
 
-4. **Signing Flow**  
-   Does user see Clear Signed details on the Ledger device, or only in Live app UI?
+- **Ledger Connect Kit** — one-click Ledger integration
+- **wagmi connector** — `@ledgerhq/ledger-wagmi-connector`
+- **Ledger Sync** — automatic account access
+- **Auto-broadcast** — Connect Kit handles tx broadcast
 
-5. **Fastest Path**  
-   Minimum viable for demo by Sunday — just Wallet API + manifest, or device-side plugin?
+**Benefits:**
+- No Ledger Live App needed
+- No Developer Mode setup
+- Standard web app deployment (Vercel)
+- Works with Ledger Extension or opens Ledger Live
+
+**Implementation:**
+```bash
+npm install @ledgerhq/ledger-wagmi-connector wagmi viem
+```
+
+```typescript
+import { LedgerConnector } from '@ledgerhq/ledger-wagmi-connector';
+
+const ledgerConnector = new LedgerConnector({
+  chains,
+  options: { chainId: 1 }
+});
+```
 
 ---
 

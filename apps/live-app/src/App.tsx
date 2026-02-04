@@ -1,11 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useWalletAPIClient } from '@ledgerhq/wallet-api-client-react';
+import { useAccount, useConnect, useDisconnect, useSendTransaction } from 'wagmi';
+import { parseUnits, encodeFunctionData } from 'viem';
 import type { Intent } from '@agent-intents/shared';
 import { IntentCard } from './components/IntentCard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const USER_ID = import.meta.env.VITE_USER_ID || 'demo-user';
-const POLL_INTERVAL = 5000; // Poll every 5 seconds
+const POLL_INTERVAL = 5000;
+
+// ERC-20 transfer function ABI
+const ERC20_TRANSFER_ABI = [
+  {
+    name: 'transfer',
+    type: 'function',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+] as const;
 
 export default function App() {
   const [intents, setIntents] = useState<Intent[]>([]);
@@ -13,7 +27,11 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [signingId, setSigningId] = useState<string | null>(null);
 
-  const { client } = useWalletAPIClient();
+  // Wagmi hooks
+  const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { sendTransactionAsync } = useSendTransaction();
 
   // Fetch intents from backend
   const fetchIntents = useCallback(async () => {
@@ -55,55 +73,61 @@ export default function App() {
     }
   };
 
-  // Sign intent using Wallet API
+  // Sign and send transaction
   const handleSign = async (intent: Intent) => {
-    if (!client) {
-      setError('Wallet API not available - run inside Ledger Live');
+    if (!isConnected) {
+      setError('Please connect your Ledger first');
       return;
     }
 
     setSigningId(intent.id);
     
     try {
-      // First, mark as approved
+      // Mark as approved
       await updateStatus(intent.id, 'approved');
       
-      // Request account from user
-      const account = await client.account.request({
-        currencyIds: [intent.details.chainId === 137 ? 'polygon' : 'ethereum'],
-      });
-      
-      if (!account) {
-        await updateStatus(intent.id, 'rejected', undefined);
-        return;
+      const { details } = intent;
+      let txHash: string;
+
+      if (details.tokenAddress) {
+        // ERC-20 transfer
+        const decimals = details.token === 'USDC' || details.token === 'USDT' ? 6 : 18;
+        const amount = parseUnits(details.amount, decimals);
+        
+        const data = encodeFunctionData({
+          abi: ERC20_TRANSFER_ABI,
+          functionName: 'transfer',
+          args: [details.recipient as `0x${string}`, amount],
+        });
+
+        txHash = await sendTransactionAsync({
+          to: details.tokenAddress as `0x${string}`,
+          data,
+        });
+      } else {
+        // Native ETH transfer
+        const amount = parseUnits(details.amount, 18);
+        
+        txHash = await sendTransactionAsync({
+          to: details.recipient as `0x${string}`,
+          value: amount,
+        });
       }
 
-      // Build transaction
-      // For ERC-20 transfers, we need to build the contract call
-      const tx = {
-        family: 'ethereum' as const,
-        amount: BigInt(0), // For ERC-20, amount is in data
-        recipient: intent.details.tokenAddress || intent.details.recipient,
-        // TODO: Build proper ERC-20 transfer data
-        // For hackathon demo, we'll simplify
-      };
-
-      // Sign and broadcast
-      const result = await client.transaction.signAndBroadcast(
-        account.id,
-        tx,
-        { hwAppId: 'Ethereum' }
-      );
-
-      // Update status with tx hash
-      await updateStatus(intent.id, 'signed', result);
+      // Update with tx hash
+      await updateStatus(intent.id, 'signed', txHash);
       
-      // Note: In production, we'd monitor for confirmation
-      setTimeout(() => updateStatus(intent.id, 'confirmed'), 10000);
+      // Mark confirmed after a delay (in production, monitor the tx)
+      setTimeout(() => updateStatus(intent.id, 'confirmed'), 15000);
       
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Signing error:', err);
-      await updateStatus(intent.id, 'failed');
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      if (message.includes('rejected') || message.includes('denied')) {
+        await updateStatus(intent.id, 'rejected');
+      } else {
+        await updateStatus(intent.id, 'failed');
+      }
     } finally {
       setSigningId(null);
     }
@@ -122,10 +146,37 @@ export default function App() {
       <header style={styles.header}>
         <h1 style={styles.title}>🤖 Agent Intents</h1>
         <p style={styles.subtitle}>Review and sign transactions proposed by your AI agents</p>
+        
+        {/* Wallet Connection */}
+        <div style={styles.wallet}>
+          {isConnected ? (
+            <div style={styles.connected}>
+              <span style={styles.address}>
+                {address?.slice(0, 6)}...{address?.slice(-4)}
+              </span>
+              <button style={styles.disconnectBtn} onClick={() => disconnect()}>
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <button 
+              style={styles.connectBtn}
+              onClick={() => connect({ connector: connectors[0] })}
+            >
+              🔐 Connect Ledger
+            </button>
+          )}
+        </div>
       </header>
 
       {error && (
         <div style={styles.error}>{error}</div>
+      )}
+
+      {!isConnected && (
+        <div style={styles.notice}>
+          Connect your Ledger to review and sign pending intents
+        </div>
       )}
 
       {loading ? (
@@ -146,6 +197,7 @@ export default function App() {
                   onSign={() => handleSign(intent)}
                   onReject={() => handleReject(intent)}
                   signing={signingId === intent.id}
+                  disabled={!isConnected}
                 />
               ))
             )}
@@ -167,6 +219,10 @@ export default function App() {
           </section>
         </>
       )}
+
+      <footer style={styles.footer}>
+        <p>🔐 Agents propose, humans sign with hardware.</p>
+      </footer>
     </div>
   );
 }
@@ -176,6 +232,9 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: 600,
     margin: '0 auto',
     padding: 20,
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
   },
   header: {
     textAlign: 'center',
@@ -189,6 +248,42 @@ const styles: Record<string, React.CSSProperties> = {
   subtitle: {
     fontSize: 14,
     color: '#888',
+    marginBottom: 20,
+  },
+  wallet: {
+    marginTop: 16,
+  },
+  connected: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  address: {
+    fontFamily: 'monospace',
+    background: '#1a1a1a',
+    padding: '8px 12px',
+    borderRadius: 8,
+    color: '#4ade80',
+  },
+  connectBtn: {
+    padding: '12px 24px',
+    borderRadius: 12,
+    border: 'none',
+    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  disconnectBtn: {
+    padding: '8px 16px',
+    borderRadius: 8,
+    border: '1px solid #444',
+    background: 'transparent',
+    color: '#888',
+    fontSize: 14,
+    cursor: 'pointer',
   },
   section: {
     marginBottom: 30,
@@ -218,5 +313,20 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 8,
     marginBottom: 20,
     textAlign: 'center',
+  },
+  notice: {
+    background: '#1a2a1a',
+    color: '#4ade80',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  footer: {
+    marginTop: 'auto',
+    textAlign: 'center',
+    padding: 20,
+    color: '#666',
+    fontSize: 14,
   },
 };

@@ -6,9 +6,10 @@ interface IntentCardProps {
   onReject?: () => void;
   signing?: boolean;
   readonly?: boolean;
+  disabled?: boolean;
 }
 
-export function IntentCard({ intent, onSign, onReject, signing, readonly }: IntentCardProps) {
+export function IntentCard({ intent, onSign, onReject, signing, readonly, disabled }: IntentCardProps) {
   const { details, agentName, status, createdAt, memo } = {
     ...intent,
     memo: intent.details.memo,
@@ -100,18 +101,18 @@ export function IntentCard({ intent, onSign, onReject, signing, readonly }: Inte
       ) : (
         <div style={styles.actions}>
           <button 
-            style={styles.rejectBtn}
+            style={{...styles.rejectBtn, opacity: disabled ? 0.5 : 1}}
             onClick={onReject}
-            disabled={signing}
+            disabled={signing || disabled}
           >
             Reject
           </button>
           <button 
-            style={styles.signBtn}
+            style={{...styles.signBtn, opacity: disabled ? 0.5 : 1}}
             onClick={onSign}
-            disabled={signing}
+            disabled={signing || disabled}
           >
-            {signing ? 'Signing...' : 'Sign with Ledger'}
+            {signing ? 'Signing...' : disabled ? 'Connect Ledger First' : 'Sign with Ledger'}
           </button>
         </div>
       )}
