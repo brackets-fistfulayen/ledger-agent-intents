@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@agent-intents/shared": "*",
-    "@ledgerhq/ledger-wagmi-connector": "^2.0.0",
+    "@ledgerhq/ledger-wagmi-connector": "^1.0.0",
     "@tanstack/react-query": "^5.17.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
