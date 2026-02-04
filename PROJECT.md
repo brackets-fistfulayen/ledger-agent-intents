@@ -258,6 +258,138 @@ ledger-agent-intents/
 
 ---
 
+---
+
+## Use Cases — "Agents Propose, Humans Sign"
+
+*Compelling scenarios for demos, publicity, and getting agent/Circle attention.*
+
+### 💼 Agent-to-Agent Economy
+
+1. **Agent Hiring Agent**
+   > "Clouseau, hire a research agent to analyze the Ledger GitHub repos and summarize the Wallet API changes. Budget: 50 USDC."
+   
+   Your agent finds a capable agent on Moltbook, negotiates a price, creates an intent. You approve. Work gets done. Agent-to-agent commerce with human oversight.
+
+2. **Moltbook Bounties**
+   > "Post a 100 USDC bounty for the first agent to build a working snow-forecast skill."
+   
+   Agent creates escrow intent. Other agents compete. Winner verified. You sign the payout. Permissionless bounty system.
+
+3. **Agent Tip Jar**
+   > "Tip @ResearchBot 5 USDC for that excellent thread on Clear Signing."
+   
+   Agents tipping agents for valuable contributions. Micropayments for the agent economy.
+
+### 🎙️ Creator & Content Payments
+
+4. **Podcast Guest Payment**
+   > "Pay Seth 200 USDC for co-hosting this week's Let's Vibe episode."
+   
+   Your agent tracks recording completion, creates intent with memo. Clean audit trail for creator payments.
+
+5. **Commission an AI Artist**
+   > "Commission @ArtAgentX to generate 10 album covers. 150 USDC on delivery."
+   
+   Agent negotiates with AI artist agent, milestone payment on approval of work.
+
+6. **Newsletter Subscription**
+   > "Subscribe to Bankless Premium. 20 USDC/month, auto-renew."
+   
+   Agent creates recurring intent. Each month you get a signing request. Cancel anytime by rejecting.
+
+### 🏢 Business Operations
+
+7. **Contractor Invoice Processing**
+   > "Process the invoice from the dev contractor: 2,500 USDC for January work."
+   
+   Agent extracts invoice from email, verifies hours against calendar, creates intent with full context.
+
+8. **Expense Reimbursement**
+   > "Reimburse the team dinner from last night. Split: Alice 45 USDC, Bob 45 USDC, Carol 45 USDC."
+   
+   Agent reads receipt, creates batch intents. One approval screen, three payments.
+
+9. **Payroll Run**
+   > "Run monthly payroll for the DAO contributors."
+   
+   Agent pulls contributor list, calculates amounts, batches intents. You review the full list, sign once.
+
+### 🌐 DeFi with Training Wheels
+
+10. **Yield Optimization**
+    > "Move 10,000 USDC to the highest-yield stable pool on Aave."
+    
+    Agent monitors yields across protocols, proposes reallocation. You verify on Ledger before any funds move.
+
+11. **Dollar-Cost Averaging**
+    > "Buy 100 USDC worth of ETH every Monday."
+    
+    Agent creates weekly swap intent. You approve each one (or set up a rule). Disciplined investing with hardware security.
+
+12. **Limit Order Agent**
+    > "When ETH drops below $2,000, swap 500 USDC to ETH."
+    
+    Agent watches price, creates intent when triggered. You still sign — no smart contract risk.
+
+### 🔐 Security-First Scenarios (Circle will love these)
+
+13. **Multi-Agent Approval**
+    > Two agents must agree before an intent is created. Your personal agent AND your security agent both verify.
+    
+    Defense in depth. Even if one agent is compromised, the other catches it.
+
+14. **Spending Limits**
+    > Agent can create intents up to 100 USDC without extra verification. Above that, requires explicit voice confirmation.
+    
+    Tiered trust model. Small payments = fast. Large payments = extra friction.
+
+15. **Suspicious Transaction Blocker**
+    > Agent detects unusual pattern: "This address received funds from a flagged mixer. Creating intent but flagging HIGH RISK."
+    
+    Agent-powered compliance. You see the warning before signing.
+
+16. **Recovery Agent**
+    > "If my main agent is compromised, my recovery agent can freeze all pending intents."
+    
+    Agent-level security controls. Compromised agent can propose, but can't execute.
+
+### 🎪 Publicity Stunts & Demos
+
+17. **Live Hackathon Demo**
+    > On stage: "Clouseau, pay the judges 10 USDC each for their time."
+    
+    Agent creates 3 intents live. Speaker pulls out Ledger Flex, reviews on screen, signs. Applause.
+
+18. **Agent Charity Drive**
+    > "Match all donations to GiveDirectly up to 1,000 USDC this week."
+    
+    Agent monitors donation announcements on Moltbook, creates matching intents. Humans approve the good vibes.
+
+19. **The $1 Million Test**
+    > "Create an intent for 1,000,000 USDC to vitalik.eth"
+    
+    Agent creates it. Intent sits there. You DON'T sign. Point proven: agents can propose anything, but only humans with hardware can execute. Sleep well.
+
+20. **Cross-Agent Escrow**
+    > Two agents negotiate a trade. Neither trusts the other. Both create intents to a neutral escrow agent. Humans on both sides sign. Trade executes atomically.
+    
+    Trustless agent commerce with human-in-the-loop security.
+
+---
+
+### Use Case Themes for Messaging
+
+| Theme | Pitch |
+|-------|-------|
+| **Security** | "Your agent has root access. Your keys don't." |
+| **Agent Economy** | "USDC is the currency of agent commerce." |
+| **Human Control** | "AI proposes, human disposes." |
+| **Compliance** | "Full audit trail. Every intent logged." |
+| **Sleep Test** | "Can you sleep knowing your agent has spending power? Now you can." |
+
+---
+
 ## Dev Notes
 
 *(Updated as we build)*
@@ -265,4 +397,6 @@ ledger-agent-intents/
 ### 2026-02-04
 - Project kickoff
 - Scaffolded monorepo
-- Awaiting DevRel answers on Clear Signing approach
+- Ledger Head of Product: Use Ledger Button instead of Wallet API
+- Switched to wagmi + Connect Kit approach
+- Added 20 use cases for demos/publicity
