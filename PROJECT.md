@@ -394,9 +394,32 @@ ledger-agent-intents/
 
 *(Updated as we build)*
 
-### 2026-02-04
-- Project kickoff
-- Scaffolded monorepo
-- Ledger Head of Product: Use Ledger Button instead of Wallet API
-- Switched to wagmi + Connect Kit approach
-- Added 20 use cases for demos/publicity
+### 2026-02-04 — Day 1
+
+**Morning:**
+- ✅ Project kickoff
+- ✅ Scaffolded monorepo (turbo, TypeScript, workspaces)
+- ✅ Ledger Head of Product guidance: Use Ledger Button instead of Wallet API
+- ✅ Switched from Wallet API to wagmi + Connect Kit approach
+- ✅ Added 20 use cases for demos/publicity
+- ✅ Backend tested and working locally
+- ✅ Skill CLI tested and working (`ledger-intent send|status|list`)
+- ✅ Web app running locally (Vite + React)
+- ✅ Ledger team member joining as collaborator
+- 🔄 Ian setting up Vercel deployment
+
+**Status:**
+| Component | Local | Deployed |
+|-----------|-------|----------|
+| Backend API | ✅ Working | ⏳ Pending |
+| Web App | ✅ Working | ⏳ Vercel setup |
+| Skill CLI | ✅ Working | N/A (local) |
+
+**Blockers:**
+- Need to decide backend deployment (Vercel serverless vs separate service)
+- Need WalletConnect Project ID for full Ledger connector
+
+**Next:**
+- Deploy to Vercel
+- Test end-to-end with real Ledger device
+- Wire up actual ERC-20 transfer encoding
