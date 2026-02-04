@@ -3,126 +3,191 @@
  */
 
 // Intent status lifecycle
-export type IntentStatus = 
-  | 'pending'      // Created by agent, awaiting human review
-  | 'approved'     // Human approved, ready to sign
-  | 'rejected'     // Human rejected
-  | 'signed'       // Signed on device, broadcasting
-  | 'confirmed'    // Transaction confirmed on-chain
-  | 'failed'       // Transaction failed
-  | 'expired';     // Intent expired without action
+export type IntentStatus =
+	| "pending" // Created by agent, awaiting human review
+	| "approved" // Human approved, ready to sign
+	| "rejected" // Human rejected
+	| "signed" // Signed on device, broadcasting
+	| "confirmed" // Transaction confirmed on-chain
+	| "failed" // Transaction failed
+	| "expired"; // Intent expired without action
 
 // Supported intent types
-export type IntentType = 
-  | 'transfer'     // Token transfer
-  | 'swap'         // Token swap (future)
-  | 'nft'          // NFT transfer (future)
-  | 'contract';    // Generic contract call (future)
+export type IntentType =
+	| "transfer" // Token transfer
+	| "swap" // Token swap (future)
+	| "nft" // NFT transfer (future)
+	| "contract"; // Generic contract call (future)
 
 // Urgency levels affect how intents are displayed
-export type IntentUrgency = 'low' | 'normal' | 'high' | 'critical';
+export type IntentUrgency = "low" | "normal" | "high" | "critical";
 
 // Token transfer intent
 export interface TransferIntent {
-  type: 'transfer';
-  token: string;           // e.g., 'USDC', 'ETH'
-  tokenAddress?: string;   // Contract address for ERC-20
-  amount: string;          // Human-readable amount
-  amountWei?: string;      // Wei amount for precision
-  recipient: string;       // Destination address
-  recipientEns?: string;   // ENS name if resolved
-  chainId: number;         // e.g., 1 for mainnet, 137 for Polygon
-  memo?: string;           // Human-readable reason
+	type: "transfer";
+	token: string; // e.g., 'USDC', 'ETH'
+	tokenAddress?: string; // Contract address for ERC-20
+	amount: string; // Human-readable amount
+	amountWei?: string; // Wei amount for precision
+	recipient: string; // Destination address
+	recipientEns?: string; // ENS name if resolved
+	chainId: number; // e.g., 11155111 for Sepolia, 84532 for Base Sepolia
+	memo?: string; // Human-readable reason
 }
 
 // Base intent structure
 export interface Intent {
-  id: string;
-  userId: string;          // Ledger Live user identifier
-  agentId: string;         // Which agent created this (e.g., 'clouseau')
-  agentName: string;       // Display name (e.g., 'Inspector Clouseau')
-  
-  // Intent details (union for different types)
-  details: TransferIntent; // Expand to union as we add types
-  
-  // Metadata
-  urgency: IntentUrgency;
-  status: IntentStatus;
-  
-  // Timestamps
-  createdAt: string;       // ISO timestamp
-  expiresAt?: string;      // Optional expiration
-  reviewedAt?: string;     // When human reviewed
-  signedAt?: string;       // When signed on device
-  confirmedAt?: string;    // When confirmed on-chain
-  
-  // Transaction data (populated after signing)
-  txHash?: string;
-  txUrl?: string;          // Block explorer link
-  
-  // Audit trail
-  statusHistory: Array<{
-    status: IntentStatus;
-    timestamp: string;
-    note?: string;
-  }>;
+	id: string;
+	userId: string; // Ledger Live user identifier
+	agentId: string; // Which agent created this (e.g., 'clouseau')
+	agentName: string; // Display name (e.g., 'Inspector Clouseau')
+
+	// Intent details (union for different types)
+	details: TransferIntent; // Expand to union as we add types
+
+	// Metadata
+	urgency: IntentUrgency;
+	status: IntentStatus;
+
+	// Timestamps
+	createdAt: string; // ISO timestamp
+	expiresAt?: string; // Optional expiration
+	reviewedAt?: string; // When human reviewed
+	signedAt?: string; // When signed on device
+	confirmedAt?: string; // When confirmed on-chain
+
+	// Transaction data (populated after signing)
+	txHash?: string;
+	txUrl?: string; // Block explorer link
+
+	// Audit trail
+	statusHistory: Array<{
+		status: IntentStatus;
+		timestamp: string;
+		note?: string;
+	}>;
 }
 
 // API request to create intent
 export interface CreateIntentRequest {
-  agentId: string;
-  agentName: string;
-  details: TransferIntent;
-  urgency?: IntentUrgency;
-  expiresInMinutes?: number;
+	agentId: string;
+	agentName: string;
+	details: TransferIntent;
+	urgency?: IntentUrgency;
+	expiresInMinutes?: number;
 }
 
 // API response
 export interface CreateIntentResponse {
-  success: boolean;
-  intent?: Intent;
-  error?: string;
+	success: boolean;
+	intent?: Intent;
+	error?: string;
 }
 
 // Webhook payload when intent status changes
 export interface IntentWebhook {
-  event: 'intent.created' | 'intent.approved' | 'intent.rejected' | 
-         'intent.signed' | 'intent.confirmed' | 'intent.failed' | 'intent.expired';
-  intent: Intent;
-  timestamp: string;
+	event:
+		| "intent.created"
+		| "intent.approved"
+		| "intent.rejected"
+		| "intent.signed"
+		| "intent.confirmed"
+		| "intent.failed"
+		| "intent.expired";
+	intent: Intent;
+	timestamp: string;
 }
 
-// Supported chains and tokens (initial set)
+// =============================================================================
+// Supported Chains (Testnet only for hackathon)
+// =============================================================================
+
 export const SUPPORTED_CHAINS = {
-  1: { name: 'Ethereum', symbol: 'ETH', explorer: 'https://etherscan.io' },
-  137: { name: 'Polygon', symbol: 'MATIC', explorer: 'https://polygonscan.com' },
-  8453: { name: 'Base', symbol: 'ETH', explorer: 'https://basescan.org' },
+	11155111: {
+		name: "Sepolia",
+		symbol: "ETH",
+		explorer: "https://sepolia.etherscan.io",
+	},
+	84532: {
+		name: "Base Sepolia",
+		symbol: "ETH",
+		explorer: "https://sepolia.basescan.org",
+	},
 } as const;
 
-export const SUPPORTED_TOKENS: Record<number, Record<string, { address: string; decimals: number }>> = {
-  // Ethereum mainnet
-  1: {
-    USDC: { address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6 },
-    USDT: { address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6 },
-    DAI: { address: '0x6B175474E89094C44Da98b954EescdECD73A31F', decimals: 18 },
-  },
-  // Polygon
-  137: {
-    USDC: { address: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', decimals: 6 },
-    USDT: { address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', decimals: 6 },
-  },
-  // Base
-  8453: {
-    USDC: { address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6 },
-  },
+export type SupportedChainId = keyof typeof SUPPORTED_CHAINS;
+
+// =============================================================================
+// Supported Tokens (Testnet USDC addresses)
+// =============================================================================
+
+export const SUPPORTED_TOKENS: Record<
+	SupportedChainId,
+	Record<string, { address: string; decimals: number }>
+> = {
+	// Sepolia testnet
+	11155111: {
+		USDC: {
+			address: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+			decimals: 6,
+		},
+	},
+	// Base Sepolia testnet
+	84532: {
+		USDC: {
+			address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+			decimals: 6,
+		},
+	},
 };
+
+// =============================================================================
+// Explorer URL Helpers
+// =============================================================================
+
+/**
+ * Get the block explorer URL for a transaction hash
+ */
+export function getExplorerTxUrl(chainId: number, txHash: string): string {
+	const chain = SUPPORTED_CHAINS[chainId as SupportedChainId];
+	const explorer = chain?.explorer ?? "https://etherscan.io";
+	return `${explorer}/tx/${txHash}`;
+}
+
+/**
+ * Get the block explorer URL for an address
+ */
+export function getExplorerAddressUrl(chainId: number, address: string): string {
+	const chain = SUPPORTED_CHAINS[chainId as SupportedChainId];
+	const explorer = chain?.explorer ?? "https://etherscan.io";
+	return `${explorer}/address/${address}`;
+}
+
+/**
+ * Check if a chain ID is supported
+ */
+export function isSupportedChain(chainId: number): chainId is SupportedChainId {
+	return chainId in SUPPORTED_CHAINS;
+}
+
+/**
+ * Get chain name by ID, or "Unknown" if not supported
+ */
+export function getChainName(chainId: number): string {
+	const chain = SUPPORTED_CHAINS[chainId as SupportedChainId];
+	return chain?.name ?? "Unknown";
+}
+
+// =============================================================================
+// Utility Functions
+// =============================================================================
 
 // Utility: generate intent ID
 export function generateIntentId(): string {
-  return `int_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+	return `int_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
 // Utility: format amount for display
 export function formatAmount(amount: string, token: string): string {
-  return `${amount} ${token}`;
+	return `${amount} ${token}`;
 }

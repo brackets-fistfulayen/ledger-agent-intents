@@ -1,0 +1,214 @@
+---
+description: Lumen Design System rules for building UI components
+globs: ["apps/web/src/**/*.tsx", "apps/web/src/**/*.ts"]
+alwaysApply: true
+---
+
+# Lumen Design System Rules
+
+This project uses the Ledger Lumen Design System. Follow these rules when building components.
+
+## Typography
+
+**Do NOT use Tailwind typography utilities** (`font-bold`, `text-sm`, `text-lg`, etc.)
+
+Use Lumen typography classes instead:
+
+```tsx
+// Headings
+<h1 className="heading-0-semi-bold">48px heading</h1>
+<h2 className="heading-1">40px heading</h2>
+<h3 className="heading-2-semi-bold">28px heading</h3>
+<h4 className="heading-3">24px heading</h4>
+<h5 className="heading-4">20px heading</h5>
+<h6 className="heading-5">18px heading</h6>
+
+// Body text
+<p className="body-1">16px body text</p>
+<p className="body-2">14px body text</p>
+<p className="body-3">12px body text</p>
+<p className="body-4">10px body text</p>
+
+// Semi-bold variants: body-1-semi-bold, heading-2-semi-bold, etc.
+
+// Displays (largest)
+<span className="responsive-display-1">112px display</span>
+<span className="responsive-display-2">80px display</span>
+```
+
+## Colors
+
+**Do NOT use Tailwind default colors** (`text-gray-500`, `bg-blue-600`, etc.)
+
+Use semantic color tokens:
+
+### Background Colors
+```tsx
+// Canvas (page backgrounds)
+bg-canvas, bg-canvas-muted, bg-canvas-sheet, bg-canvas-overlay
+
+// Surface (cards)
+bg-surface, bg-surface-hover, bg-surface-pressed
+
+// Base
+bg-base, bg-base-hover, bg-base-pressed, bg-base-transparent
+
+// Muted
+bg-muted, bg-muted-hover, bg-muted-transparent, bg-muted-strong
+
+// Accent & Interactive
+bg-accent, bg-accent-hover, bg-interactive, bg-interactive-hover
+
+// Status
+bg-error, bg-error-strong, bg-warning, bg-success, bg-success-strong
+```
+
+### Text Colors
+```tsx
+text-base, text-base-hover
+text-muted, text-muted-hover, text-muted-subtle
+text-interactive, text-interactive-hover
+text-error, text-warning, text-success
+text-on-accent, text-on-interactive
+text-disabled
+```
+
+### Border Colors
+```tsx
+border-base, border-base-hover
+border-muted, border-muted-hover, border-muted-subtle
+border-focus, border-active
+border-error, border-warning, border-success
+border-disabled
+```
+
+## Spacing & Size
+
+Lumen uses **1:1 pixel mapping**. Each number equals its pixel value:
+
+```tsx
+// Spacing (padding, margin, gap)
+<div className="p-16">    {/* 16px padding */}
+<div className="gap-24">  {/* 24px gap */}
+<div className="mt-8">    {/* 8px margin-top */}
+
+// Available: 0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 256
+
+// Size (width, height)
+<div className="size-36">   {/* 36px x 36px */}
+<div className="w-64 h-48"> {/* 64px width, 48px height */}
+
+// Available: 0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48, 56, 64, 72, 80, 96, 112, 128, 144, 176, 192, 208, 224, 256, 288, 320, 400, 480, 560
+```
+
+## Border Radius
+
+```tsx
+rounded-none  // 0px
+rounded-xs    // 4px
+rounded-sm    // 8px
+rounded-md    // 12px
+rounded-lg    // 16px
+rounded-xl    // 24px
+rounded-2xl   // 32px
+rounded-full  // pill shape (10000px)
+```
+
+## Shadows
+
+```tsx
+shadow-sm, shadow-md, shadow-lg, shadow-xl, shadow-2xl
+drop-shadow-sm, drop-shadow-md, drop-shadow-lg, drop-shadow-xl, drop-shadow-2xl
+```
+
+## Component Patterns
+
+### Use the cn() utility for conditional classes
+
+```tsx
+import { cn } from "@/lib/utils";
+
+function Button({ isActive, className }) {
+  return (
+    <button className={cn(
+      "body-2-semi-bold rounded-lg px-16 py-8",
+      isActive ? "bg-accent text-on-accent" : "bg-muted text-base",
+      className
+    )}>
+      Click me
+    </button>
+  );
+}
+```
+
+### Use CVA for component variants
+
+```tsx
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center rounded-lg transition-colors body-2-semi-bold",
+  {
+    variants: {
+      variant: {
+        primary: "bg-accent text-on-accent hover:bg-accent-hover",
+        secondary: "bg-muted text-base hover:bg-muted-hover",
+        ghost: "bg-transparent text-muted hover:bg-muted-transparent hover:text-base",
+      },
+      size: {
+        sm: "px-12 py-6",
+        md: "px-16 py-8",
+        lg: "px-24 py-12",
+      },
+    },
+    defaultVariants: {
+      variant: "primary",
+      size: "md",
+    },
+  }
+);
+
+interface ButtonProps extends VariantProps<typeof buttonVariants> {
+  children: React.ReactNode;
+  className?: string;
+}
+
+function Button({ variant, size, className, children }: ButtonProps) {
+  return (
+    <button className={cn(buttonVariants({ variant, size }), className)}>
+      {children}
+    </button>
+  );
+}
+```
+
+## Icons
+
+Import icons from the symbols entry point:
+
+```tsx
+import { ArrowRight, CheckCircle } from "@ledgerhq/lumen-ui-react/symbols";
+
+// Use as components
+<ArrowRight className="size-20" />
+
+// Pass as props to components
+<Button icon={ArrowRight}>Continue</Button>
+```
+
+## Using Lumen Components
+
+```tsx
+import { Button, Banner, Tag } from "@ledgerhq/lumen-ui-react";
+
+<Button appearance="accent" size="md">Click me</Button>
+<Banner appearance="info" title="Info" description="Message" />
+<Tag appearance="success">Active</Tag>
+```
+
+## Reference
+
+- Design system reference: `@/lib/design-system.ts`
+- Storybook: https://lumen-ldls.vercel.app
+- Source: https://github.com/LedgerHQ/lumen
