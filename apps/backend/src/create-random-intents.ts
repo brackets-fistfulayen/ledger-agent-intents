@@ -42,8 +42,8 @@ const MEMOS = [
 ];
 
 async function createIntent(amount: string, index: number) {
-	const agent = AGENTS[index % AGENTS.length];
-	const memo = MEMOS[index % MEMOS.length];
+	const agent = AGENTS[index % AGENTS.length]!;
+	const memo = MEMOS[index % MEMOS.length]!;
 
 	const intentRequest: CreateIntentRequest & { userId: string } = {
 		userId: USER_WALLET,
@@ -103,7 +103,7 @@ async function main() {
 	const results = [];
 
 	for (let i = 0; i < AMOUNTS.length; i++) {
-		const intent = await createIntent(AMOUNTS[i], i);
+		const intent = await createIntent(AMOUNTS[i]!, i);
 		if (intent) {
 			results.push(intent);
 		}
