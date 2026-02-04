@@ -1,12 +1,12 @@
 {
-  "name": "@agent-intents/skill",
-  "version": "0.1.0",
-  "private": true,
-  "bin": {
-    "ledger-intent": "./bin/ledger-intent.js"
-  },
-  "scripts": {
-    "build": "echo 'Shell script - no build needed'",
-    "clean": "echo 'Nothing to clean'"
-  }
+	"name": "@agent-intents/skill",
+	"version": "0.1.0",
+	"private": true,
+	"bin": {
+		"ledger-intent": "./bin/ledger-intent.js"
+	},
+	"scripts": {
+		"build": "echo 'Shell script - no build needed'",
+		"clean": "echo 'Nothing to clean'"
+	}
 }
