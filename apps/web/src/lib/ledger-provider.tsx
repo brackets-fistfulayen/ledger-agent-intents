@@ -273,14 +273,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			if (!provider) throw new Error("No provider available");
 			if (!account) throw new Error("Not connected");
 
-			// Warm up the device connection before signing.
-			// If the Ledger transport session expired (BLE timeout, tab backgrounded, etc.),
-			// this re-establishes it. If already connected, it's a fast no-op.
-			await provider.provider.request({
-				method: "eth_requestAccounts",
-				params: [],
-			});
-
 			// Convert the human-readable message to a hex-encoded string for personal_sign
 			const hexMessage = `0x${Array.from(new TextEncoder().encode(message))
 				.map((b) => b.toString(16).padStart(2, "0"))
