@@ -28,6 +28,8 @@ interface IntentRow {
 	confirmed_at: Date | null;
 	tx_hash: string | null;
 	tx_url: string | null;
+	trust_chain_id: string | null;
+	created_by_member_id: string | null;
 }
 
 interface StatusHistoryRow {
@@ -52,6 +54,8 @@ function rowToIntent(row: IntentRow, history: StatusHistoryRow[]): Intent {
 		details: row.details,
 		urgency: row.urgency,
 		status: row.status,
+		trustChainId: row.trust_chain_id ?? undefined,
+		createdByMemberId: row.created_by_member_id ?? undefined,
 		createdAt: row.created_at.toISOString(),
 		expiresAt: row.expires_at?.toISOString(),
 		reviewedAt: row.reviewed_at?.toISOString(),
@@ -124,12 +128,14 @@ export async function createIntent(params: {
 	details: TransferIntent;
 	urgency: IntentUrgency;
 	expiresAt?: string;
+	trustChainId?: string;
+	createdByMemberId?: string;
 }): Promise<Intent> {
-	const { id, userId, agentId, agentName, details, urgency, expiresAt } = params;
+	const { id, userId, agentId, agentName, details, urgency, expiresAt, trustChainId, createdByMemberId } = params;
 
 	// Insert intent
 	const result = await sql`
-    INSERT INTO intents (id, user_id, agent_id, agent_name, details, urgency, status, expires_at)
+    INSERT INTO intents (id, user_id, agent_id, agent_name, details, urgency, status, expires_at, trust_chain_id, created_by_member_id)
     VALUES (
       ${id},
       ${userId},
@@ -138,7 +144,9 @@ export async function createIntent(params: {
       ${JSON.stringify(details)},
       ${urgency},
       'pending',
-      ${expiresAt ?? null}
+      ${expiresAt ?? null},
+      ${trustChainId ?? null},
+      ${createdByMemberId ?? null}
     )
     RETURNING *
   `;

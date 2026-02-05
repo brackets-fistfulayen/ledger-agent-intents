@@ -57,6 +57,9 @@ importers:
       '@agent-intents/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@ledgerhq/device-trusted-app-kit-ledger-keyring-protocol':
+        specifier: 0.3.0
+        version: 0.3.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
       '@ledgerhq/ledger-wallet-provider':
         specifier: workspace:*
         version: link:../../packages/ledger-button

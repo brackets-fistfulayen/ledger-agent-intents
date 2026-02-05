@@ -176,6 +176,10 @@ export interface Intent {
 	urgency: IntentUrgency;
 	status: IntentStatus;
 
+	// Trustchain identity (populated when intent is created by a provisioned agent)
+	trustChainId?: string;
+	createdByMemberId?: string;
+
 	// Timestamps
 	createdAt: string; // ISO timestamp
 	expiresAt?: string; // Optional expiration
@@ -193,6 +197,37 @@ export interface Intent {
 		timestamp: string;
 		note?: string;
 	}>;
+}
+
+// =============================================================================
+// Trustchain Members / Agent Provisioning
+// =============================================================================
+
+export type TrustchainMemberRole = "agent_write_only" | "full_access";
+
+/** A provisioned agent registered under a user's Trustchain identity. */
+export interface TrustchainMember {
+	id: string; // UUID
+	trustchainId: string;
+	memberPubkey: string; // Hex-encoded secp256k1 compressed public key
+	role: TrustchainMemberRole;
+	label: string | null;
+	createdAt: string; // ISO timestamp
+	revokedAt: string | null; // ISO timestamp, null if active
+}
+
+/** Request body for POST /api/agents/register */
+export interface RegisterAgentRequest {
+	trustChainId: string;
+	agentLabel: string;
+	agentPublicKey: string; // Hex-encoded secp256k1 compressed public key (from LKRP NobleCryptoService)
+}
+
+/** Response from POST /api/agents/register */
+export interface RegisterAgentResponse {
+	success: boolean;
+	member?: TrustchainMember;
+	error?: string;
 }
 
 // API request to create intent

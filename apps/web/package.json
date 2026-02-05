@@ -14,6 +14,7 @@
 		"@agent-intents/shared": "workspace:*",
 		"@vercel/node": "^5.5.28",
 		"@vercel/postgres": "^0.10.0",
+		"@ledgerhq/device-trusted-app-kit-ledger-keyring-protocol": "0.3.0",
 		"@ledgerhq/ledger-wallet-provider": "workspace:*",
 		"@ledgerhq/lumen-design-core": "^0.0.46",
 		"@ledgerhq/lumen-ui-react": "^0.0.76",

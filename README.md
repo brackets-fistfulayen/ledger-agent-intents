@@ -157,91 +157,133 @@ ledger-intent send 100 USDC to 0xabc...def for "time-sensitive invoice" --chain 
 
 ---
 
+## Agent Provisioning (LKRP)
+
+Agents authenticate using **secp256k1 keypairs** generated via LKRP's `NobleCryptoService`. The user provisions an agent from the **Settings** page in the web app, downloads a JSON credential file, and the agent uses it to sign API requests.
+
+### 1. Provision an Agent Key (UI)
+
+1. Open the web app and connect your Ledger device
+2. Go to **Settings > Agent Keys**
+3. Click **New Agent Key**, enter a name
+4. A keypair is generated client-side using LKRP crypto and the public key is registered on the backend
+5. **Download the credential file** — it contains the private key and will not be shown again
+
+The downloaded file looks like:
+
+```json
+{
+  "version": 1,
+  "label": "My Trading Bot",
+  "trustchainId": "0xabc...def",
+  "privateKey": "0x...",
+  "publicKey": "0x...",
+  "createdAt": "2026-02-05T12:00:00.000Z"
+}
+```
+
+### 2. Create an Authenticated Intent (Agent-Side)
+
+Once you have the credential file, your agent signs every API request with the private key using the `AgentAuth` header scheme:
+
+```
+Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>
+```
+
+Here's a full Node.js example using **viem** (the LKRP private key is a standard secp256k1 key):
+
+```typescript
+import { privateKeyToAccount } from "viem/accounts";
+import { keccak256, toHex } from "viem";
+import fs from "fs";
+
+// 1. Load the credential file
+const credential = JSON.parse(fs.readFileSync("./agent-credential.json", "utf-8"));
+const account = privateKeyToAccount(credential.privateKey);
+
+// 2. Build the request body
+const body = JSON.stringify({
+  agentId: "my-trading-bot",
+  agentName: "My Trading Bot",
+  details: {
+    type: "transfer",
+    token: "USDC",
+    amount: "50",
+    recipient: "0x1234567890abcdef1234567890abcdef12345678",
+    chainId: 8453,
+    memo: "Payment for API access"
+  }
+});
+
+// 3. Create the AgentAuth header
+const timestamp = Math.floor(Date.now() / 1000).toString();
+const bodyHash = keccak256(toHex(body));
+const message = `${timestamp}.${bodyHash}`;
+const signature = await account.signMessage({ message });
+const authHeader = `AgentAuth ${timestamp}.${bodyHash}.${signature}`;
+
+// 4. Send the request
+const res = await fetch("https://your-app.vercel.app/api/intents", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": authHeader,
+  },
+  body,
+});
+
+const data = await res.json();
+console.log("Intent created:", data.intent.id);
+```
+
+When using `AgentAuth`, the `userId` field is **ignored** — the backend derives the identity from the verified agent key.
+
+### 3. Revoke an Agent Key
+
+Go to **Settings > Agent Keys** in the web app and click **Revoke** on the agent. The agent will receive `401 Unauthorized` on subsequent requests.
+
+---
+
 ## API Reference
 
-### Create Intent
+### Intents
+
+#### Create Intent
 
 ```http
 POST /api/intents
 Content-Type: application/json
+Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>
 
 {
   "agentId": "clouseau",
   "agentName": "Inspector Clouseau",
-  "userId": "ian",
   "details": {
     "type": "transfer",
     "token": "USDC",
     "amount": "50",
     "recipient": "0x...",
-    "chainId": 1,
-    "memo": "podcast payment",
-    
-    // x402-aligned fields (optional)
-    "resource": "https://api.example.com/service",
-    "merchant": {
-      "name": "Example Service",
-      "url": "https://example.com",
-      "logo": "https://example.com/logo.png",
-      "verified": true
-    },
-    "category": "api_payment"
+    "chainId": 8453,
+    "memo": "podcast payment"
   }
 }
 ```
 
-#### TransferIntent Fields
+The `Authorization` header is optional. Without it, the legacy demo mode is used (`userId` from body or `"demo-user"`).
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | ✅ | Always `"transfer"` |
-| `token` | string | ✅ | Token symbol (e.g., `"USDC"`, `"ETH"`) |
-| `tokenAddress` | string | | ERC-20 contract address |
-| `amount` | string | ✅ | Human-readable amount |
-| `amountWei` | string | | Wei amount for precision |
-| `recipient` | string | ✅ | Destination address |
-| `recipientEns` | string | | ENS name if resolved |
-| `chainId` | number | ✅ | Chain ID (e.g., `84532` for Base Sepolia) |
-| `memo` | string | | Human-readable reason |
-| `resource` | string | | x402 resource URL (API endpoint) |
-| `merchant` | object | | Merchant/payee info (see below) |
-| `category` | string | | Payment category |
-
-#### Merchant Object
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Display name (e.g., `"OpenAI"`) |
-| `url` | string | Website or service URL |
-| `logo` | string | Logo URL for UI display |
-| `verified` | boolean | `true` if from x402 Bazaar or curated list |
-
-#### Payment Categories
-
-| Category | Description |
-|----------|-------------|
-| `api_payment` | x402 pay-per-call API |
-| `subscription` | Recurring service (Netflix, Spotify) |
-| `purchase` | One-time purchase |
-| `p2p_transfer` | Person-to-person transfer |
-| `defi` | DeFi operations (swap, stake, lend) |
-| `bill_payment` | Utilities, rent, invoices |
-| `donation` | Tips, charity |
-| `other` | Uncategorized |
-
-### Get Intent Status
+#### Get Intent
 
 ```http
 GET /api/intents/:id
 ```
 
-### List User Intents
+#### List User Intents
 
 ```http
-GET /api/users/:userId/intents?status=pending
+GET /api/users/:userId/intents?status=pending&limit=50
 ```
 
-### Update Intent Status
+#### Update Intent Status
 
 ```http
 PATCH /api/intents/:id/status
@@ -251,6 +293,33 @@ Content-Type: application/json
   "status": "signed",
   "txHash": "0x..."
 }
+```
+
+### Agents
+
+#### Register Agent
+
+```http
+POST /api/agents/register
+Content-Type: application/json
+
+{
+  "trustChainId": "0xabc...def",
+  "agentLabel": "My Trading Bot",
+  "agentPublicKey": "0x..."
+}
+```
+
+#### List Agents
+
+```http
+GET /api/agents?trustchainId=0xabc...def
+```
+
+#### Revoke Agent
+
+```http
+DELETE /api/agents/:id
 ```
 
 ---
@@ -265,20 +334,78 @@ Content-Type: application/json
 
 ---
 
+## Deployment (Vercel + Neon)
+
+### Prerequisites
+
+- A [Vercel](https://vercel.com) account
+- A [Neon](https://neon.tech) account (or Vercel Postgres — they use Neon under the hood)
+- The repo pushed to GitHub
+
+### Step 1: Create the Neon Database
+
+1. Go to [neon.tech](https://neon.tech) and create a new project
+2. Choose a region close to your Vercel deployment (e.g., `us-east-1`)
+3. Copy the connection strings from the Neon dashboard:
+   - **Pooled connection** (`POSTGRES_URL`) — used by the serverless functions at runtime
+   - **Direct connection** (`POSTGRES_URL_NON_POOLING`) — used for migrations
+
+### Step 2: Run the Schema
+
+Apply the schema to your Neon database:
+
+```bash
+# Set the direct (non-pooling) connection string
+export POSTGRES_URL_NON_POOLING="postgresql://user:pass@ep-xxx.us-east-1.aws.neon.tech/dbname?sslmode=require"
+
+# Create all tables
+psql "$POSTGRES_URL_NON_POOLING" -f apps/web/db/migrations/001_initial_schema.sql
+```
+
+### Step 3: Deploy to Vercel
+
+1. Import the repo in the Vercel dashboard
+2. Set the **Root Directory** to `apps/web`
+3. Framework preset: **Vite**
+4. The build commands are already configured in `vercel.json`:
+   - Install: `cd ../.. && pnpm install --frozen-lockfile`
+   - Build: `cd ../.. && pnpm -w turbo run build --filter=@agent-intents/web...`
+   - Output: `dist`
+
+### Step 4: Set Environment Variables in Vercel
+
+Go to your project **Settings > Environment Variables** and add:
+
+| Variable | Value | Required |
+|----------|-------|----------|
+| `POSTGRES_URL` | Neon pooled connection string | Yes |
+| `POSTGRES_URL_NON_POOLING` | Neon direct connection string | Yes |
+| `VITE_LEDGER_API_KEY` | Your Ledger Developer Portal API key | Yes |
+| `VITE_BASE_MAINNET_RPC_URL` | Base mainnet RPC URL (e.g., Alchemy) | Optional |
+| `VITE_LEDGER_STUB_DAPP_CONFIG` | `false` (or omit) | No |
+
+> **Tip:** If you use Vercel Postgres (which is backed by Neon), the `POSTGRES_URL` and `POSTGRES_URL_NON_POOLING` variables are set automatically when you link the integration.
+
+### Step 5: Verify
+
+1. Visit `https://your-app.vercel.app/api/health` — should return `{ "success": true, "status": "ok" }`
+2. Open the web app, connect your Ledger, and go to Settings to provision an agent key
+3. Use the downloaded credential file to POST an authenticated intent (see [Agent Provisioning](#agent-provisioning-lkrp) above)
+
+---
+
 ## Environment Variables
 
-### Backend
+### Web App (`apps/web/.env`)
 
-```env
-PORT=3001
-```
-
-### Web App
-
-```env
-VITE_API_URL=http://localhost:3001
-VITE_USER_ID=demo-user
-```
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_LEDGER_API_KEY` | Ledger Developer Portal API key | (required) |
+| `VITE_BACKEND_URL` | Backend URL for local dev | `""` (same-origin) |
+| `VITE_BASE_MAINNET_RPC_URL` | Base mainnet RPC override | (optional) |
+| `VITE_LEDGER_STUB_DAPP_CONFIG` | Use stub dApp config | `false` |
+| `POSTGRES_URL` | Neon/Vercel Postgres pooled URL | (required for API) |
+| `POSTGRES_URL_NON_POOLING` | Neon/Vercel Postgres direct URL | (required for migrations) |
 
 ---
 

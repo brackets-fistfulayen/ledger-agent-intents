@@ -12,7 +12,8 @@
   "tags": [
     { "name": "Health" },
     { "name": "Intents" },
-    { "name": "Users" }
+    { "name": "Users" },
+    { "name": "Agents", "description": "Agent provisioning and management" }
   ],
   "paths": {
     "/api/health": {
@@ -35,7 +36,11 @@
       "post": {
         "tags": ["Intents"],
         "summary": "Create an intent",
-        "description": "Submit a new transaction intent for human review and hardware signing.",
+        "description": "Submit a new transaction intent for human review and hardware signing. If the `Authorization: AgentAuth ...` header is provided, the intent is linked to the authenticated agent's trustchain and the userId field is ignored.",
+        "security": [
+          {},
+          { "AgentAuth": [] }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -164,6 +169,109 @@
         }
       }
     },
+    "/api/agents/register": {
+      "post": {
+        "tags": ["Agents"],
+        "summary": "Register a new agent",
+        "description": "Register a new agent public key under a trustchain identity. The agent receives a credential file containing a secp256k1 private key generated via LKRP's NobleCryptoService.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterAgentRequest" },
+              "examples": {
+                "register": {
+                  "value": {
+                    "trustChainId": "0xabc123def456",
+                    "agentLabel": "My Trading Bot",
+                    "agentPublicKey": "0x04abc...compressed-secp256k1-pubkey"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agent registered",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AgentResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "409": {
+            "description": "Agent public key already registered",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/api/agents": {
+      "get": {
+        "tags": ["Agents"],
+        "summary": "List agents for a trustchain",
+        "parameters": [
+          {
+            "name": "trustchainId",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AgentListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agents/{id}": {
+      "get": {
+        "tags": ["Agents"],
+        "summary": "Get agent by ID",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentResponse" } } }
+          },
+          "404": {
+            "description": "Not found",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Agents"],
+        "summary": "Revoke an agent",
+        "description": "Soft-revokes an agent by setting revoked_at. The agent will receive 401 on subsequent authenticated requests.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent revoked",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentResponse" } } }
+          },
+          "404": {
+            "description": "Agent not found or already revoked",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
     "/api/users/{userId}/intents": {
       "get": {
         "tags": ["Users"],
@@ -210,6 +318,14 @@
     }
   },
   "components": {
+    "securitySchemes": {
+      "AgentAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Agent authentication via signed headers. Format: `AgentAuth <timestamp>.<bodyHash>.<signature>`. The bodyHash is keccak256 of the JSON body as hex. The signature is an EIP-191 personal_sign over `<timestamp>.<bodyHash>` using the agent's secp256k1 private key from the LKRP credential file."
+      }
+    },
     "schemas": {
       "HealthResponse": {
         "type": "object",
@@ -275,6 +391,8 @@
           "confirmedAt": { "type": "string", "format": "date-time" },
           "txHash": { "type": "string" },
           "txUrl": { "type": "string" },
+          "trustChainId": { "type": "string", "description": "Trustchain ID when created by an authenticated agent" },
+          "createdByMemberId": { "type": "string", "format": "uuid", "description": "Agent member ID when created by an authenticated agent" },
           "statusHistory": {
             "type": "array",
             "items": {
@@ -330,6 +448,47 @@
           "paymentSignatureHeader": { "type": "string", "description": "x402: base64-encoded payment signature header value" },
           "paymentPayload": { "type": "object", "additionalProperties": true },
           "settlementReceipt": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "RegisterAgentRequest": {
+        "type": "object",
+        "required": ["trustChainId", "agentPublicKey"],
+        "properties": {
+          "trustChainId": { "type": "string", "description": "Trustchain identity from the connected Ledger device" },
+          "agentLabel": { "type": "string", "description": "Human-readable label (e.g., 'My Trading Bot')" },
+          "agentPublicKey": { "type": "string", "description": "Hex-encoded secp256k1 compressed public key generated by LKRP NobleCryptoService" }
+        }
+      },
+      "TrustchainMember": {
+        "type": "object",
+        "required": ["id", "trustchainId", "memberPubkey", "role", "createdAt"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "trustchainId": { "type": "string" },
+          "memberPubkey": { "type": "string", "description": "Hex-encoded secp256k1 compressed public key" },
+          "role": { "type": "string", "enum": ["agent_write_only", "full_access"], "default": "agent_write_only" },
+          "label": { "type": "string", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "revokedAt": { "type": "string", "format": "date-time", "nullable": true }
+        }
+      },
+      "AgentResponse": {
+        "type": "object",
+        "required": ["success", "member"],
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "member": { "$ref": "#/components/schemas/TrustchainMember" }
+        }
+      },
+      "AgentListResponse": {
+        "type": "object",
+        "required": ["success", "members"],
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "members": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/TrustchainMember" }
+          }
         }
       }
     }
