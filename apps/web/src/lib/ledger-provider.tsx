@@ -314,55 +314,72 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	}, [provider, syncProviderState]);
 
 	// -----------------------------------------------------------------------
-	// ensureAccount: always ask the SDK for the live account before signing.
-	// 1. eth_accounts (passive, no modal) – returns the current account if one
-	//    is already selected in the Ledger Button.
-	// 2. eth_requestAccounts (interactive) – opens account-selection UI only
-	//    when there is no selected account (e.g. after a page refresh).
-	// This removes the dependency on React state which can be stale after
-	// account changes or page navigation.
+	// ensureAccount: resolve the current account for a signing operation.
+	//
+	// Priority order:
+	//   1. eth_accounts (passive, no modal) – SDK may already have one.
+	//   2. React state `account` – set by accountsChanged / connect() / sync.
+	//      The SDK's EIP-1193 provider sometimes returns [] even after the
+	//      user selected an account via the connect-button panel, but the
+	//      accountsChanged event DID fire and updated React state.
+	//   3. eth_requestAccounts (interactive) – last resort, opens the modal.
 	// -----------------------------------------------------------------------
 	const ensureAccount = useCallback(
 		async (): Promise<string> => {
 			if (!provider) throw new Error("No provider available");
 
-			// Passive check first
-			const passiveRaw = await provider.provider.request({
-				method: "eth_accounts",
-				params: [],
-			});
-			const passive = Array.isArray(passiveRaw)
-				? (passiveRaw as string[])
-				: [];
+			// 1. Passive provider check
+			try {
+				const passiveRaw = await provider.provider.request({
+					method: "eth_accounts",
+					params: [],
+				});
+				const passive = Array.isArray(passiveRaw)
+					? (passiveRaw as string[])
+					: [];
 
-			if (passive[0]) {
-				if (passive[0] !== account) setAccount(passive[0]);
-				return passive[0];
+				if (passive[0]) {
+					if (passive[0] !== account) setAccount(passive[0]);
+					return passive[0];
+				}
+			} catch {
+				// ignore – fall through
 			}
 
-			// No account yet – interactive prompt (opens modal if needed)
-			const activeRaw = await provider.provider.request({
-				method: "eth_requestAccounts",
-				params: [],
-			});
-			const active = Array.isArray(activeRaw)
-				? (activeRaw as string[])
-				: [];
+			// 2. React state fallback (set by events / connect / sync)
+			if (account) {
+				return account;
+			}
 
-			if (!active[0]) throw new Error("No account selected");
+			// 3. Interactive prompt – opens account selection if needed
+			try {
+				const activeRaw = await provider.provider.request({
+					method: "eth_requestAccounts",
+					params: [],
+				});
+				const active = Array.isArray(activeRaw)
+					? (activeRaw as string[])
+					: [];
 
-			setAccount(active[0]);
+				if (active[0]) {
+					setAccount(active[0]);
 
-			// Also sync chain
-			provider.provider
-				.request({ method: "eth_chainId", params: [] })
-				.then((raw: unknown) => {
-					if (typeof raw === "string")
-						setChainId(Number.parseInt(raw, 16));
-				})
-				.catch(() => {});
+					// Also sync chain
+					provider.provider
+						.request({ method: "eth_chainId", params: [] })
+						.then((raw: unknown) => {
+							if (typeof raw === "string")
+								setChainId(Number.parseInt(raw, 16));
+						})
+						.catch(() => {});
 
-			return active[0];
+					return active[0];
+				}
+			} catch {
+				// ignore – fall through
+			}
+
+			throw new Error("No account selected");
 		},
 		[provider, account],
 	);
