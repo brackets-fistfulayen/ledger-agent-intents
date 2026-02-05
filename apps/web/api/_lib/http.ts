@@ -38,9 +38,11 @@ export function methodRouter(handlers: RouteHandlers) {
 			await handler(req, res);
 		} catch (error) {
 			console.error(`[API Error] ${method} ${req.url}:`, error);
+			const message =
+				error instanceof Error ? error.message : "Internal server error";
 			res.status(500).json({
 				success: false,
-				error: "Internal server error",
+				error: message,
 			});
 		}
 	};

@@ -87,7 +87,7 @@ CREATE INDEX IF NOT EXISTS idx_intents_trustchain_created
 
 ALTER TABLE intents DROP CONSTRAINT IF EXISTS intents_status_check;
 ALTER TABLE intents ADD CONSTRAINT intents_status_check
-  CHECK (status IN ('pending', 'approved', 'rejected', 'signed', 'confirmed', 'failed', 'expired'));
+  CHECK (status IN ('pending', 'approved', 'rejected', 'signed', 'authorized', 'confirmed', 'failed', 'expired'));
 
 ALTER TABLE intents DROP CONSTRAINT IF EXISTS intents_urgency_check;
 ALTER TABLE intents ADD CONSTRAINT intents_urgency_check
