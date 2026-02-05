@@ -5,6 +5,7 @@
 	"buildCommand": "cd ../.. && pnpm -w turbo run build --filter=@agent-intents/web...",
 	"outputDirectory": "dist",
 	"routes": [
+		{ "src": "/api/(.*)", "dest": "/api/$1" },
 		{ "handle": "filesystem" },
 		{ "src": "/(.*)", "dest": "/index.html" }
 	]
