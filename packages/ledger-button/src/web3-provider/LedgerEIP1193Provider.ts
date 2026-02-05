@@ -153,7 +153,7 @@ export class LedgerEIP1193Provider
     return this.executeRequest({ method, params });
   }
 
-  public on<TEvent extends keyof ProviderEvent>(
+  public on<TEvent extends keyof ProviderEvent & string>(
     eventName: TEvent,
     listener: (args: ProviderEvent[TEvent]) => void,
   ): this {
@@ -173,7 +173,7 @@ export class LedgerEIP1193Provider
     return this;
   }
 
-  public removeListener<TEvent extends keyof ProviderEvent>(
+  public removeListener<TEvent extends keyof ProviderEvent & string>(
     eventName: TEvent,
     listener: (args: ProviderEvent[TEvent]) => void,
   ): this {

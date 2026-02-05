@@ -40,76 +40,66 @@ export class SelectDeviceController implements ReactiveController {
   private mapErrors(error: unknown) {
     const lang = this.lang.currentTranslation;
 
-    switch (true) {
-      case error instanceof DeviceNotSupportedError: {
-        const deviceName = error.context?.modelId
-          ? lang.common.device.model[error.context.modelId]
-          : lang.common.device.model.fallback;
+    if (error instanceof DeviceNotSupportedError) {
+      const deviceName = error.context?.modelId
+        ? lang.common.device.model[error.context.modelId]
+        : lang.common.device.model.fallback;
 
-        const title = lang.error.device.DeviceNotSupported.title.replace(
+      const title = lang.error.device.DeviceNotSupported.title.replace(
+        "{device}",
+        deviceName,
+      );
+      const description =
+        lang.error.device.DeviceNotSupported.description.replace(
           "{device}",
           deviceName,
         );
-        const description =
-          lang.error.device.DeviceNotSupported.description.replace(
-            "{device}",
-            deviceName,
-          );
 
-        this.errorData = {
-          title,
-          message: description,
-          cta1: {
-            label: lang.error.device.DeviceNotSupported.cta1,
-            action: () => {
-              this.errorData = undefined;
-              this.host.requestUpdate();
-            },
+      this.errorData = {
+        title,
+        message: description,
+        cta1: {
+          label: lang.error.device.DeviceNotSupported.cta1,
+          action: () => {
+            this.errorData = undefined;
+            this.host.requestUpdate();
           },
-          cta2: {
-            label: lang.error.device.DeviceNotSupported.cta2,
-            action: () => {
-              window.open(
-                "https://shop.ledger.com/pages/ledger-nano-s-upgrade-program?utm_source=support",
-                "_blank",
-                "noopener,noreferrer",
-              );
-            },
+        },
+        cta2: {
+          label: lang.error.device.DeviceNotSupported.cta2,
+          action: () => {
+            window.open(
+              "https://shop.ledger.com/pages/ledger-nano-s-upgrade-program?utm_source=support",
+              "_blank",
+              "noopener,noreferrer",
+            );
           },
-        };
-        break;
+        },
+      };
+    } else if (error instanceof DeviceDisconnectedError) {
+      const description = lang.error.connection.DeviceDisconnected.description;
+
+      this.errorData = {
+        title: lang.error.connection.DeviceDisconnected.title,
+        message: description,
+        cta1: {
+          label: lang.error.connection.DeviceDisconnected.cta1,
+          action: () => {
+            this.errorData = undefined;
+            this.host.requestUpdate();
+          },
+        },
+      };
+    } else if (error instanceof DeviceConnectionError) {
+      if (
+        error.context?.type === "no-accessible-device" ||
+        error.context?.type === "failed-to-start-discovery"
+      ) {
+        this.errorData = undefined;
       }
-      case error instanceof DeviceDisconnectedError: {
-        const description =
-          lang.error.connection.DeviceDisconnected.description;
-
-        this.errorData = {
-          title: lang.error.connection.DeviceDisconnected.title,
-          message: description,
-          cta1: {
-            label: lang.error.connection.DeviceDisconnected.cta1,
-            action: () => {
-              this.errorData = undefined;
-              this.host.requestUpdate();
-            },
-          },
-        };
-        break;
-      }
-      case error instanceof DeviceConnectionError:
-        if (
-          error.context?.type === "no-accessible-device" ||
-          error.context?.type === "failed-to-start-discovery"
-        ) {
-          this.errorData = undefined;
-          break;
-        }
-
-        break;
-      default:
-        // TODO: handle other errors
-        break;
+      // TODO: handle other DeviceConnectionError cases
     }
+    // TODO: handle other error types
 
     this.host.requestUpdate();
   }

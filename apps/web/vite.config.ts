@@ -45,15 +45,16 @@ export default defineConfig(({ command }) => ({
 		alias: {
 			"@": path.resolve(__dirname, "./src"),
 			// In dev mode, resolve workspace packages to their source for HMR
-			// Note: styles.css must use the built file (dist) because it needs the lb- prefix Tailwind processing
 			...(command === "serve" && {
-				"@ledgerhq/ledger-wallet-provider-core": path.resolve(
-					__dirname,
-					"../../packages/ledger-button-core/src/index.ts",
-				),
+				// Map styles.css to dist (pre-built by build:styles task)
 				"@ledgerhq/ledger-wallet-provider/styles.css": path.resolve(
 					__dirname,
 					"../../packages/ledger-button/dist/styles.css",
+				),
+				// Map JS to source for HMR
+				"@ledgerhq/ledger-wallet-provider-core": path.resolve(
+					__dirname,
+					"../../packages/ledger-button-core/src/index.ts",
 				),
 				"@ledgerhq/ledger-wallet-provider": path.resolve(
 					__dirname,

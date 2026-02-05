@@ -15,7 +15,8 @@ export default defineConfig(({ command }) => ({
 	},
 	build: {
 		outDir: "./dist",
-		emptyOutDir: true,
+		// Don't empty dist - styles.css is built separately by build:styles task
+		emptyOutDir: false,
 		reportCompressedSize: true,
 		cssCodeSplit: false,
 		commonjsOptions: {

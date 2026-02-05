@@ -12,7 +12,11 @@ out/
 
 # Turbo
 .turbo/
-
+# Cursor
+# Ignore Cursor generated state, but keep shared agent rules versioned.
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/*.mdc
 # Environment
 .env
 .env.local

@@ -75,80 +75,73 @@ export class RetrievingAccountsController implements ReactiveController {
   }
 
   mapError(error: unknown) {
-    switch (true) {
-      case error instanceof NoCompatibleAccountsError: {
-        const networks =
-          error.context && error.context.networks.length > 1
-            ? `${error.context.networks.slice(0, -1).join(", ")} and ${error.context.networks.slice(-1)[0]}`
-            : "";
+    if (error instanceof NoCompatibleAccountsError) {
+      const networks =
+        error.context && error.context.networks.length > 1
+          ? `${error.context.networks.slice(0, -1).join(", ")} and ${error.context.networks.slice(-1)[0]}`
+          : "";
 
-        this.errorData = {
-          title:
+      this.errorData = {
+        title:
+          this.lang.currentTranslation.error.ledgerSync.NoCompatibleAccounts
+            .title,
+        message:
+          this.lang.currentTranslation.error.ledgerSync.NoCompatibleAccounts.description.replace(
+            "{networks}",
+            networks,
+          ),
+        cta1: {
+          label:
             this.lang.currentTranslation.error.ledgerSync.NoCompatibleAccounts
-              .title,
-          message:
-            this.lang.currentTranslation.error.ledgerSync.NoCompatibleAccounts.description.replace(
-              "{networks}",
-              networks,
-            ),
-          cta1: {
-            label:
-              this.lang.currentTranslation.error.ledgerSync.NoCompatibleAccounts
-                .cta1,
-            action: () => {
-              // TODO: handle deeplink
-              this.errorData = undefined;
-              window.open("ledgerlive://accounts");
-              if (this.navigation.host instanceof RootNavigationComponent) {
-                this.navigation.host.closeModal();
-              }
-            },
+              .cta1,
+          action: () => {
+            // TODO: handle deeplink
+            this.errorData = undefined;
+            window.open("ledgerlive://accounts");
+            if (this.navigation.host instanceof RootNavigationComponent) {
+              this.navigation.host.closeModal();
+            }
           },
-          cta2: {
-            label:
-              this.lang.currentTranslation.error.ledgerSync.NoCompatibleAccounts
-                .cta2,
-            action: () => {
-              this.errorData = undefined;
-              this.navigation.navigateTo(this.destinations.onboarding);
-            },
+        },
+        cta2: {
+          label:
+            this.lang.currentTranslation.error.ledgerSync.NoCompatibleAccounts
+              .cta2,
+          action: () => {
+            this.errorData = undefined;
+            this.navigation.navigateTo(this.destinations.onboarding);
           },
-        };
-        break;
-      }
-      case error instanceof NoAccountInSyncError: {
-        this.errorData = {
-          title:
-            this.lang.currentTranslation.error.ledgerSync.NoAccountInSync.title,
-          message:
-            this.lang.currentTranslation.error.ledgerSync.NoAccountInSync
-              .description,
-          cta1: {
-            label:
-              this.lang.currentTranslation.error.ledgerSync.NoAccountInSync
-                .cta1,
-            action: () => {
-              if (this.navigation.host instanceof RootNavigationComponent) {
-                this.navigation.host.closeModal();
-              }
-            },
+        },
+      };
+    } else if (error instanceof NoAccountInSyncError) {
+      this.errorData = {
+        title:
+          this.lang.currentTranslation.error.ledgerSync.NoAccountInSync.title,
+        message:
+          this.lang.currentTranslation.error.ledgerSync.NoAccountInSync
+            .description,
+        cta1: {
+          label:
+            this.lang.currentTranslation.error.ledgerSync.NoAccountInSync.cta1,
+          action: () => {
+            if (this.navigation.host instanceof RootNavigationComponent) {
+              this.navigation.host.closeModal();
+            }
           },
-        };
-        break;
-      }
-      default:
-        this.errorData = {
-          title: this.lang.currentTranslation.error.generic.account.title,
-          message:
-            this.lang.currentTranslation.error.generic.account.description,
-          cta1: {
-            label: this.lang.currentTranslation.error.generic.account.cta1,
-            action: () => {
-              this.navigation.navigateTo(this.destinations.onboardingFlow);
-            },
+        },
+      };
+    } else {
+      this.errorData = {
+        title: this.lang.currentTranslation.error.generic.account.title,
+        message:
+          this.lang.currentTranslation.error.generic.account.description,
+        cta1: {
+          label: this.lang.currentTranslation.error.generic.account.cta1,
+          action: () => {
+            this.navigation.navigateTo(this.destinations.onboardingFlow);
           },
-        };
-        break;
+        },
+      };
     }
   }
 }

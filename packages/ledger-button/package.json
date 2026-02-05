@@ -16,8 +16,10 @@
 	},
 	"files": ["dist"],
 	"scripts": {
-		"build": "vite build",
+		"build:styles": "mkdir -p dist && tailwindcss -i ./src/styles.css -o ./dist/styles.css --postcss",
+		"build": "pnpm build:styles && vite build",
 		"dev": "vite build --watch",
+		"dev:styles": "tailwindcss -i ./src/styles.css -o ./dist/styles.css --postcss --watch",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {

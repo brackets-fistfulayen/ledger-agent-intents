@@ -15,8 +15,8 @@ export declare class LedgerEIP1193Provider extends EventTarget implements EIP119
     private _contextSubscription?;
     constructor(core: LedgerButtonCore, app: LedgerButtonApp);
     request({ method, params }: RequestArguments): Promise<unknown>;
-    on<TEvent extends keyof ProviderEvent>(eventName: TEvent, listener: (args: ProviderEvent[TEvent]) => void): this;
-    removeListener<TEvent extends keyof ProviderEvent>(eventName: TEvent, listener: (args: ProviderEvent[TEvent]) => void): this;
+    on<TEvent extends keyof ProviderEvent & string>(eventName: TEvent, listener: (args: ProviderEvent[TEvent]) => void): this;
+    removeListener<TEvent extends keyof ProviderEvent & string>(eventName: TEvent, listener: (args: ProviderEvent[TEvent]) => void): this;
     isConnected(): boolean;
     connect(): Promise<void>;
     navigationIntent(intent: string, params?: unknown): void;
