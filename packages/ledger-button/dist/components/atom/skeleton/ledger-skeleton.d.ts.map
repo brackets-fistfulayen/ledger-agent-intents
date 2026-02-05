@@ -1,0 +1,1 @@
+{"version":3,"file":"ledger-skeleton.d.ts","sourceRoot":"","sources":["../../../../src/components/atom/skeleton/ledger-skeleton.ts"],"names":[],"mappings":"AAAA,OAAO,EAAa,UAAU,EAAE,MAAM,KAAK,CAAC;AA+C5C,qBAEa,cAAe,SAAQ,UAAU;IACnC,MAAM;CAUhB;AAED,OAAO,CAAC,MAAM,CAAC;IACb,UAAU,qBAAqB;QAC7B,iBAAiB,EAAE,cAAc,CAAC;KACnC;CACF"}

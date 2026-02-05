@@ -1,0 +1,1 @@
+{"version":3,"file":"cloudSyncTypes.d.ts","sourceRoot":"","sources":["../../../../src/internal/cloudsync/model/cloudSyncTypes.ts"],"names":[],"mappings":"AAAA,MAAM,MAAM,aAAa,GAAG;IAC1B,OAAO,EAAE,MAAM,CAAC;IAChB,OAAO,EAAE,MAAM,CAAC;IAChB,IAAI,EAAE,MAAM,CAAC;IACb,IAAI,EAAE,MAAM,CAAC;IACb,MAAM,EAAE,MAAM,CAAC;CAChB,CAAC"}

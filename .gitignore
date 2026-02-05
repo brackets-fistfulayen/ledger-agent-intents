@@ -4,8 +4,9 @@ node_modules/
 .pnp.js
 
 # Build outputs
-dist/
 build/
+# Ignore dist in apps but not in packages/ledger-button*
+apps/**/dist/
 .next/
 out/
 
@@ -42,6 +43,5 @@ coverage/
 # Vite generated files
 **/*.timestamp_*.js
 
-# Ledger button packages dist (built locally)
-packages/ledger-button/dist/
-packages/ledger-button-core/dist/
+# Note: ledger-button packages dist folders are committed to allow
+# the project to work immediately after cloning without building first

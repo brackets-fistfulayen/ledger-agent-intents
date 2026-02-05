@@ -1,0 +1,1 @@
+{"version":3,"file":"web3ProviderModule.d.ts","sourceRoot":"","sources":["../../../src/internal/web3-provider/web3ProviderModule.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,eAAe,EAAE,MAAM,WAAW,CAAC;AAO5C,KAAK,yBAAyB,GAAG;IAC/B,IAAI,CAAC,EAAE,OAAO,CAAC;CAChB,CAAC;AAEF,wBAAgB,yBAAyB,CAAC,EAAE,IAAI,EAAE,EAAE,yBAAyB,mBAc5E"}

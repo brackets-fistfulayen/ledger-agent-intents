@@ -1,0 +1,1 @@
+{"version":3,"file":"cloudsyncModule.d.ts","sourceRoot":"","sources":["../../../src/internal/cloudsync/cloudsyncModule.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,eAAe,EAAE,MAAM,WAAW,CAAC;AAK5C,KAAK,gBAAgB,GAAG;IACtB,IAAI,CAAC,EAAE,OAAO,CAAC;CAChB,CAAC;AAGF,wBAAgB,sBAAsB,CAAC,EAAE,IAAI,EAAE,EAAE,gBAAgB,mBAMhE"}

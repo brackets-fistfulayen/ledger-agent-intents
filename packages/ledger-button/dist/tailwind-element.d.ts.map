@@ -1,0 +1,1 @@
+{"version":3,"file":"tailwind-element.d.ts","sourceRoot":"","sources":["../src/tailwind-element.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,SAAS,EAAE,UAAU,EAAa,MAAM,KAAK,CAAC;AAKvD,KAAK,WAAW,GAAG,KAAK,GAAG,IAAI,EAAE,GAAG,EAAE,KAAK,UAAU,CAAC;AAEtD,wBAAgB,eAAe,CAAC,MAAM,CAAC,EAAE,SAAS,IAC/B,CAAC,SAAS,WAAW,EAAE,aAAa,CAAC,KAAG,CAAC,CAK3D"}
