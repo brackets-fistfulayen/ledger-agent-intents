@@ -39,6 +39,28 @@ let ledgerInitialized = false;
 let ledgerCleanupFn: (() => void) | undefined;
 let ledgerAppReady = false;
 
+/**
+ * Dismiss the Ledger SDK overlay modal (success, rejection, or error).
+ * The SDK's `<ledger-core-modal>` uses a Shadow DOM. We try to click its
+ * close button first; if that doesn't work we remove the element entirely
+ * so the user is never stuck on a frozen overlay.
+ */
+function dismissLedgerModal(): void {
+	requestAnimationFrame(() => {
+		const modal = document.querySelector("ledger-core-modal");
+		if (modal?.shadowRoot) {
+			const closeBtn = modal.shadowRoot.querySelector<HTMLElement>(
+				"button, [data-dismiss], .close-button, [aria-label='Close']",
+			);
+			closeBtn?.click();
+		}
+		// Fallback: remove the modal element entirely if click didn't work
+		setTimeout(() => {
+			document.querySelector("ledger-core-modal")?.remove();
+		}, 300);
+	});
+}
+
 export function LedgerProvider({ children }: { children: ReactNode }) {
 	const [provider, setProvider] = useState<EIP6963ProviderDetail | null>(null);
 	const [account, setAccount] = useState<string | null>(null);
@@ -349,19 +371,25 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 		async (tx: TransactionRequest): Promise<string> => {
 			const currentAccount = await ensureAccount();
 
-			const txHash = (await provider!.provider.request({
-				method: "eth_sendTransaction",
-				params: [
-					{
-						from: currentAccount,
-						to: tx.to,
-						data: tx.data,
-						value: tx.value || "0x0",
-					},
-				],
-			})) as string;
+			try {
+				const txHash = (await provider!.provider.request({
+					method: "eth_sendTransaction",
+					params: [
+						{
+							from: currentAccount,
+							to: tx.to,
+							data: tx.data,
+							value: tx.value || "0x0",
+						},
+					],
+				})) as string;
 
-			return txHash;
+				dismissLedgerModal();
+				return txHash;
+			} catch (err) {
+				dismissLedgerModal();
+				throw err;
+			}
 		},
 		[provider, ensureAccount],
 	);
@@ -370,12 +398,18 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 		async (typedData: unknown): Promise<string> => {
 			const currentAccount = await ensureAccount();
 
-			const signature = (await provider!.provider.request({
-				method: "eth_signTypedData_v4",
-				params: [currentAccount, JSON.stringify(typedData)],
-			})) as string;
+			try {
+				const signature = (await provider!.provider.request({
+					method: "eth_signTypedData_v4",
+					params: [currentAccount, JSON.stringify(typedData)],
+				})) as string;
 
-			return signature;
+				dismissLedgerModal();
+				return signature;
+			} catch (err) {
+				dismissLedgerModal();
+				throw err;
+			}
 		},
 		[provider, ensureAccount],
 	);
@@ -389,28 +423,18 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 				.map((b) => b.toString(16).padStart(2, "0"))
 				.join("")}`;
 
-			const signature = (await provider!.provider.request({
-				method: "personal_sign",
-				params: [hexMessage, currentAccount],
-			})) as string;
+			try {
+				const signature = (await provider!.provider.request({
+					method: "personal_sign",
+					params: [hexMessage, currentAccount],
+				})) as string;
 
-			// Dismiss the Ledger Button success modal so it doesn't block the UI.
-			// The SDK sometimes leaves its "Message successfully signed" overlay open.
-			requestAnimationFrame(() => {
-				const modal = document.querySelector("ledger-core-modal");
-				if (modal?.shadowRoot) {
-					const closeBtn = modal.shadowRoot.querySelector<HTMLElement>(
-						"button, [data-dismiss], .close-button, [aria-label='Close']",
-					);
-					closeBtn?.click();
-				}
-				// Fallback: remove the modal element entirely if click didn't work
-				setTimeout(() => {
-					document.querySelector("ledger-core-modal")?.remove();
-				}, 300);
-			});
-
-			return signature;
+				dismissLedgerModal();
+				return signature;
+			} catch (err) {
+				dismissLedgerModal();
+				throw err;
+			}
 		},
 		[provider, ensureAccount],
 	);
