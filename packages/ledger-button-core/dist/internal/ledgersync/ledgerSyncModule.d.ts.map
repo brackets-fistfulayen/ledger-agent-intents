@@ -1,0 +1,1 @@
+{"version":3,"file":"ledgerSyncModule.d.ts","sourceRoot":"","sources":["../../../src/internal/ledgersync/ledgerSyncModule.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,eAAe,EAAE,MAAM,WAAW,CAAC;AAK5C,KAAK,uBAAuB,GAAG;IAC7B,IAAI,CAAC,EAAE,OAAO,CAAC;CAChB,CAAC;AAGF,wBAAgB,uBAAuB,CAAC,EAAE,IAAI,EAAE,EAAE,uBAAuB,mBAYxE"}

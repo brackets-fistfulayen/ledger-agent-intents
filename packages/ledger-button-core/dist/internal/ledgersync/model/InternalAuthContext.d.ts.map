@@ -1,0 +1,1 @@
+{"version":3,"file":"InternalAuthContext.d.ts","sourceRoot":"","sources":["../../../../src/internal/ledgersync/model/InternalAuthContext.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,GAAG,EAAE,MAAM,0DAA0D,CAAC;AAE/E,MAAM,MAAM,mBAAmB,GAAG;IAChC,GAAG,EAAE,GAAG,CAAC;IACT,aAAa,EAAE,UAAU,CAAC;IAC1B,YAAY,EAAE,MAAM,CAAC;IACrB,eAAe,EAAE,MAAM,CAAC;IACxB,OAAO,EAAE,UAAU,CAAC;CACrB,CAAC"}

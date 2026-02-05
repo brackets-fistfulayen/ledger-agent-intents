@@ -1,0 +1,44 @@
+{
+	"name": "@ledgerhq/ledger-wallet-provider",
+	"version": "1.0.2-local",
+	"type": "module",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json",
+		"./styles.css": "./dist/styles.css"
+	},
+	"files": ["dist"],
+	"scripts": {
+		"build:styles": "mkdir -p dist && tailwindcss -i ./src/styles.css -o ./dist/styles.css --postcss",
+		"build": "pnpm build:styles && vite build",
+		"dev": "vite build --watch",
+		"dev:styles": "tailwindcss -i ./src/styles.css -o ./dist/styles.css --postcss --watch",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@ledgerhq/ldls-design-core": "^0.0.15",
+		"@ledgerhq/ledger-wallet-provider-core": "workspace:*",
+		"@lit/context": "1.1.6",
+		"class-variance-authority": "^0.7.1",
+		"lit": "3.3.1",
+		"lottie-web": "^5.12.2",
+		"motion": "^12.23.6",
+		"rxjs": "7.8.2",
+		"uuid": "^11.1.0"
+	},
+	"devDependencies": {
+		"vite": "^6.0.0",
+		"vite-plugin-dts": "^4.5.0",
+		"typescript": "^5.7.0",
+		"autoprefixer": "^10.4.0",
+		"postcss": "^8.4.0",
+		"tailwindcss": "^3.4.0"
+	}
+}

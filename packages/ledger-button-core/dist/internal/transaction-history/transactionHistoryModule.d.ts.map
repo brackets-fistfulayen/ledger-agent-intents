@@ -1,0 +1,1 @@
+{"version":3,"file":"transactionHistoryModule.d.ts","sourceRoot":"","sources":["../../../src/internal/transaction-history/transactionHistoryModule.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,eAAe,EAAE,MAAM,WAAW,CAAC;AAO5C,KAAK,+BAA+B,GAAG;IACrC,IAAI,CAAC,EAAE,OAAO,CAAC;CAChB,CAAC;AAEF,wBAAgB,+BAA+B,CAAC,EAC9C,IAAI,GACL,EAAE,+BAA+B,mBAkBjC"}

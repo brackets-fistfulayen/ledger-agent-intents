@@ -11,7 +11,7 @@
 	},
 	"dependencies": {
 		"@agent-intents/shared": "workspace:*",
-		"@ledgerhq/ledger-wallet-provider": "^1.0.2",
+		"@ledgerhq/ledger-wallet-provider": "workspace:*",
 		"@ledgerhq/lumen-design-core": "^0.0.46",
 		"@ledgerhq/lumen-ui-react": "^0.0.76",
 		"@radix-ui/react-dropdown-menu": "^2.1.16",

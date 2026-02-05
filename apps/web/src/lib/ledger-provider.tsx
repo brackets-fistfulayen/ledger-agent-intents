@@ -27,6 +27,7 @@ interface LedgerContextType {
 	connect: () => Promise<void>;
 	disconnect: () => void;
 	sendTransaction: (tx: TransactionRequest) => Promise<string>;
+	openLedgerModal: () => void;
 }
 
 const LedgerContext = createContext<LedgerContextType | null>(null);
@@ -34,6 +35,7 @@ const LedgerContext = createContext<LedgerContextType | null>(null);
 // Module-level singleton to prevent re-initialization during HMR
 let ledgerInitialized = false;
 let ledgerCleanupFn: (() => void) | undefined;
+let ledgerAppReady = false;
 
 export function LedgerProvider({ children }: { children: ReactNode }) {
 	const [provider, setProvider] = useState<EIP6963ProviderDetail | null>(null);
@@ -77,7 +79,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
 					ledgerCleanupFn = initializeLedgerProvider({
 						target: document.body,
-						floatingButtonPosition: "bottom-right",
+						floatingButtonPosition: false,
 						dAppIdentifier: "multisig",
 						apiKey: import.meta.env.VITE_LEDGER_API_KEY || "",
 						loggerLevel: "info",
@@ -87,6 +89,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 							},
 						},
 					});
+					// Mark the app as ready after a short delay to allow it to mount
+					setTimeout(() => {
+						ledgerAppReady = true;
+					}, 100);
 				} catch (err) {
 					console.error("Failed to initialize Ledger provider:", err);
 					ledgerInitialized = false; // Allow retry on error
@@ -168,6 +174,41 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 		setError(null);
 	}, []);
 
+	const openLedgerModal = useCallback(() => {
+		const tryOpenModal = () => {
+			// Find the ledger-button-app element and call its navigationIntent method directly
+			const app = document.querySelector("ledger-button-app") as HTMLElement & {
+				navigationIntent?: (intent: string, params?: unknown, mode?: string) => void;
+			};
+
+			if (app?.navigationIntent) {
+				app.navigationIntent("selectAccount", undefined, "panel");
+				return true;
+			}
+			return false;
+		};
+
+		// Try immediately
+		if (tryOpenModal()) {
+			return;
+		}
+
+		// If app not ready yet, retry after a short delay
+		if (!ledgerAppReady) {
+			const retryInterval = setInterval(() => {
+				if (tryOpenModal()) {
+					clearInterval(retryInterval);
+				}
+			}, 100);
+
+			// Stop retrying after 3 seconds
+			setTimeout(() => {
+				clearInterval(retryInterval);
+				console.warn("Ledger modal could not be opened - app not ready");
+			}, 3000);
+		}
+	}, []);
+
 	const sendTransaction = useCallback(
 		async (tx: TransactionRequest): Promise<string> => {
 			if (!provider) throw new Error("No provider available");
@@ -201,8 +242,9 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			connect,
 			disconnect,
 			sendTransaction,
+			openLedgerModal,
 		}),
-		[account, chainId, isConnecting, error, connect, disconnect, sendTransaction],
+		[account, chainId, isConnecting, error, connect, disconnect, sendTransaction, openLedgerModal],
 	);
 
 	return (

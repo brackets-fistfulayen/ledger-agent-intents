@@ -1,0 +1,1 @@
+{"version":3,"file":"SignTypedMessageParams.d.ts","sourceRoot":"","sources":["../../../../src/api/model/signing/SignTypedMessageParams.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,KAAK,SAAS,EAAE,MAAM,sCAAsC,CAAC;AAEtE,MAAM,MAAM,sBAAsB,GAAG,CAAC,MAAM,EAAE,SAAS,EAAE,MAAM,CAAC,CAAC;AAqBjE,wBAAgB,wBAAwB,CACtC,MAAM,EAAE,OAAO,GACd,MAAM,IAAI,sBAAsB,CAalC"}

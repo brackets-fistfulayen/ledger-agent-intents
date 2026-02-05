@@ -1,0 +1,1 @@
+{"version":3,"file":"UserInteractionNeeded.d.ts","sourceRoot":"","sources":["../../../src/api/model/UserInteractionNeeded.ts"],"names":[],"mappings":"AAAA,MAAM,MAAM,qBAAqB,GAC7B,eAAe,GACf,yBAAyB,GACzB,kBAAkB,GAClB,kBAAkB,GAClB,iBAAiB,GACjB,oBAAoB,GACpB,uBAAuB,GACvB,iBAAiB,GACjB,mBAAmB,CAAC;AAExB,MAAM,MAAM,6BAA6B,GAAG;IAC1C,uBAAuB,EAAE,qBAAqB,CAAC;CAChD,CAAC"}

@@ -1,11 +1,15 @@
 {
 	"$schema": "https://turbo.build/schema.json",
 	"tasks": {
+		"build:styles": {
+			"outputs": ["dist/styles.css"]
+		},
 		"build": {
 			"dependsOn": ["^build"],
 			"outputs": ["dist/**", ".output/**", ".vinxi/**"]
 		},
 		"dev": {
+			"dependsOn": ["^build:styles"],
 			"cache": false,
 			"persistent": true
 		},

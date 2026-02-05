@@ -33,7 +33,8 @@
 			"dist",
 			".vinxi",
 			".output",
-			"ledger-button",
+			"packages/ledger-button",
+			"packages/ledger-button-core",
 			"**/routeTree.gen.ts",
 			"**/*.timestamp_*.js"
 		]

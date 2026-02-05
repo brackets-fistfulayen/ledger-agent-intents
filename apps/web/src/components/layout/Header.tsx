@@ -1,8 +1,7 @@
 import { Button } from "@ledgerhq/lumen-ui-react";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Link } from "@tanstack/react-router";
 
-import { NebulaAvatar } from "@/components/ui";
+import { ChainLogo } from "@/components/ui";
 import { useLedger } from "@/lib/ledger-provider";
 
 // Ledger logo SVG - uses currentColor to adapt to light/dark theme
@@ -25,7 +24,7 @@ function LedgerLogo() {
 }
 
 export function Header() {
-	const { account, isConnected, isConnecting, connect, disconnect } =
+	const { account, chainId, isConnected, isConnecting, openLedgerModal } =
 		useLedger();
 
 	return (
@@ -44,39 +43,25 @@ export function Header() {
 					API Docs
 				</Link>
 				{isConnected ? (
-					<DropdownMenu.Root>
-						<DropdownMenu.Trigger asChild>
-							<Button appearance="transparent" size="md">
-								<span className="flex items-center gap-8">
-									<NebulaAvatar size={24} seed={account ?? "default"} />
-									<span>{account?.slice(0, 6)}...{account?.slice(-4)}</span>
-								</span>
-							</Button>
-						</DropdownMenu.Trigger>
-						<DropdownMenu.Portal>
-							<DropdownMenu.Content
-								className="min-w-[160px] rounded-md bg-surface p-4 shadow-lg border border-muted"
-								sideOffset={8}
-								align="end"
-							>
-								<DropdownMenu.Item
-									className="flex cursor-pointer select-none items-center rounded-sm px-12 py-8 body-2 text-base outline-none hover:bg-muted-transparent focus:bg-muted-transparent"
-									onSelect={disconnect}
-								>
-									Disconnect
-								</DropdownMenu.Item>
-							</DropdownMenu.Content>
-						</DropdownMenu.Portal>
-					</DropdownMenu.Root>
+					<Button
+						appearance="transparent"
+						size="md"
+						onClick={openLedgerModal}
+					>
+						<span className="flex items-center gap-8">
+							<ChainLogo chainId={chainId} size={20} />
+							<span>{account?.slice(0, 6)}...{account?.slice(-4)}</span>
+						</span>
+					</Button>
 				) : (
-				<Button
-					appearance="transparent"
-					size="md"
-					onClick={connect}
-					disabled={isConnecting}
-				>
-					{isConnecting ? "Connecting..." : "Connect"}
-				</Button>
+					<Button
+						appearance="transparent"
+						size="md"
+						onClick={openLedgerModal}
+						disabled={isConnecting}
+					>
+						{isConnecting ? "Connecting..." : "Connect"}
+					</Button>
 				)}
 			</div>
 		</header>

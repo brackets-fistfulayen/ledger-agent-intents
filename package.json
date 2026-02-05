@@ -12,6 +12,7 @@
 		"lint": "biome check .",
 		"format": "biome format . --write",
 		"typecheck": "turbo run typecheck",
+		"ci": "turbo run build && turbo run typecheck && pnpm lint",
 		"clean": "turbo run clean && rm -rf node_modules"
 	},
 	"devDependencies": {
