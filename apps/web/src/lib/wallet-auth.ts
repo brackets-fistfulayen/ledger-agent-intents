@@ -25,8 +25,10 @@ export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
 	//
 	// Re-enable later by removing this early return and reinstating the flow below.
 	const ledger = useLedger();
+	let authDisabledAuthed = false;
+
 	if (ledger.isConnected && ledger.account) {
-		return { status: "authed", error: null };
+		authDisabledAuthed = true;
 	}
 
 	const { account, chainId, isConnected, signTypedDataV4 } = ledger;
@@ -36,6 +38,9 @@ export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
 	const lastWalletRef = useRef<string | null>(null);
 
 	useEffect(() => {
+		// Auth is disabled: do not run the network flow.
+		if (authDisabledAuthed) return;
+
 		if (!isConnected || !account || !chainId) return;
 		const walletLower = account.toLowerCase();
 
@@ -87,6 +92,10 @@ export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
 			}
 		})();
 	}, [isConnected, account, chainId, signTypedDataV4, status]);
+
+	if (authDisabledAuthed) {
+		return { status: "authed", error: null };
+	}
 
 	return { status, error };
 }

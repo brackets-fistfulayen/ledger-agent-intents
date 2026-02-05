@@ -55,28 +55,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 
-		// #region agent log
-		fetch("http://127.0.0.1:7243/ingest/26dc3cf1-6d06-4e25-9781-0ae890b55d1f", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({
-				sessionId: "debug-session",
-				runId: "prod-repro",
-				hypothesisId: "H2",
-				location: "src/lib/ledger-provider.tsx:init",
-				message: "ledger provider effect start",
-				data: {
-					useStubDAppConfig,
-					hasApiKey: (import.meta.env.VITE_LEDGER_API_KEY || "").length > 0,
-					hasBaseRpcOverride:
-						typeof import.meta.env.VITE_BASE_MAINNET_RPC_URL === "string" &&
-						import.meta.env.VITE_BASE_MAINNET_RPC_URL.trim().length > 0,
-				},
-				timestamp: Date.now(),
-			}),
-		}).catch(() => {});
-		// #endregion agent log
-
 		// Set up provider listener - this needs to run on every mount
 		// to update React state when provider announces itself
 		const handleProvider = (e: Event) => {
@@ -86,28 +64,6 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 				// This prevents re-renders from repeated announcements
 				if (providerUuidRef.current !== detail.info.uuid) {
 					providerUuidRef.current = detail.info.uuid;
-					// #region agent log
-					fetch(
-						"http://127.0.0.1:7243/ingest/26dc3cf1-6d06-4e25-9781-0ae890b55d1f",
-						{
-							method: "POST",
-							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify({
-								sessionId: "debug-session",
-								runId: "prod-repro",
-								hypothesisId: "H2",
-								location: "src/lib/ledger-provider.tsx:announceProvider",
-								message: "ledger provider announced",
-								data: {
-									name: detail.info.name,
-									uuid: detail.info.uuid,
-									rdns: detail.info.rdns,
-								},
-								timestamp: Date.now(),
-							}),
-						},
-					).catch(() => {});
-					// #endregion agent log
 					setProvider(detail);
 				}
 			}
@@ -170,97 +126,11 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 		};
 	}, [useStubDAppConfig]);
 
-	// #region agent log
-	// Track last RPC request to correlate with crashes.
-	useEffect(() => {
-		if (!provider) return;
-		const anyWindow = window as unknown as { __lastLedgerRpc?: unknown };
-
-		const req = provider.provider.request?.bind(provider.provider);
-		if (!req) return;
-
-		provider.provider.request = async (args: unknown) => {
-			try {
-				const a = args as { method?: unknown; params?: unknown };
-				const method = typeof a?.method === "string" ? a.method : "unknown";
-				const params = a?.params as unknown;
-				anyWindow.__lastLedgerRpc = {
-					method,
-					paramsType: Array.isArray(params) ? "array" : params === undefined ? "undefined" : typeof params,
-				};
-
-				// Only log a few high-signal methods to avoid spam.
-				if (
-					method === "eth_requestAccounts" ||
-					method === "eth_chainId" ||
-					method === "eth_accounts" ||
-					method === "wallet_switchEthereumChain"
-				) {
-					fetch("http://127.0.0.1:7243/ingest/26dc3cf1-6d06-4e25-9781-0ae890b55d1f", {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							sessionId: "debug-session",
-							runId: "prod-repro",
-							hypothesisId: "H3",
-							location: "src/lib/ledger-provider.tsx:request",
-							message: "provider.request",
-							data: {
-								method,
-								paramsType: anyWindow.__lastLedgerRpc,
-							},
-							timestamp: Date.now(),
-						}),
-					}).catch(() => {});
-				}
-
-				return await req(args as never);
-			} catch (e) {
-				fetch("http://127.0.0.1:7243/ingest/26dc3cf1-6d06-4e25-9781-0ae890b55d1f", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						sessionId: "debug-session",
-						runId: "prod-repro",
-						hypothesisId: "H3",
-						location: "src/lib/ledger-provider.tsx:request.catch",
-						message: "provider.request threw",
-						data: {
-							error: e instanceof Error ? e.message : String(e).slice(0, 300),
-						},
-						timestamp: Date.now(),
-					}),
-				}).catch(() => {});
-				throw e;
-			}
-		};
-	}, [provider]);
-	// #endregion agent log
-
 	// Listen for account/chain changes
 	useEffect(() => {
 		if (!provider?.provider.on) return;
 
 		const handleAccountsChanged = (accounts: unknown) => {
-			// #region agent log
-			fetch("http://127.0.0.1:7243/ingest/26dc3cf1-6d06-4e25-9781-0ae890b55d1f", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					sessionId: "debug-session",
-					runId: "prod-repro",
-					hypothesisId: "H3",
-					location: "src/lib/ledger-provider.tsx:accountsChanged",
-					message: "accountsChanged event",
-					data: {
-						isArray: Array.isArray(accounts),
-						first: Array.isArray(accounts) ? (accounts[0] as unknown) : undefined,
-					},
-					timestamp: Date.now(),
-				}),
-			}).catch(() => {});
-			// #endregion agent log
-
 			if (!Array.isArray(accounts)) {
 				setAccount(null);
 				return;
