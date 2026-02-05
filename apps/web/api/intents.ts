@@ -1,21 +1,52 @@
 /**
- * Create intent endpoint
- * POST /api/intents
+ * Intents endpoint
  *
- * Supports two authentication modes:
+ * GET  /api/intents?userId=...&status=...&limit=...  – List intents for a user
+ * POST /api/intents                                    – Create a new intent
+ *
+ * POST supports two authentication modes:
  * 1. **Agent auth** (preferred) – Authorization: AgentAuth header signed by a
  *    registered agent key. The trustchain_id and member_id are derived from
  *    the verified signature.
  * 2. **Legacy/demo** – No auth, accepts userId in body or defaults to 'demo-user'.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import type { CreateIntentRequest } from "@agent-intents/shared";
+import type { CreateIntentRequest, IntentStatus } from "@agent-intents/shared";
 import { v4 as uuidv4 } from "uuid";
-import { methodRouter, jsonSuccess, jsonError, parseBody } from "./_lib/http.js";
-import { createIntent } from "./_lib/intentsRepo.js";
+import { methodRouter, jsonSuccess, jsonError, parseBody, getQueryParam, getQueryNumber } from "./_lib/http.js";
+import { createIntent, getIntentsByUser } from "./_lib/intentsRepo.js";
 import { verifyAgentAuth } from "./_lib/agentAuth.js";
 
+const VALID_STATUSES: IntentStatus[] = [
+	"pending",
+	"approved",
+	"rejected",
+	"signed",
+	"confirmed",
+	"failed",
+	"expired",
+];
+
 export default methodRouter({
+	GET: async (req: VercelRequest, res: VercelResponse) => {
+		const userId = getQueryParam(req, "userId");
+
+		if (!userId) {
+			jsonError(res, "Missing required query parameter: userId", 400);
+			return;
+		}
+
+		const statusParam = getQueryParam(req, "status");
+		const status = statusParam && VALID_STATUSES.includes(statusParam as IntentStatus)
+			? (statusParam as IntentStatus)
+			: undefined;
+
+		const limit = getQueryNumber(req, "limit", 50, 1, 100);
+
+		const intents = await getIntentsByUser({ userId, status, limit });
+		jsonSuccess(res, { intents });
+	},
+
 	POST: async (req: VercelRequest, res: VercelResponse) => {
 		const body = parseBody<CreateIntentRequest & { userId?: string }>(req);
 
