@@ -32,8 +32,20 @@ app.use(
 );
 app.use(express.json());
 
-// In-memory store (replace with DB for production)
+// In-memory stores (replace with DB for production)
 const intents = new Map<string, Intent>();
+
+// ============ Agent / Trustchain In-Memory Store ============
+interface TrustchainMember {
+	id: string;
+	trustchainId: string;
+	memberPubkey: string;
+	role: string;
+	label: string | null;
+	createdAt: string;
+	revokedAt: string | null;
+}
+const agents = new Map<string, TrustchainMember>();
 
 // Helper: create intent from request
 function createIntent(req: CreateIntentRequest, userId: string): Intent {
@@ -185,6 +197,86 @@ app.patch("/api/intents/:id/status", (req, res) => {
 	res.json({ success: true, intent });
 });
 
+// ============ Agent Provisioning ============
+
+// Register a new agent
+app.post("/api/agents/register", (req, res) => {
+	try {
+		const { trustChainId, agentPublicKey, agentLabel } = req.body as {
+			trustChainId?: string;
+			agentPublicKey?: string;
+			agentLabel?: string;
+		};
+
+		if (!trustChainId || !agentPublicKey) {
+			res.status(400).json({ success: false, error: "Missing required fields: trustChainId, agentPublicKey" });
+			return;
+		}
+
+		const pubkey = agentPublicKey.toLowerCase();
+		const existing = Array.from(agents.values()).find(
+			(a) => a.memberPubkey === pubkey && !a.revokedAt,
+		);
+		if (existing) {
+			res.status(409).json({ success: false, error: "This agent public key is already registered" });
+			return;
+		}
+
+		const member: TrustchainMember = {
+			id: uuidv4(),
+			trustchainId: trustChainId.toLowerCase(),
+			memberPubkey: pubkey,
+			role: "agent_write_only",
+			label: agentLabel || "Unnamed Agent",
+			createdAt: new Date().toISOString(),
+			revokedAt: null,
+		};
+		agents.set(member.id, member);
+
+		console.log(`[Agent Registered] ${member.id} "${member.label}" for trustchain ${member.trustchainId}`);
+		res.status(201).json({ success: true, member });
+	} catch (error) {
+		console.error("Error registering agent:", error);
+		res.status(500).json({ success: false, error: "Internal server error" });
+	}
+});
+
+// List agents for a trustchain
+app.get("/api/agents", (req, res) => {
+	const trustchainId = (req.query.trustchainId as string || "").toLowerCase();
+	if (!trustchainId) {
+		res.status(400).json({ success: false, error: "Missing required query parameter: trustchainId" });
+		return;
+	}
+
+	const members = Array.from(agents.values()).filter(
+		(a) => a.trustchainId === trustchainId,
+	);
+	res.json({ success: true, members });
+});
+
+// Get agent by ID
+app.get("/api/agents/:id", (req, res) => {
+	const member = agents.get(req.params.id);
+	if (!member) {
+		res.status(404).json({ success: false, error: "Agent not found" });
+		return;
+	}
+	res.json({ success: true, member });
+});
+
+// Revoke agent
+app.delete("/api/agents/:id", (req, res) => {
+	const member = agents.get(req.params.id);
+	if (!member || member.revokedAt) {
+		res.status(404).json({ success: false, error: "Agent not found or already revoked" });
+		return;
+	}
+	member.revokedAt = new Date().toISOString();
+	console.log(`[Agent Revoked] ${member.id} "${member.label}"`);
+	res.json({ success: true, member });
+});
+
 // ============ Demo/Debug ============
 
 // List all intents (debug endpoint)
@@ -217,6 +309,10 @@ app.listen(PORT, () => {
 ║    GET    /api/intents/:id          Get intent status     ║
 ║    GET    /api/users/:userId/intents  List user intents   ║
 ║    PATCH  /api/intents/:id/status   Update status         ║
+║    POST   /api/agents/register      Register agent        ║
+║    GET    /api/agents               List agents           ║
+║    GET    /api/agents/:id           Get agent             ║
+║    DELETE /api/agents/:id           Revoke agent          ║
 ║                                                           ║
 ╚═══════════════════════════════════════════════════════════╝
   `);
