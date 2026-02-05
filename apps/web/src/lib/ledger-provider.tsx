@@ -52,6 +52,30 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	const useStubDAppConfig =
 		import.meta.env.VITE_LEDGER_STUB_DAPP_CONFIG === "true";
 
+	// Helper: query the provider for current account & chain and update React state.
+	// Uses eth_accounts (passive, never opens a modal) and eth_chainId.
+	const syncProviderState = useCallback(
+		(p: EIP6963ProviderDetail) => {
+			p.provider
+				.request({ method: "eth_accounts", params: [] })
+				.then((raw: unknown) => {
+					const accounts = Array.isArray(raw) ? (raw as string[]) : [];
+					setAccount(accounts[0] || null);
+				})
+				.catch(() => {});
+
+			p.provider
+				.request({ method: "eth_chainId", params: [] })
+				.then((raw: unknown) => {
+					if (typeof raw === "string") {
+						setChainId(Number.parseInt(raw, 16));
+					}
+				})
+				.catch(() => {});
+		},
+		[],
+	);
+
 	// Initialize Ledger Button Provider
 	useEffect(() => {
 		if (typeof window === "undefined") return;
@@ -66,6 +90,11 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 				if (providerUuidRef.current !== detail.info.uuid) {
 					providerUuidRef.current = detail.info.uuid;
 					setProvider(detail);
+
+					// Immediately try to recover existing account/chain from the SDK.
+					// Uses eth_accounts (passive, no modal) so a page refresh won't
+					// prompt the user unnecessarily.
+					syncProviderState(detail);
 				}
 			}
 		};
@@ -125,13 +154,19 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			// across HMR and React Strict Mode double-mounting.
 			// The button will be cleaned up when the page is unloaded.
 		};
-	}, [useStubDAppConfig]);
+	}, [useStubDAppConfig, syncProviderState]);
 
 	// Listen for account/chain changes
 	useEffect(() => {
 		if (!provider?.provider.on) return;
 
-		const handleAccountsChanged = (accounts: unknown) => {
+		// The Ledger Button SDK dispatches DOM CustomEvents on its HTMLElement
+		// provider. Depending on whether `on()` unwraps the event, the callback
+		// may receive the payload directly (EventEmitter style) or as a
+		// CustomEvent whose `.detail` holds the payload. Handle both.
+		const handleAccountsChanged = (accountsOrEvent: unknown) => {
+			const accounts =
+				(accountsOrEvent as CustomEvent)?.detail ?? accountsOrEvent;
 			if (!Array.isArray(accounts)) {
 				setAccount(null);
 				return;
@@ -139,8 +174,14 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			setAccount((accounts[0] as string | undefined) || null);
 		};
 
-		const handleChainChanged = (chainIdHex: unknown) => {
-			setChainId(Number.parseInt(chainIdHex as string, 16));
+		const handleChainChanged = (chainIdOrEvent: unknown) => {
+			const raw =
+				(chainIdOrEvent as CustomEvent)?.detail ?? chainIdOrEvent;
+			if (typeof raw === "string") {
+				setChainId(Number.parseInt(raw, 16));
+			} else if (typeof raw === "number") {
+				setChainId(raw);
+			}
 		};
 
 		provider.provider.on("accountsChanged", handleAccountsChanged);
@@ -210,6 +251,20 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			return false;
 		};
 
+		// Safety-net: after the user picks an account in the SDK modal,
+		// re-sync React state in case the `accountsChanged` event didn't
+		// fire or arrived in an unexpected format.
+		const onAccountSelected = () => {
+			if (provider) {
+				syncProviderState(provider);
+			}
+		};
+		window.addEventListener(
+			"ledger-provider-account-selected",
+			onAccountSelected,
+			{ once: true },
+		);
+
 		// Try immediately
 		if (tryOpenModal()) {
 			return;
@@ -226,10 +281,15 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			// Stop retrying after 3 seconds
 			setTimeout(() => {
 				clearInterval(retryInterval);
+				// Clean up the one-time listener if modal never opened
+				window.removeEventListener(
+					"ledger-provider-account-selected",
+					onAccountSelected,
+				);
 				console.warn("Ledger modal could not be opened - app not ready");
 			}, 3000);
 		}
-	}, []);
+	}, [provider, syncProviderState]);
 
 	const sendTransaction = useCallback(
 		async (tx: TransactionRequest): Promise<string> => {

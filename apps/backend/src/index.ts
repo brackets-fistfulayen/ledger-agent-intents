@@ -132,7 +132,74 @@ app.get("/api/users/:userId/intents", (req, res) => {
 	res.json({ success: true, intents: userIntents });
 });
 
-// Update intent status (called by Live App after signing)
+// Update intent status (POST /api/intents/status – preferred, avoids Vercel dynamic-route issues)
+app.post("/api/intents/status", (req, res) => {
+	const { id: intentId } = req.body as { id?: string };
+	if (!intentId) {
+		res.status(400).json({ success: false, error: "Missing intent ID in request body" });
+		return;
+	}
+	const intent = intents.get(intentId);
+
+	if (!intent) {
+		res.status(404).json({ success: false, error: "Intent not found" });
+		return;
+	}
+
+	const { status, txHash, note, paymentSignatureHeader, paymentPayload } = req.body as {
+		status: IntentStatus;
+		txHash?: string;
+		note?: string;
+		paymentSignatureHeader?: string;
+		paymentPayload?: X402PaymentPayload;
+	};
+
+	const now = new Date().toISOString();
+
+	intent.status = status;
+	intent.statusHistory.push({ status, timestamp: now, note });
+
+	if (status === "approved") {
+		intent.reviewedAt = now;
+	} else if (status === "signed" && txHash) {
+		intent.signedAt = now;
+		intent.txHash = txHash;
+		intent.txUrl = getExplorerTxUrl(intent.details.chainId, txHash);
+	} else if (status === "signed") {
+		intent.signedAt = now;
+	} else if (status === "confirmed") {
+		intent.confirmedAt = now;
+	} else if (status === "rejected") {
+		intent.reviewedAt = now;
+	}
+
+	if (paymentSignatureHeader || paymentPayload) {
+		const existing = intent.details.x402;
+		const base =
+			paymentPayload
+				? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }
+				: existing;
+
+		if (base) {
+			intent.details = {
+				...intent.details,
+				x402: {
+					...base,
+					...(existing ?? {}),
+					paymentSignatureHeader:
+						paymentSignatureHeader ?? existing?.paymentSignatureHeader,
+					paymentPayload: paymentPayload ?? existing?.paymentPayload,
+				},
+			};
+		}
+	}
+
+	console.log(`[Intent ${status.toUpperCase()}] ${intent.id}${txHash ? ` tx: ${txHash}` : ""}`);
+
+	res.json({ success: true, intent });
+});
+
+// Update intent status (legacy PATCH – kept for backward compat)
 app.patch("/api/intents/:id/status", (req, res) => {
 	const intent = intents.get(req.params.id);
 
