@@ -12,6 +12,7 @@
 	},
 	"dependencies": {
 		"@agent-intents/shared": "workspace:*",
+		"@vercel/node": "^5.5.28",
 		"@vercel/postgres": "^0.10.0",
 		"@ledgerhq/ledger-wallet-provider": "workspace:*",
 		"@ledgerhq/lumen-design-core": "^0.0.46",
@@ -34,7 +35,6 @@
 		"@tanstack/router-plugin": "^1.120.0",
 		"@types/react": "^19.0.0",
 		"@types/react-dom": "^19.0.0",
-		"@vercel/node": "^5.5.28",
 		"@vitejs/plugin-react": "^4.3.0",
 		"autoprefixer": "^10.4.0",
 		"postcss": "^8.4.0",

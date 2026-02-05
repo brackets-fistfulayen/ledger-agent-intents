@@ -1,5 +1,19 @@
 {
 	"$schema": "https://turbo.build/schema.json",
+	"globalPassThroughEnv": [
+		"POSTGRES_URL",
+		"POSTGRES_URL_NON_POOLING",
+		"POSTGRES_PRISMA_URL",
+		"POSTGRES_USER",
+		"POSTGRES_HOST",
+		"POSTGRES_PASSWORD",
+		"POSTGRES_DATABASE",
+		"PGUSER",
+		"DATABASE_URL",
+		"NEON_PROJECT_ID",
+		"VITE_LEDGER_API_KEY",
+		"VITE_BACKEND_URL"
+	],
 	"tasks": {
 		"build:styles": {
 			"outputs": ["dist/styles.css"]
