@@ -5,6 +5,16 @@ import { useLedger } from "./ledger-provider";
 const API_BASE = import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_URL || "") : "";
 
 /**
+ * Feature flag: EIP-712 challenge-response authentication.
+ *
+ * When disabled (default) the hook considers the user authenticated as soon as
+ * the wallet is connected — no session cookie, no Ledger signing prompt.
+ *
+ * Set VITE_AUTH_ENABLED=true in .env to turn it on.
+ */
+const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED === "true";
+
+/**
  * - `idle`             – no wallet connected yet
  * - `checking`         – validating existing session cookie via GET /api/me
  * - `authed`           – valid session exists (cookie or just-signed)
@@ -70,11 +80,11 @@ export function useWalletAuth(): {
 	const lastCheckedWalletRef = useRef<string | null>(null);
 	const authingRef = useRef(false);
 
-	// ── Passive phase: check for existing session on connect ────────────
-	// Runs automatically. Never triggers a Ledger signing prompt.
+	// ── Passive phase ───────────────────────────────────────────────────
+	// When AUTH_ENABLED: check for an existing session cookie on connect.
+	// When AUTH disabled: immediately mark as "authed" on connect.
 	useEffect(() => {
 		if (!isConnected || !account) {
-			// Wallet disconnected — reset to idle
 			if (status !== "idle") {
 				setStatus("idle");
 				setError(null);
@@ -84,6 +94,13 @@ export function useWalletAuth(): {
 		}
 
 		const walletLower = account.toLowerCase();
+
+		// Auth disabled — consider connected = authenticated
+		if (!AUTH_ENABLED) {
+			if (status !== "authed") setStatus("authed");
+			lastCheckedWalletRef.current = walletLower;
+			return;
+		}
 
 		// Don't re-check if we already resolved this wallet
 		if (lastCheckedWalletRef.current === walletLower) return;
@@ -109,6 +126,7 @@ export function useWalletAuth(): {
 	// ── Active phase: full challenge → sign → verify ────────────────────
 	// Only runs when the user explicitly calls authenticate().
 	const authenticate = useCallback(() => {
+		if (!AUTH_ENABLED) return;
 		if (!isConnected || !account || !chainId) return;
 		if (authingRef.current) return;
 

@@ -172,7 +172,7 @@ function AddressWithTooltip({ address, children }: { address: string; children: 
 	return (
 		<span className="relative group/tooltip">
 			{children}
-			<span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-8 hidden group-hover/tooltip:flex whitespace-nowrap rounded-sm bg-base px-12 py-6 font-mono body-3 text-on-accent shadow-lg z-50">
+			<span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-8 hidden group-hover/tooltip:flex whitespace-nowrap rounded-sm bg-[#000000] px-12 py-6 font-mono body-3 text-[#FFFFFF] shadow-lg z-50">
 				{address}
 			</span>
 		</span>
