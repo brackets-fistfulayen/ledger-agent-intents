@@ -1,8 +1,8 @@
 /**
- * Verify EIP-712 signature and establish a session cookie.
+ * Verify personal_sign signature and establish a session cookie.
  * POST /api/auth/verify
  *
- * Body: { challengeId: string, signature: string }
+ * Body: { walletAddress: string, nonce: string, signature: string }
  * Returns: { success: true, walletAddress: string }
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
@@ -10,9 +10,10 @@ import { randomUUID } from "node:crypto";
 import { methodRouter, jsonError, jsonSuccess, parseBodyWithSchema } from "../_lib/http.js";
 import { verifyBodySchema } from "../_lib/validation.js";
 import {
-	buildAuthenticateTypedData,
+	buildWelcomeMessage,
+	normalizeWalletAddress,
 	setSessionCookie,
-	verifyTypedDataSignature,
+	verifyPersonalSignature,
 } from "../_lib/auth.js";
 import { sql } from "../_lib/db.js";
 
@@ -23,12 +24,22 @@ export default methodRouter({
 		const body = parseBodyWithSchema(req, res, verifyBodySchema);
 		if (body === null) return;
 
+		let wallet: string;
+		try {
+			wallet = normalizeWalletAddress(body.walletAddress);
+		} catch {
+			jsonError(res, "Invalid wallet address", 400);
+			return;
+		}
+
 		const signature = body.signature as `0x${string}`;
 
+		// Look up the challenge by wallet address + nonce
 		const challengeResult = await sql`
-			SELECT id, wallet_address, nonce, chain_id, issued_at, expires_at
+			SELECT id, wallet_address, nonce
 			FROM auth_challenges
-			WHERE id = ${body.challengeId}
+			WHERE wallet_address = ${wallet}
+				AND nonce = ${body.nonce}
 				AND used_at IS NULL
 				AND expires_at > NOW()
 			LIMIT 1
@@ -40,54 +51,46 @@ export default methodRouter({
 		}
 
 		const row = challengeResult.rows[0] as {
+			id: string;
 			wallet_address: string;
 			nonce: string;
-			chain_id: number;
-			issued_at: Date;
-			expires_at: Date;
 		};
 
-		const issuedAt = Math.floor(new Date(row.issued_at).getTime() / 1000);
-		const expiresAt = Math.floor(new Date(row.expires_at).getTime() / 1000);
-
-		const typedData = buildAuthenticateTypedData({
-			chainId: Number(row.chain_id),
-			walletAddress: row.wallet_address,
-			nonce: row.nonce,
-			issuedAt,
-			expiresAt,
-		});
+		// Rebuild the welcome message and verify the signature
+		const message = buildWelcomeMessage(row.nonce);
 
 		let recoveredAddress: string;
 		try {
-			recoveredAddress = await verifyTypedDataSignature({ typedData, signature });
+			recoveredAddress = await verifyPersonalSignature({ message, signature });
 		} catch {
 			jsonError(res, "Invalid signature", 401);
 			return;
 		}
 
-		if (recoveredAddress !== row.wallet_address.toLowerCase()) {
+		if (recoveredAddress !== wallet) {
 			jsonError(res, "Signature does not match wallet", 401);
 			return;
 		}
 
+		// Mark challenge as used
 		await sql`
 			UPDATE auth_challenges
 			SET used_at = NOW()
-			WHERE id = ${body.challengeId}
+			WHERE id = ${row.id}
 		`;
 
+		// Create session
 		const sessionId = randomUUID();
 		const sessionExpiresAt = new Date();
 		sessionExpiresAt.setDate(sessionExpiresAt.getDate() + SESSION_VALIDITY_DAYS);
 
 		await sql`
 			INSERT INTO auth_sessions (id, wallet_address, expires_at)
-			VALUES (${sessionId}, ${row.wallet_address}, ${sessionExpiresAt.toISOString()})
+			VALUES (${sessionId}, ${wallet}, ${sessionExpiresAt.toISOString()})
 		`;
 
 		setSessionCookie(res, sessionId, sessionExpiresAt);
 
-		jsonSuccess(res, { walletAddress: row.wallet_address });
+		jsonSuccess(res, { walletAddress: wallet });
 	},
 });

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isAddress, recoverTypedDataAddress } from "viem";
+import { isAddress, recoverMessageAddress } from "viem";
 import { sql } from "./db.js";
 
 const SESSION_COOKIE_NAME = "ai_session";
@@ -75,73 +75,24 @@ export async function requireSession(req: VercelRequest): Promise<{ sessionId: s
 	return { sessionId: row.id, walletAddress: row.wallet_address };
 }
 
-export type AuthenticateTypedData = {
-	domain: {
-		name: string;
-		version: string;
-		chainId: bigint;
-		verifyingContract: `0x${string}`;
-	};
-	types: {
-		EIP712Domain: Array<{ name: string; type: string }>;
-		Authenticate: Array<{ name: string; type: string }>;
-	};
-	primaryType: "Authenticate";
-	message: {
-		wallet: `0x${string}`;
-		nonce: string;
-		issuedAt: bigint;
-		expiresAt: bigint;
-	};
-};
-
-export function buildAuthenticateTypedData(params: {
-	chainId: number;
-	walletAddress: string;
-	nonce: string;
-	issuedAt: number; // epoch seconds
-	expiresAt: number; // epoch seconds
-}): AuthenticateTypedData {
-	return {
-		domain: {
-			name: "AgentIntents",
-			version: "1",
-			chainId: BigInt(params.chainId),
-			verifyingContract: "0x0000000000000000000000000000000000000000",
-		},
-		types: {
-			EIP712Domain: [
-				{ name: "name", type: "string" },
-				{ name: "version", type: "string" },
-				{ name: "chainId", type: "uint256" },
-				{ name: "verifyingContract", type: "address" },
-			],
-			Authenticate: [
-				{ name: "wallet", type: "address" },
-				{ name: "nonce", type: "string" },
-				{ name: "issuedAt", type: "uint256" },
-				{ name: "expiresAt", type: "uint256" },
-			],
-		},
-		primaryType: "Authenticate",
-		message: {
-			wallet: params.walletAddress as `0x${string}`,
-			nonce: params.nonce,
-			issuedAt: BigInt(params.issuedAt),
-			expiresAt: BigInt(params.expiresAt),
-		},
-	};
+/**
+ * Build the human-readable welcome message that the user signs on their Ledger.
+ * The nonce is included to prevent replay attacks.
+ */
+export function buildWelcomeMessage(nonce: string): string {
+	return `Welcome to agentintents.io\n\nNonce: ${nonce}`;
 }
 
-export async function verifyTypedDataSignature(params: {
-	typedData: AuthenticateTypedData;
+/**
+ * Recover the signer address from an EIP-191 personal_sign signature.
+ * Returns the lowercased address.
+ */
+export async function verifyPersonalSignature(params: {
+	message: string;
 	signature: `0x${string}`;
 }): Promise<string> {
-	const recovered = await recoverTypedDataAddress({
-		domain: params.typedData.domain,
-		types: params.typedData.types,
-		primaryType: params.typedData.primaryType,
-		message: params.typedData.message,
+	const recovered = await recoverMessageAddress({
+		message: params.message,
 		signature: params.signature,
 	});
 	return recovered.toLowerCase();

@@ -4,16 +4,6 @@ import { useLedger } from "./ledger-provider";
 // Use same-origin API in production (Vercel); allow override in development only.
 const API_BASE = import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_URL || "") : "";
 
-/**
- * Feature flag: EIP-712 challenge-response authentication.
- *
- * When disabled (default) the hook considers the user authenticated as soon as
- * the wallet is connected — no session cookie, no Ledger signing prompt.
- *
- * Set VITE_AUTH_ENABLED=true in .env to turn it on.
- */
-const AUTH_ENABLED = import.meta.env.VITE_AUTH_ENABLED === "true";
-
 /** Maximum number of automatic retry attempts before giving up. */
 const MAX_AUTO_RETRIES = 3;
 /** Base delay (ms) for exponential backoff between retries. */
@@ -24,7 +14,7 @@ const RETRY_BASE_DELAY_MS = 2000;
  * - `checking`         – validating existing session cookie via GET /api/me
  * - `authed`           – valid session exists (cookie or just-signed)
  * - `unauthenticated`  – no valid session; signing prompt will be triggered
- * - `authing`          – EIP-712 challenge-sign-verify in progress
+ * - `authing`          – personal_sign challenge-sign-verify in progress
  * - `error`            – auth attempt failed (will auto-retry)
  */
 export type AuthStatus =
@@ -42,8 +32,8 @@ type MeResponse = {
 
 type ChallengeResponse = {
 	success: boolean;
-	challengeId: string;
-	typedData: unknown;
+	nonce: string;
+	message: string;
 	error?: string;
 };
 
@@ -75,10 +65,10 @@ async function checkExistingSession(wallet: string): Promise<boolean> {
 export function useWalletAuth(): {
 	status: AuthStatus;
 	error: Error | null;
-	/** Trigger the full EIP-712 challenge → Ledger-sign → verify flow. */
+	/** Trigger the full personal_sign challenge → Ledger-sign → verify flow. */
 	authenticate: () => void;
 } {
-	const { account, chainId, isConnected, signTypedDataV4 } = useLedger();
+	const { account, isConnected, personalSign } = useLedger();
 	const [status, setStatus] = useState<AuthStatus>("idle");
 	const [error, setError] = useState<Error | null>(null);
 	const checkingRef = useRef(false);
@@ -98,8 +88,8 @@ export function useWalletAuth(): {
 	}, []);
 
 	// ── Passive phase ───────────────────────────────────────────────────
-	// When AUTH_ENABLED: check for an existing session cookie on connect.
-	// When AUTH disabled: immediately mark as "authed" on connect.
+	// Check for an existing session cookie on connect.
+	// If no valid session, auto-trigger authentication.
 	useEffect(() => {
 		if (!isConnected || !account) {
 			if (status !== "idle") {
@@ -116,13 +106,6 @@ export function useWalletAuth(): {
 		}
 
 		const walletLower = account.toLowerCase();
-
-		// Auth disabled — consider connected = authenticated
-		if (!AUTH_ENABLED) {
-			if (status !== "authed") setStatus("authed");
-			lastCheckedWalletRef.current = walletLower;
-			return;
-		}
 
 		// Don't re-check if we already resolved this wallet
 		if (lastCheckedWalletRef.current === walletLower) return;
@@ -148,8 +131,7 @@ export function useWalletAuth(): {
 
 	// ── Active phase: full challenge → sign → verify ────────────────────
 	const authenticate = useCallback(() => {
-		if (!AUTH_ENABLED) return;
-		if (!isConnected || !account || !chainId) return;
+		if (!isConnected || !account) return;
 		if (authingRef.current) return;
 
 		authingRef.current = true;
@@ -158,25 +140,29 @@ export function useWalletAuth(): {
 
 		(async () => {
 			try {
+				// 1. Request a challenge nonce from the backend
 				const challengeRes = await fetch(`${API_BASE}/api/auth/challenge`, {
 					method: "POST",
 					credentials: "include",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ walletAddress: account, chainId }),
+					body: JSON.stringify({ walletAddress: account }),
 				});
 				const challengeJson = (await challengeRes.json().catch(() => null)) as ChallengeResponse | null;
 				if (!challengeRes.ok || !challengeJson?.success) {
 					throw new Error(challengeJson?.error || "Failed to get auth challenge");
 				}
 
-				const signature = await signTypedDataV4(challengeJson.typedData);
+				// 2. Sign the welcome message with EIP-191 personal_sign on the Ledger
+				const signature = await personalSign(challengeJson.message);
 
+				// 3. Verify signature with the backend to establish a session
 				const verifyRes = await fetch(`${API_BASE}/api/auth/verify`, {
 					method: "POST",
 					credentials: "include",
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({
-						challengeId: challengeJson.challengeId,
+						walletAddress: account,
+						nonce: challengeJson.nonce,
 						signature,
 					}),
 				});
@@ -195,7 +181,7 @@ export function useWalletAuth(): {
 				authingRef.current = false;
 			}
 		})();
-	}, [isConnected, account, chainId, signTypedDataV4]);
+	}, [isConnected, account, personalSign]);
 
 	// ── Auto-trigger: sign automatically when unauthenticated ───────────
 	useEffect(() => {

@@ -92,12 +92,12 @@ export const registerAgentRequestSchema = z.object({
 /** Challenge body for POST /api/auth/challenge */
 export const challengeBodySchema = z.object({
 	walletAddress: z.string().min(1),
-	chainId: z.number().int().positive().optional(),
 });
 
 /** Verify body for POST /api/auth/verify */
 export const verifyBodySchema = z.object({
-	challengeId: z.string().min(1),
+	walletAddress: z.string().min(1),
+	nonce: z.string().min(1),
 	signature: z.string().min(1),
 });
 

@@ -1,14 +1,14 @@
 /**
- * Issue an EIP-712 authentication challenge for a wallet.
+ * Issue a personal_sign authentication challenge for a wallet.
  * POST /api/auth/challenge
  *
- * Body: { walletAddress: string, chainId?: number }
- * Returns: { success: true, challengeId: string, typedData: AuthenticateTypedData }
+ * Body: { walletAddress: string }
+ * Returns: { success: true, nonce: string, message: string }
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { randomUUID } from "node:crypto";
 import { methodRouter, jsonError, jsonSuccess, parseBodyWithSchema } from "../_lib/http.js";
-import { buildAuthenticateTypedData, normalizeWalletAddress } from "../_lib/auth.js";
+import { buildWelcomeMessage, normalizeWalletAddress } from "../_lib/auth.js";
 import { sql } from "../_lib/db.js";
 import { challengeBodySchema } from "../_lib/validation.js";
 
@@ -27,8 +27,6 @@ export default methodRouter({
 			return;
 		}
 
-		const chainId = typeof body.chainId === "number" && body.chainId > 0 ? body.chainId : 1;
-
 		const challengeId = randomUUID();
 		const nonce = randomUUID();
 		const now = Math.floor(Date.now() / 1000);
@@ -41,20 +39,14 @@ export default methodRouter({
 				${challengeId},
 				${wallet},
 				${nonce},
-				${chainId},
+				${0},
 				to_timestamp(${issuedAt}),
 				to_timestamp(${expiresAt})
 			)
 		`;
 
-		const typedData = buildAuthenticateTypedData({
-			chainId,
-			walletAddress: wallet,
-			nonce,
-			issuedAt,
-			expiresAt,
-		});
+		const message = buildWelcomeMessage(nonce);
 
-		jsonSuccess(res, { challengeId, typedData });
+		jsonSuccess(res, { nonce, message });
 	},
 });

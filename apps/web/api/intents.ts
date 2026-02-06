@@ -14,6 +14,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sql } from "@vercel/postgres";
 import { v4 as uuidv4 } from "uuid";
 import { verifyAgentAuth } from "./_lib/agentAuth.js";
+import { requireSession } from "./_lib/auth.js";
 import {
 	getQueryNumber,
 	getQueryParam,
@@ -42,10 +43,25 @@ const VALID_STATUSES: IntentStatus[] = [
 
 export default methodRouter({
 	GET: async (req: VercelRequest, res: VercelResponse) => {
+		// Require authenticated session
+		let session: { sessionId: string; walletAddress: string };
+		try {
+			session = await requireSession(req);
+		} catch {
+			jsonError(res, "Authentication required", 401);
+			return;
+		}
+
 		const userId = getQueryParam(req, "userId");
 
 		if (!userId) {
 			jsonError(res, "Missing required query parameter: userId", 400);
+			return;
+		}
+
+		// Enforce ownership: users can only list their own intents
+		if (userId.toLowerCase() !== session.walletAddress) {
+			jsonError(res, "You can only list your own intents", 403);
 			return;
 		}
 
