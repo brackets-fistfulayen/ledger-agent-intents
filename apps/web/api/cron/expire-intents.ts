@@ -12,14 +12,16 @@
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sql } from "@vercel/postgres";
+import { env } from "../_lib/env.js";
+import { logger } from "../_lib/logger.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
 	// Vercel Cron sends the secret in the Authorization header
 	const authHeader = req.headers.authorization;
-	const cronSecret = process.env.CRON_SECRET;
+	const cronSecret = env.CRON_SECRET;
 
 	if (!cronSecret) {
-		console.error("[expire-intents] CRON_SECRET not configured");
+		logger.error("CRON_SECRET not configured");
 		res.status(500).json({ error: "CRON_SECRET not configured" });
 		return;
 	}
@@ -54,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 		const count = result.rowCount ?? 0;
 
 		if (count > 0) {
-			console.log(`[expire-intents] Transitioned ${count} intents to expired`);
+			logger.info({ count }, "expire-intents: transitioned intents to expired");
 		}
 
 		// Also insert status history entries for the expired intents
@@ -73,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 		res.status(200).json({ success: true, expiredCount: count });
 	} catch (error) {
-		console.error("[expire-intents] Error:", error);
+		logger.error({ err: error }, "expire-intents error");
 		res.status(500).json({ error: "Internal error" });
 	}
 }

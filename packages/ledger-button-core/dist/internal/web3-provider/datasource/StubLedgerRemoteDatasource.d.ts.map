@@ -1,0 +1,1 @@
+{"version":3,"file":"StubLedgerRemoteDatasource.d.ts","sourceRoot":"","sources":["../../../../src/internal/web3-provider/datasource/StubLedgerRemoteDatasource.ts"],"names":[],"mappings":"AAGA,OAAO,EAEL,cAAc,EACf,MAAM,oCAAoC,CAAC;AAC5C,OAAO,EAAE,sBAAsB,EAAE,MAAM,6BAA6B,CAAC;AAErE,qBACa,0BAA2B,SAAQ,sBAAsB;IACrD,cAAc,CAAC,IAAI,EAAE,cAAc;;;;;;;;;CAanD"}

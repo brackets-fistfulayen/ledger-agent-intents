@@ -2,24 +2,24 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Ledger Agent Payments API",
-    "version": "0.1.0",
-    "description": "Agent-first API for submitting transaction intents. Agents can propose transactions; humans review and sign on Ledger hardware."
+    "version": "0.2.0",
+    "description": "Agent-first API for submitting transaction intents. AI agents propose transactions; humans review and sign on Ledger hardware. Agents never touch private keys.\n\n## Quick Start\n1. Register your agent key (human signs authorization on Ledger)\n2. `POST /api/intents` with AgentAuth header to propose a transaction\n3. Share the returned `paymentUrl` with the human\n4. Poll `GET /api/intents/{id}` until status is `confirmed`, `rejected`, `failed`, or `expired`\n\n## Authentication\nAgents authenticate via the `Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>` header.\n- `timestamp`: Unix epoch seconds (within 5 min of server time)\n- `bodyHash`: keccak256 of raw JSON body as hex (use `0x` for GET)\n- `signature`: EIP-191 personal_sign of `<timestamp>.<bodyHash>` with agent's secp256k1 key"
   },
   "servers": [
-    { "url": "https://agent-intents-web.vercel.app", "description": "Production (example)" },
-    { "url": "/", "description": "Same-origin (recommended)" }
+    { "url": "https://agent-intents-web.vercel.app", "description": "Production" },
+    { "url": "/", "description": "Same-origin" }
   ],
   "tags": [
-    { "name": "Health" },
-    { "name": "Intents" },
-    { "name": "Users" },
-    { "name": "Auth", "description": "Session-based auth (currently disabled) and compatibility endpoints" },
-    { "name": "Agents", "description": "Agent provisioning and management" }
+    { "name": "Intents", "description": "Create, read, and update payment intents" },
+    { "name": "Agents", "description": "Agent provisioning and management" },
+    { "name": "Auth", "description": "Session-based auth for web UI (EIP-712 challenge/verify)" },
+    { "name": "Health", "description": "Service health" }
   ],
   "paths": {
     "/api/health": {
       "get": {
         "tags": ["Health"],
+        "operationId": "healthCheck",
         "summary": "Health check",
         "responses": {
           "200": {
@@ -36,12 +36,31 @@
     "/api/intents": {
       "get": {
         "tags": ["Intents"],
+        "operationId": "listIntents",
         "summary": "List intents for a user",
-        "description": "List intents for a user via query parameters. Equivalent to GET /api/users/{userId}/intents.",
+        "description": "Returns intents for a given userId, optionally filtered by status. No authentication required.",
         "parameters": [
-          { "name": "userId", "in": "query", "required": true, "schema": { "type": "string" } },
-          { "name": "status", "in": "query", "required": false, "schema": { "$ref": "#/components/schemas/IntentStatus" } },
-          { "name": "limit", "in": "query", "required": false, "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 } }
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "description": "Wallet address (e.g., 0xabc...)",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Filter by intent status",
+            "schema": { "$ref": "#/components/schemas/IntentStatus" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Max results (1–100)",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }
+          }
         ],
         "responses": {
           "200": {
@@ -53,39 +72,64 @@
             }
           },
           "400": {
-            "description": "Bad request",
+            "description": "Missing userId",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
           }
         }
       },
       "post": {
         "tags": ["Intents"],
-        "summary": "Create an intent",
-        "description": "Submit a new transaction intent for human review and hardware signing. If the `Authorization: AgentAuth ...` header is provided, the intent is linked to the authenticated agent's trustchain and the userId field is ignored.",
-        "security": [
-          {},
-          { "AgentAuth": [] }
-        ],
+        "operationId": "createIntent",
+        "summary": "Create a payment intent",
+        "description": "Submit a new transaction intent for human review and Ledger signing. Requires AgentAuth. The userId is derived from the authenticated agent's trustchain — do not pass it in the body.\n\nReturns a `paymentUrl` that the agent should share with the human so they can review and sign.",
+        "security": [{ "AgentAuth": [] }],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": { "$ref": "#/components/schemas/CreateIntentRequest" },
               "examples": {
-                "transfer": {
+                "simple_transfer": {
+                  "summary": "Simple USDC transfer",
                   "value": {
-                    "agentId": "podcast-agent",
-                    "agentName": "Podcast Payment Bot",
-                    "userId": "demo-user",
+                    "agentId": "my-research-bot",
+                    "agentName": "Research Assistant",
                     "urgency": "normal",
                     "expiresInMinutes": 60,
                     "details": {
                       "type": "transfer",
                       "token": "USDC",
-                      "amount": "50",
-                      "recipient": "0x1234567890abcdef1234567890abcdef12345678",
-                      "chainId": 11155111,
-                      "memo": "Payment for services"
+                      "amount": "5.00",
+                      "recipient": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+                      "chainId": 8453,
+                      "memo": "API access fee"
+                    }
+                  }
+                },
+                "x402_payment": {
+                  "summary": "x402 pay-per-call API payment",
+                  "value": {
+                    "agentId": "my-research-bot",
+                    "agentName": "Research Assistant",
+                    "details": {
+                      "type": "transfer",
+                      "token": "USDC",
+                      "amount": "0.01",
+                      "recipient": "0xPayToAddress...",
+                      "chainId": 8453,
+                      "memo": "x402 payment for CoinGecko Pro API",
+                      "resource": "https://api.coingecko.com/pro/v1/coins/bitcoin",
+                      "category": "api_payment",
+                      "x402": {
+                        "resource": { "url": "https://api.coingecko.com/pro/v1/coins/bitcoin" },
+                        "accepted": {
+                          "scheme": "exact",
+                          "network": "eip155:8453",
+                          "amount": "10000",
+                          "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                          "payTo": "0xPayToAddress..."
+                        }
+                      }
                     }
                   }
                 }
@@ -95,20 +139,28 @@
         },
         "responses": {
           "201": {
-            "description": "Created",
+            "description": "Intent created",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/IntentResponse" }
+                "schema": { "$ref": "#/components/schemas/CreateIntentResponse" }
               }
             }
           },
           "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
+            "description": "Validation error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": {
+            "description": "Missing or invalid AgentAuth header",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "429": {
+            "description": "Rate limit exceeded (max 10 intents per agent per minute)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "503": {
+            "description": "Service temporarily unavailable",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
           }
         }
       }
@@ -116,31 +168,107 @@
     "/api/intents/{id}": {
       "get": {
         "tags": ["Intents"],
-        "summary": "Get an intent by ID",
+        "operationId": "getIntent",
+        "summary": "Get intent by ID",
+        "description": "Returns intent details. Without auth, x402 secrets (paymentSignatureHeader, paymentPayload) are stripped. With AgentAuth from the owning agent, full x402 secrets are included.",
+        "security": [
+          {},
+          { "AgentAuth": [] }
+        ],
         "parameters": [
           {
             "name": "id",
             "in": "path",
             "required": true,
+            "description": "Intent ID (e.g., int_1707048000_abc12345)",
             "schema": { "type": "string" }
           }
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "OK — intent found. x402 secrets included only if caller is the owning agent.",
             "content": {
               "application/json": {
                 "schema": { "$ref": "#/components/schemas/IntentResponse" }
               }
             }
           },
+          "400": {
+            "description": "Missing intent ID",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
           "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+            "description": "Intent not found",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          }
+        }
+      }
+    },
+    "/api/intents/status": {
+      "post": {
+        "tags": ["Intents"],
+        "operationId": "updateIntentStatus",
+        "summary": "Update intent status",
+        "description": "Update the status of an intent. Agents (AgentAuth) can set: `executing`, `confirmed`, `failed`. Humans (session cookie) can set: `approved`, `rejected`, `authorized`, `broadcasting`. The caller must own the intent.\n\nThis is the preferred route (static path avoids Vercel dynamic-route issues).",
+        "security": [
+          { "AgentAuth": [] },
+          { "SessionCookie": [] }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateIntentStatusByIdRequest" },
+              "examples": {
+                "agent_confirms": {
+                  "summary": "Agent confirms x402 settlement",
+                  "value": {
+                    "id": "int_1707048000_abc12345",
+                    "status": "confirmed",
+                    "note": "x402 payment settled successfully",
+                    "settlementReceipt": {
+                      "txHash": "0xabc123...",
+                      "network": "eip155:8453",
+                      "success": true
+                    }
+                  }
+                },
+                "agent_reports_failure": {
+                  "summary": "Agent reports failure",
+                  "value": {
+                    "id": "int_1707048000_abc12345",
+                    "status": "failed",
+                    "note": "x402 server returned 500 after payment"
+                  }
+                }
               }
             }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Status updated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IntentResponse" } } }
+          },
+          "400": {
+            "description": "Invalid status or missing fields",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "401": {
+            "description": "Authentication failed",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "403": {
+            "description": "Not authorized (wrong owner or disallowed status transition)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "404": {
+            "description": "Intent not found",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+          },
+          "409": {
+            "description": "Invalid state transition (e.g., confirmed → pending)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
           }
         }
       }
@@ -148,8 +276,13 @@
     "/api/intents/{id}/status": {
       "patch": {
         "tags": ["Intents"],
-        "summary": "Update intent status",
-        "description": "Update the status of an intent (typically called by the signing app, not agents).",
+        "operationId": "updateIntentStatusLegacy",
+        "summary": "Update intent status (legacy)",
+        "description": "Legacy alternative to POST /api/intents/status. Same authentication and permission rules apply. Prefer the POST route.",
+        "security": [
+          { "AgentAuth": [] },
+          { "SessionCookie": [] }
+        ],
         "parameters": [
           {
             "name": "id",
@@ -168,198 +301,30 @@
         },
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/IntentResponse" }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          },
-          "404": {
-            "description": "Not found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/intents/status": {
-      "post": {
-        "tags": ["Intents"],
-        "summary": "Update intent status (by body id)",
-        "description": "Update the status of an intent. This static path exists to avoid Vercel routing issues with dynamic PATCH routes. Typically called by the signing app, not agents.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/UpdateIntentStatusByIdRequest" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
+            "description": "Status updated",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IntentResponse" } } }
           },
-          "400": {
-            "description": "Bad request",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
-          },
-          "404": {
-            "description": "Not found",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
-          }
-        }
-      }
-    },
-    "/api/agents/register": {
-      "post": {
-        "tags": ["Agents"],
-        "summary": "Register a new agent",
-        "description": "Register a new agent public key under a trustchain identity. The agent receives a credential file containing a secp256k1 private key generated via LKRP's NobleCryptoService.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/RegisterAgentRequest" },
-              "examples": {
-                "register": {
-                  "value": {
-                    "trustChainId": "0xabc123def456",
-                    "agentLabel": "My Trading Bot",
-                    "agentPublicKey": "0x04abc...compressed-secp256k1-pubkey"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Agent registered",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/AgentResponse" }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
-          },
-          "409": {
-            "description": "Agent public key already registered",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
-          }
-        }
-      }
-    },
-    "/api/agents": {
-      "get": {
-        "tags": ["Agents"],
-        "summary": "List agents for a trustchain",
-        "parameters": [
-          {
-            "name": "trustchainId",
-            "in": "query",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/AgentListResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/agents/{id}": {
-      "get": {
-        "tags": ["Agents"],
-        "summary": "Get agent by ID",
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentResponse" } } }
-          },
-          "404": {
-            "description": "Not found",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
-          }
-        }
-      },
-      "delete": {
-        "tags": ["Agents"],
-        "summary": "Revoke an agent",
-        "description": "Soft-revokes an agent by setting revoked_at. The agent will receive 401 on subsequent authenticated requests.",
-        "parameters": [
-          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
-        ],
-        "responses": {
-          "200": {
-            "description": "Agent revoked",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentResponse" } } }
-          },
-          "404": {
-            "description": "Agent not found or already revoked",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
-          }
-        }
-      }
-    },
-    "/api/agents/revoke": {
-      "post": {
-        "tags": ["Agents"],
-        "summary": "Revoke an agent (by body id)",
-        "description": "Revoke an agent using a static POST route (avoids Vercel routing issues with DELETE on dynamic routes).",
-        "requestBody": {
-          "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RevokeAgentRequest" } } }
-        },
-        "responses": {
-          "200": {
-            "description": "Agent revoked",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentResponse" } } }
-          },
-          "400": {
-            "description": "Bad request",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
-          },
-          "404": {
-            "description": "Agent not found or already revoked",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
-          }
+          "400": { "description": "Bad request", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "Authentication failed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Not authorized", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "description": "Invalid state transition", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       }
     },
     "/api/users/{userId}/intents": {
       "get": {
-        "tags": ["Users"],
-        "summary": "List intents for a user",
+        "tags": ["Intents"],
+        "operationId": "listUserIntents",
+        "summary": "List intents for a user (path param)",
+        "description": "Same as GET /api/intents?userId=... but with userId in the path. Requires session cookie; callers can only list their own intents.",
+        "security": [{ "SessionCookie": [] }],
         "parameters": [
           {
             "name": "userId",
             "in": "path",
             "required": true,
+            "description": "Wallet address",
             "schema": { "type": "string" }
           },
           {
@@ -378,51 +343,164 @@
         "responses": {
           "200": {
             "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/IntentListResponse" }
-              }
-            }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IntentListResponse" } } }
           },
-          "400": {
-            "description": "Bad request",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
+          "400": { "description": "Missing userId", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "Authentication required", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Can only list own intents", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       }
     },
-    "/api/me": {
+    "/api/agents/register": {
+      "post": {
+        "tags": ["Agents"],
+        "operationId": "registerAgent",
+        "summary": "Register a new agent",
+        "description": "Register a new agent public key under a trustchain identity. No auth header needed — authorization is proved via an EIP-191 signature in the body (signed on the Ledger device).\n\nThe signed message must be exactly:\n```\nAuthorize agent key for Ledger Agent Payments\nKey: <agentPublicKey>\nLabel: <agentLabel>\nIdentity: <trustChainId>\n```",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterAgentRequest" },
+              "examples": {
+                "register": {
+                  "summary": "Register a trading bot",
+                  "value": {
+                    "trustChainId": "0xabcdef1234567890abcdef1234567890abcdef12",
+                    "agentPublicKey": "0x02abc123def456789...",
+                    "agentLabel": "My Trading Bot",
+                    "authorizationSignature": "0xsig..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Agent registered",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentResponse" } } }
+          },
+          "400": { "description": "Validation error or invalid signature", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Signature does not match wallet", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "description": "Agent public key already registered", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "429": { "description": "Rate limit exceeded (max 5 registrations per wallet per minute)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "503": { "description": "Service temporarily unavailable", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/agents": {
       "get": {
-        "tags": ["Auth"],
-        "summary": "Get current wallet (compat)",
-        "description": "Compatibility endpoint. Session auth is disabled; provide `wallet` query param to receive it back lowercased.",
+        "tags": ["Agents"],
+        "operationId": "listAgents",
+        "summary": "List agents for a trustchain",
+        "description": "List all agents (including revoked) for a trustchain identity. Requires session cookie; callers can only list their own agents.",
+        "security": [{ "SessionCookie": [] }],
         "parameters": [
-          { "name": "wallet", "in": "query", "required": false, "schema": { "type": "string" } }
+          {
+            "name": "trustchainId",
+            "in": "query",
+            "required": true,
+            "description": "Wallet address (trustchain identity)",
+            "schema": { "type": "string" }
+          }
         ],
         "responses": {
           "200": {
             "description": "OK",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MeResponse" } } }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentListResponse" } } }
           },
-          "401": {
-            "description": "Unauthorized",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
-          }
+          "400": { "description": "Missing trustchainId", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "Authentication required", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Can only list own agents", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/agents/{id}": {
+      "get": {
+        "tags": ["Agents"],
+        "operationId": "getAgent",
+        "summary": "Get agent by ID",
+        "description": "Get agent details by member UUID. Requires session cookie; callers can only view their own agents.",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentResponse" } } }
+          },
+          "400": { "description": "Missing ID", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "Authentication required", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Can only view own agents", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Agent not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["Agents"],
+        "operationId": "revokeAgentLegacy",
+        "summary": "Revoke an agent (legacy DELETE)",
+        "description": "Legacy alternative to POST /api/agents/revoke. Soft-revokes the agent. Requires session cookie.",
+        "security": [{ "SessionCookie": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent revoked",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentResponse" } } }
+          },
+          "401": { "description": "Authentication required", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Can only revoke own agents", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Agent not found or already revoked", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/agents/revoke": {
+      "post": {
+        "tags": ["Agents"],
+        "operationId": "revokeAgent",
+        "summary": "Revoke an agent",
+        "description": "Soft-revoke an agent by member UUID. The agent will receive 401 on subsequent authenticated requests. Requires session cookie. Preferred over DELETE /api/agents/{id}.",
+        "security": [{ "SessionCookie": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RevokeAgentRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent revoked",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentResponse" } } }
+          },
+          "400": { "description": "Invalid agent ID", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "Authentication required", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Can only revoke own agents", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Agent not found or already revoked", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
       }
     },
     "/api/auth/challenge": {
       "post": {
         "tags": ["Auth"],
-        "summary": "Issue wallet auth challenge (disabled)",
-        "description": "Wallet-based session auth is intentionally disabled.",
+        "operationId": "authChallenge",
+        "summary": "Request auth challenge",
+        "description": "Issue an EIP-712 typed data challenge for wallet-based session authentication. The human signs this on their Ledger, then submits to /api/auth/verify. Challenge is valid for 5 minutes.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChallengeRequest" }
+            }
+          }
+        },
         "responses": {
-          "501": {
-            "description": "Not implemented",
+          "200": {
+            "description": "Challenge issued",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChallengeResponse" } } }
+          },
+          "400": {
+            "description": "Invalid wallet address",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
           }
         }
@@ -431,11 +509,24 @@
     "/api/auth/verify": {
       "post": {
         "tags": ["Auth"],
-        "summary": "Verify wallet auth (disabled)",
-        "description": "Wallet-based session auth is intentionally disabled.",
+        "operationId": "authVerify",
+        "summary": "Verify auth signature",
+        "description": "Verify the EIP-712 signature against the challenge and establish a session cookie (ai_session, valid 7 days).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/VerifyRequest" }
+            }
+          }
+        },
         "responses": {
-          "501": {
-            "description": "Not implemented",
+          "200": {
+            "description": "Session established",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/VerifyResponse" } } }
+          },
+          "401": {
+            "description": "Invalid/expired challenge or bad signature",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
           }
         }
@@ -444,12 +535,32 @@
     "/api/auth/logout": {
       "post": {
         "tags": ["Auth"],
+        "operationId": "authLogout",
         "summary": "Logout",
-        "description": "Clears the `ai_session` cookie (if present).",
+        "description": "Clears the ai_session cookie.",
         "responses": {
           "200": {
             "description": "OK",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LogoutResponse" } } }
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": ["Auth"],
+        "operationId": "getMe",
+        "summary": "Get authenticated wallet",
+        "description": "Returns the wallet address from the session cookie. Requires active session.",
+        "security": [{ "SessionCookie": [] }],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MeResponse" } } }
+          },
+          "401": {
+            "description": "No active session",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
           }
         }
       }
@@ -461,7 +572,13 @@
         "type": "apiKey",
         "in": "header",
         "name": "Authorization",
-        "description": "Agent authentication via signed headers. Format: `AgentAuth <timestamp>.<bodyHash>.<signature>`. The bodyHash is keccak256 of the JSON body as hex. The signature is an EIP-191 personal_sign over `<timestamp>.<bodyHash>` using the agent's secp256k1 private key from the LKRP credential file."
+        "description": "Agent authentication. Format: `AgentAuth <timestamp>.<bodyHash>.<signature>`\n\n- `timestamp`: Unix epoch seconds (must be within 5 min of server time)\n- `bodyHash`: keccak256 of the raw JSON body as hex string (use `0x` for GET requests)\n- `signature`: EIP-191 personal_sign of the string `<timestamp>.<bodyHash>` using the agent's secp256k1 private key\n\nThe server recovers the signer address and matches it against registered agent public keys."
+      },
+      "SessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "ai_session",
+        "description": "Session cookie established via POST /api/auth/verify. Valid for 7 days. Used by the web UI for human actions."
       }
     },
     "schemas": {
@@ -470,7 +587,7 @@
         "required": ["success", "status", "timestamp"],
         "properties": {
           "success": { "type": "boolean", "const": true },
-          "status": { "type": "string", "examples": ["ok"] },
+          "status": { "type": "string", "const": "ok" },
           "timestamp": { "type": "string", "format": "date-time" }
         }
       },
@@ -479,17 +596,94 @@
         "required": ["success", "error"],
         "properties": {
           "success": { "type": "boolean", "const": false },
-          "error": { "type": "string" }
+          "error": { "type": "string", "description": "Human-readable error message" }
         }
       },
       "IntentUrgency": {
         "type": "string",
         "enum": ["low", "normal", "high", "critical"],
-        "default": "normal"
+        "default": "normal",
+        "description": "Priority level. Affects recommended polling interval."
       },
       "IntentStatus": {
         "type": "string",
-        "enum": ["pending", "approved", "rejected", "signed", "authorized", "confirmed", "failed", "expired"]
+        "enum": ["pending", "approved", "rejected", "broadcasting", "authorized", "executing", "confirmed", "failed", "expired"],
+        "description": "Intent lifecycle status. Terminal states: rejected, confirmed, failed, expired."
+      },
+      "PaymentCategory": {
+        "type": "string",
+        "enum": ["api_payment", "subscription", "purchase", "p2p_transfer", "defi", "bill_payment", "donation", "other"],
+        "description": "Category of payment (for display and analytics)"
+      },
+      "X402Resource": {
+        "type": "object",
+        "properties": {
+          "url": { "type": "string", "format": "uri", "description": "The URL being paid for" },
+          "description": { "type": "string" },
+          "mimeType": { "type": "string" }
+        },
+        "required": ["url"]
+      },
+      "X402AcceptedExactEvm": {
+        "type": "object",
+        "description": "x402 payment requirement for EVM exact scheme (EIP-3009 TransferWithAuthorization)",
+        "required": ["network", "amount", "asset", "payTo"],
+        "properties": {
+          "scheme": { "type": "string", "const": "exact" },
+          "network": { "type": "string", "description": "CAIP-2 network ID (e.g., eip155:8453)" },
+          "amount": { "type": "string", "description": "Amount in atomic units (e.g., 10000 = 0.01 USDC)" },
+          "asset": { "type": "string", "description": "ERC-20 token contract address" },
+          "payTo": { "type": "string", "description": "Recipient address" },
+          "maxTimeoutSeconds": { "type": "integer" },
+          "extra": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "description": "EIP-712 domain name (e.g., USD Coin)" },
+              "version": { "type": "string", "description": "EIP-712 domain version (e.g., 2)" },
+              "decimals": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "X402Context": {
+        "type": "object",
+        "description": "Full x402 payment context stored on an intent",
+        "properties": {
+          "resource": { "$ref": "#/components/schemas/X402Resource" },
+          "accepted": { "$ref": "#/components/schemas/X402AcceptedExactEvm" },
+          "authorization": {
+            "type": "object",
+            "description": "EIP-3009 TransferWithAuthorization parameters (populated after signing)",
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "value": { "type": "string" },
+              "validAfter": { "type": "string" },
+              "validBefore": { "type": "string" },
+              "nonce": { "type": "string" }
+            }
+          },
+          "signature": { "type": "string", "description": "EIP-712 signature of the authorization (populated after signing)" },
+          "paymentSignatureHeader": { "type": "string", "description": "Base64-encoded PAYMENT header value the agent should send to the x402 server. Only returned to the owning agent." },
+          "paymentPayload": {
+            "type": "object",
+            "description": "Structured payment payload (only returned to owning agent)"
+          },
+          "settlementReceipt": {
+            "type": "object",
+            "description": "Receipt from x402 server after settlement",
+            "properties": {
+              "txHash": { "type": "string" },
+              "network": { "type": "string" },
+              "amount": { "type": "string" },
+              "settledAt": { "type": "string" },
+              "blockNumber": { "type": "integer" },
+              "success": { "type": "boolean" },
+              "error": { "type": "string" }
+            }
+          },
+          "expiresAt": { "type": "string", "format": "date-time", "description": "When the x402 authorization expires" }
+        }
       },
       "TransferIntent": {
         "type": "object",
@@ -497,42 +691,52 @@
         "properties": {
           "type": { "type": "string", "const": "transfer" },
           "token": { "type": "string", "description": "Token symbol (e.g., USDC, ETH)" },
-          "tokenAddress": { "type": "string", "description": "Optional ERC-20 contract address" },
-          "amount": { "type": "string", "description": "Human-readable amount" },
-          "amountWei": { "type": "string", "description": "Optional amount in wei for precision" },
+          "tokenAddress": { "type": "string", "description": "ERC-20 contract address (auto-filled for known tokens)" },
+          "tokenLogo": { "type": "string", "description": "URL to token logo image" },
+          "amount": { "type": "string", "description": "Human-readable amount (e.g., '50', '0.01')" },
+          "amountWei": { "type": "string", "description": "Amount in wei for precision" },
           "recipient": { "type": "string", "description": "Destination address (0x...)" },
-          "recipientEns": { "type": "string", "description": "Optional ENS name if resolved" },
-          "chainId": { "type": "integer", "description": "Chain ID (e.g., 11155111 for Sepolia)" },
-          "memo": { "type": "string", "description": "Optional memo/reason" },
-          "x402": {
+          "recipientEns": { "type": "string", "description": "ENS name if resolved" },
+          "chainId": { "type": "integer", "description": "Chain ID: 8453 (Base), 11155111 (Sepolia), 84532 (Base Sepolia)" },
+          "memo": { "type": "string", "description": "Human-readable reason for the transaction" },
+          "resource": { "type": "string", "description": "x402: URL of the resource being paid for" },
+          "merchant": {
             "type": "object",
-            "description": "Optional x402 payment data (demo)",
-            "additionalProperties": true
-          }
+            "description": "Merchant/payee information",
+            "properties": {
+              "name": { "type": "string" },
+              "url": { "type": "string" },
+              "logo": { "type": "string" },
+              "verified": { "type": "boolean" }
+            }
+          },
+          "category": { "$ref": "#/components/schemas/PaymentCategory" },
+          "x402": { "$ref": "#/components/schemas/X402Context" }
         }
       },
       "Intent": {
         "type": "object",
         "required": ["id", "userId", "agentId", "agentName", "details", "urgency", "status", "createdAt", "statusHistory"],
         "properties": {
-          "id": { "type": "string" },
-          "userId": { "type": "string" },
-          "agentId": { "type": "string" },
-          "agentName": { "type": "string" },
+          "id": { "type": "string", "description": "Unique intent ID (format: int_<timestamp>_<uuid>)" },
+          "userId": { "type": "string", "description": "Wallet address of the human signer" },
+          "agentId": { "type": "string", "description": "Agent identifier" },
+          "agentName": { "type": "string", "description": "Agent display name" },
           "details": { "$ref": "#/components/schemas/TransferIntent" },
           "urgency": { "$ref": "#/components/schemas/IntentUrgency" },
           "status": { "$ref": "#/components/schemas/IntentStatus" },
+          "trustChainId": { "type": "string", "description": "Trustchain identity (wallet address) — set when created by an authenticated agent" },
+          "createdByMemberId": { "type": "string", "format": "uuid", "description": "Agent member UUID" },
           "createdAt": { "type": "string", "format": "date-time" },
           "expiresAt": { "type": "string", "format": "date-time" },
           "reviewedAt": { "type": "string", "format": "date-time" },
-          "signedAt": { "type": "string", "format": "date-time" },
+          "broadcastAt": { "type": "string", "format": "date-time" },
           "confirmedAt": { "type": "string", "format": "date-time" },
-          "txHash": { "type": "string" },
-          "txUrl": { "type": "string" },
-          "trustChainId": { "type": "string", "description": "Trustchain ID when created by an authenticated agent" },
-          "createdByMemberId": { "type": "string", "format": "uuid", "description": "Agent member ID when created by an authenticated agent" },
+          "txHash": { "type": "string", "description": "Transaction hash (populated after confirmation)" },
+          "txUrl": { "type": "string", "description": "Block explorer URL" },
           "statusHistory": {
             "type": "array",
+            "description": "Ordered audit trail of status changes",
             "items": {
               "type": "object",
               "required": ["status", "timestamp"],
@@ -553,6 +757,15 @@
           "intent": { "$ref": "#/components/schemas/Intent" }
         }
       },
+      "CreateIntentResponse": {
+        "type": "object",
+        "required": ["success", "intent", "paymentUrl"],
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "intent": { "$ref": "#/components/schemas/Intent" },
+          "paymentUrl": { "type": "string", "format": "uri", "description": "Direct URL for the human to review and sign this intent. Share this with the user." }
+        }
+      },
       "IntentListResponse": {
         "type": "object",
         "required": ["success", "intents"],
@@ -568,70 +781,56 @@
         "type": "object",
         "required": ["agentId", "details"],
         "properties": {
-          "agentId": { "type": "string" },
-          "agentName": { "type": "string" },
-          "userId": { "type": "string", "description": "Hackathon/demo: optional; defaults to 'demo-user' if omitted." },
+          "agentId": { "type": "string", "description": "Your agent's unique identifier" },
+          "agentName": { "type": "string", "description": "Human-readable display name (defaults to agentId)" },
           "urgency": { "$ref": "#/components/schemas/IntentUrgency" },
-          "expiresInMinutes": { "type": "integer", "minimum": 1 },
+          "expiresInMinutes": { "type": "integer", "minimum": 1, "description": "Minutes until intent expires (default: 1440 = 24 hours)" },
           "details": { "$ref": "#/components/schemas/TransferIntent" }
         }
       },
       "UpdateIntentStatusRequest": {
         "type": "object",
         "required": ["status"],
+        "description": "Used with PATCH /api/intents/{id}/status (legacy). Intent ID comes from the path.",
         "properties": {
           "status": { "$ref": "#/components/schemas/IntentStatus" },
-          "txHash": { "type": "string" },
-          "note": { "type": "string" },
-          "paymentSignatureHeader": { "type": "string", "description": "x402: base64-encoded payment signature header value" },
-          "paymentPayload": { "type": "object", "additionalProperties": true },
-          "settlementReceipt": { "type": "object", "additionalProperties": true }
+          "txHash": { "type": "string", "description": "Transaction hash" },
+          "note": { "type": "string", "description": "Audit note" },
+          "paymentSignatureHeader": { "type": "string", "description": "x402: base64-encoded payment signature header" },
+          "paymentPayload": { "type": "object", "additionalProperties": true, "description": "x402: structured payment payload" },
+          "settlementReceipt": { "type": "object", "additionalProperties": true, "description": "x402: settlement receipt from server" }
         }
       },
       "UpdateIntentStatusByIdRequest": {
         "type": "object",
         "required": ["id", "status"],
+        "description": "Used with POST /api/intents/status (preferred). Includes intent ID in the body.",
         "properties": {
-          "id": { "type": "string", "description": "Intent ID" },
+          "id": { "type": "string", "description": "Intent ID (e.g., int_1707048000_abc12345)" },
           "status": { "$ref": "#/components/schemas/IntentStatus" },
-          "txHash": { "type": "string" },
-          "note": { "type": "string" },
-          "paymentSignatureHeader": { "type": "string", "description": "x402: base64-encoded payment signature header value" },
-          "paymentPayload": { "type": "object", "additionalProperties": true },
-          "settlementReceipt": { "type": "object", "additionalProperties": true }
+          "txHash": { "type": "string", "description": "Transaction hash" },
+          "note": { "type": "string", "description": "Audit note" },
+          "paymentSignatureHeader": { "type": "string", "description": "x402: base64-encoded payment signature header" },
+          "paymentPayload": { "type": "object", "additionalProperties": true, "description": "x402: structured payment payload" },
+          "settlementReceipt": { "type": "object", "additionalProperties": true, "description": "x402: settlement receipt from server" },
+          "expiresAt": { "type": "string", "format": "date-time", "description": "Override expiration timestamp" }
         }
       },
       "RegisterAgentRequest": {
         "type": "object",
         "required": ["trustChainId", "agentPublicKey", "authorizationSignature"],
         "properties": {
-          "trustChainId": { "type": "string", "description": "Trustchain identity (lowercased wallet address) from the connected Ledger device" },
-          "agentLabel": { "type": "string", "description": "Human-readable label (e.g., 'My Trading Bot')" },
-          "agentPublicKey": { "type": "string", "description": "Hex-encoded secp256k1 compressed public key generated by LKRP NobleCryptoService" },
-          "authorizationSignature": { "type": "string", "description": "EIP-191 personal_sign signature from the Ledger device authorizing this agent key. The signed message is: 'Authorize agent key for Ledger Agent Payments\\nKey: <pubkey>\\nLabel: <label>\\nIdentity: <trustchainId>'" }
+          "trustChainId": { "type": "string", "description": "Owner's wallet address (lowercased)" },
+          "agentPublicKey": { "type": "string", "description": "0x-prefixed hex-encoded secp256k1 compressed public key" },
+          "agentLabel": { "type": "string", "description": "Human-readable label (default: 'Unnamed Agent')" },
+          "authorizationSignature": { "type": "string", "description": "EIP-191 personal_sign of: 'Authorize agent key for Ledger Agent Payments\\nKey: <pubkey>\\nLabel: <label>\\nIdentity: <trustchainId>'" }
         }
       },
       "RevokeAgentRequest": {
         "type": "object",
         "required": ["id"],
         "properties": {
-          "id": { "type": "string", "format": "uuid", "description": "Agent member ID" }
-        }
-      },
-      "MeResponse": {
-        "type": "object",
-        "required": ["success", "walletAddress"],
-        "properties": {
-          "success": { "type": "boolean", "const": true },
-          "walletAddress": { "type": "string" }
-        }
-      },
-      "LogoutResponse": {
-        "type": "object",
-        "required": ["success", "ok"],
-        "properties": {
-          "success": { "type": "boolean", "const": true },
-          "ok": { "type": "boolean", "const": true }
+          "id": { "type": "string", "format": "uuid", "description": "Agent member UUID" }
         }
       },
       "TrustchainMember": {
@@ -639,12 +838,12 @@
         "required": ["id", "trustchainId", "memberPubkey", "role", "createdAt"],
         "properties": {
           "id": { "type": "string", "format": "uuid" },
-          "trustchainId": { "type": "string" },
+          "trustchainId": { "type": "string", "description": "Owner's wallet address" },
           "memberPubkey": { "type": "string", "description": "Hex-encoded secp256k1 compressed public key" },
           "role": { "type": "string", "enum": ["agent_write_only", "full_access"], "default": "agent_write_only" },
           "label": { "type": "string", "nullable": true },
           "createdAt": { "type": "string", "format": "date-time" },
-          "revokedAt": { "type": "string", "format": "date-time", "nullable": true }
+          "revokedAt": { "type": "string", "format": "date-time", "nullable": true, "description": "Set when agent is revoked; null if active" }
         }
       },
       "AgentResponse": {
@@ -664,6 +863,55 @@
             "type": "array",
             "items": { "$ref": "#/components/schemas/TrustchainMember" }
           }
+        }
+      },
+      "ChallengeRequest": {
+        "type": "object",
+        "required": ["walletAddress"],
+        "properties": {
+          "walletAddress": { "type": "string", "description": "Ethereum wallet address (0x...)" },
+          "chainId": { "type": "integer", "description": "Chain ID (default: 1)" }
+        }
+      },
+      "ChallengeResponse": {
+        "type": "object",
+        "required": ["success", "challengeId", "typedData"],
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "challengeId": { "type": "string", "format": "uuid" },
+          "typedData": { "type": "object", "description": "EIP-712 typed data to sign" }
+        }
+      },
+      "VerifyRequest": {
+        "type": "object",
+        "required": ["challengeId", "signature"],
+        "properties": {
+          "challengeId": { "type": "string", "description": "Challenge ID from /api/auth/challenge" },
+          "signature": { "type": "string", "description": "EIP-712 signature of the challenge typed data" }
+        }
+      },
+      "VerifyResponse": {
+        "type": "object",
+        "required": ["success", "walletAddress"],
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "walletAddress": { "type": "string" }
+        }
+      },
+      "MeResponse": {
+        "type": "object",
+        "required": ["success", "walletAddress"],
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "walletAddress": { "type": "string" }
+        }
+      },
+      "LogoutResponse": {
+        "type": "object",
+        "required": ["success", "ok"],
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "ok": { "type": "boolean", "const": true }
         }
       }
     }

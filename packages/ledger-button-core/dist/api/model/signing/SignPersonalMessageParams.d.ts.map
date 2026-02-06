@@ -1,0 +1,1 @@
+{"version":3,"file":"SignPersonalMessageParams.d.ts","sourceRoot":"","sources":["../../../../src/api/model/signing/SignPersonalMessageParams.ts"],"names":[],"mappings":"AAAA,MAAM,MAAM,yBAAyB,GAAG,CAAC,MAAM,EAAE,MAAM,GAAG,UAAU,EAAE,MAAM,CAAC,CAAC;AAE9E,wBAAgB,2BAA2B,CACzC,MAAM,EAAE,OAAO,GACd,MAAM,IAAI,yBAAyB,CAUrC"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"transactionModule.d.ts","sourceRoot":"","sources":["../../../src/internal/transaction/transactionModule.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,eAAe,EAAE,MAAM,WAAW,CAAC;AAM5C,KAAK,wBAAwB,GAAG;IAC9B,IAAI,CAAC,EAAE,OAAO,CAAC;CAChB,CAAC;AAEF,wBAAgB,wBAAwB,CAAC,EACvC,IAAI,EAAE,KAAK,GACZ,EAAE,wBAAwB,mBAM1B"}

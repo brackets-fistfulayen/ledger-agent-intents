@@ -1,10 +1,13 @@
 /**
  * Get user intents endpoint
  * GET /api/users/:userId/intents
+ *
+ * Requires session auth. Caller can only list intents for their own wallet (userId).
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import type { IntentStatus } from "@agent-intents/shared";
-import { methodRouter, jsonSuccess, getQueryParam, getQueryNumber } from "../../_lib/http.js";
+import { requireSession } from "../../_lib/auth.js";
+import { methodRouter, jsonSuccess, jsonError, getQueryParam, getQueryNumber } from "../../_lib/http.js";
 import { getIntentsByUser } from "../../_lib/intentsRepo.js";
 
 const VALID_STATUSES: IntentStatus[] = [
@@ -19,15 +22,27 @@ const VALID_STATUSES: IntentStatus[] = [
 
 export default methodRouter({
 	GET: async (req: VercelRequest, res: VercelResponse) => {
+		let session: { sessionId: string; walletAddress: string };
+		try {
+			session = await requireSession(req);
+		} catch {
+			jsonError(res, "Authentication required", 401);
+			return;
+		}
+
 		const { userId } = req.query;
 		const userIdStr = Array.isArray(userId) ? userId[0] : userId;
 
 		if (!userIdStr) {
-			res.status(400).json({ success: false, error: "User ID required" });
+			jsonError(res, "User ID required", 400);
 			return;
 		}
 
-		// Parse optional filters
+		if (userIdStr.toLowerCase() !== session.walletAddress) {
+			jsonError(res, "You can only list your own intents", 403);
+			return;
+		}
+
 		const statusParam = getQueryParam(req, "status");
 		const status = statusParam && VALID_STATUSES.includes(statusParam as IntentStatus)
 			? (statusParam as IntentStatus)

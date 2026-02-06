@@ -13,6 +13,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PayIntentIdRouteImport } from './routes/pay.$intentId'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -34,18 +35,25 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PayIntentIdRoute = PayIntentIdRouteImport.update({
+  id: '/pay/$intentId',
+  path: '/pay/$intentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
+  '/pay/$intentId': typeof PayIntentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/docs': typeof DocsRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
+  '/pay/$intentId': typeof PayIntentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/docs': typeof DocsRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
+  '/pay/$intentId': typeof PayIntentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/docs' | '/history' | '/settings'
+  fullPaths: '/' | '/docs' | '/history' | '/settings' | '/pay/$intentId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/docs' | '/history' | '/settings'
-  id: '__root__' | '/' | '/docs' | '/history' | '/settings'
+  to: '/' | '/docs' | '/history' | '/settings' | '/pay/$intentId'
+  id: '__root__' | '/' | '/docs' | '/history' | '/settings' | '/pay/$intentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +76,7 @@ export interface RootRouteChildren {
   DocsRoute: typeof DocsRoute
   HistoryRoute: typeof HistoryRoute
   SettingsRoute: typeof SettingsRoute
+  PayIntentIdRoute: typeof PayIntentIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pay/$intentId': {
+      id: '/pay/$intentId'
+      path: '/pay/$intentId'
+      fullPath: '/pay/$intentId'
+      preLoaderRoute: typeof PayIntentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   DocsRoute: DocsRoute,
   HistoryRoute: HistoryRoute,
   SettingsRoute: SettingsRoute,
+  PayIntentIdRoute: PayIntentIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

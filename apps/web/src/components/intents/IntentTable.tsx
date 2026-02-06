@@ -479,7 +479,7 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 
 			await updateStatus.mutateAsync({
 				id: intent.id,
-				status: "signed",
+				status: "broadcasting",
 				txHash,
 			});
 		} catch (err) {
@@ -622,7 +622,7 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 								appearance="base"
 								size="sm"
 								onClick={handleSign}
-								disabled={isSigning || isRejecting}
+								disabled={isSigning || isRejecting || updateStatus.isPending}
 							>
 								{isSigning ? <Spinner size="sm" /> : "Sign"}
 							</Button>
@@ -630,7 +630,7 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 								appearance="gray"
 								size="sm"
 								onClick={handleReject}
-								disabled={isSigning || isRejecting}
+								disabled={isSigning || isRejecting || updateStatus.isPending}
 							>
 								{isRejecting ? <Spinner size="sm" /> : "Reject"}
 							</Button>

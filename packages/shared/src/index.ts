@@ -272,6 +272,8 @@ export interface CreateIntentRequest {
 export interface CreateIntentResponse {
 	success: boolean;
 	intent?: Intent;
+	/** Direct link the agent can share for the user to review & sign this intent. */
+	paymentUrl?: string;
 	error?: string;
 }
 

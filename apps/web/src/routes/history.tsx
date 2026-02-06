@@ -275,13 +275,13 @@ function HistoryRow({
 			</div>
 
 			{/* Date/time (broadcasted) */}
-			<div className="flex flex-col items-end gap-2 shrink-0">
-				<span className="body-3 text-muted-subtle">{formattedDate}</span>
-				<span className="body-3 text-muted-subtle">{formattedTime}</span>
+			<div className="flex flex-col items-end gap-2 shrink-0 w-96">
+				<span className="body-3 text-base">{formattedDate}</span>
+				<span className="body-3 text-base">{formattedTime}</span>
 			</div>
 
 			{/* Amount + USDC logo */}
-			<div className="flex items-center gap-8 shrink-0">
+			<div className="flex items-center justify-end gap-8 shrink-0 w-96">
 				<span className="body-2-semi-bold text-base">
 					{details.amount} {details.token}
 				</span>
@@ -289,12 +289,12 @@ function HistoryRow({
 			</div>
 
 			{/* Status */}
-			<div className="shrink-0">
+			<div className="shrink-0 w-112">
 				<StatusBadge status={intent.status} />
 			</div>
 
 			{/* Tx link - Tag with external link icon */}
-			<div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+			<div className="shrink-0 w-128" onClick={(e) => e.stopPropagation()}>
 				{intent.txUrl ? (
 					<a
 						href={intent.txUrl}

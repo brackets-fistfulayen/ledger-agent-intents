@@ -9,23 +9,19 @@ import type {
  *
  * Authentication:
  *  - AgentAuth header: agent can set "confirmed" | "failed"
- *  - Session cookie: user can set "approved" | "rejected" | "authorized"
- *  - No auth (legacy/demo): allowed with deprecation warning
+ *  - Session cookie: user can set "approved" | "rejected" | "authorized" | "broadcasting"
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { verifyAgentAuth } from "../../_lib/agentAuth.js";
 import { requireSession } from "../../_lib/auth.js";
-import { jsonError, jsonSuccess, methodRouter, parseBody } from "../../_lib/http.js";
-import { getIntentById, updateIntentStatus } from "../../_lib/intentsRepo.js";
-
-interface UpdateStatusBody {
-	status: IntentStatus;
-	txHash?: string;
-	note?: string;
-	paymentSignatureHeader?: string;
-	paymentPayload?: X402PaymentPayload;
-	settlementReceipt?: X402SettlementReceipt;
-}
+import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../../_lib/http.js";
+import { updateStatusBodyLegacySchema } from "../../_lib/validation.js";
+import {
+	getIntentById,
+	updateIntentStatus,
+	IntentStatusConflictError,
+} from "../../_lib/intentsRepo.js";
+import { logger } from "../../_lib/logger.js";
 
 const VALID_STATUSES: IntentStatus[] = [
 	"pending",
@@ -61,12 +57,8 @@ export default methodRouter({
 			return;
 		}
 
-		const body = parseBody<UpdateStatusBody>(req);
-
-		if (!body.status || !VALID_STATUSES.includes(body.status)) {
-			jsonError(res, "Valid status required", 400);
-			return;
-		}
+		const body = parseBodyWithSchema(req, res, updateStatusBodyLegacySchema);
+		if (body === null) return;
 
 		// --- Authentication & authorization ---
 		const authHeader = req.headers.authorization;
@@ -106,39 +98,38 @@ export default methodRouter({
 					return;
 				}
 			} catch {
-				// No valid session -- legacy/demo mode (no auth)
-				// Restrict to user-safe statuses to prevent anonymous privilege escalation
-				if (!USER_ALLOWED_STATUSES.includes(body.status)) {
-					jsonError(
-						res,
-						`Unauthenticated requests can only set status to: ${USER_ALLOWED_STATUSES.join(", ")}`,
-						403,
-					);
-					return;
-				}
-				console.warn(
-					`[DEPRECATION] Unauthenticated status update on intent ${intentId} -> ${body.status}`,
-				);
+				jsonError(res, "Authentication failed", 401);
+				return;
 			}
 		}
 
-		const intent = await updateIntentStatus({
-			id: intentId,
-			status: body.status,
-			txHash: body.txHash,
-			note: body.note,
-			paymentSignatureHeader: body.paymentSignatureHeader,
-			paymentPayload: body.paymentPayload,
-			settlementReceipt: body.settlementReceipt,
-		});
+		let intent;
+		try {
+			intent = await updateIntentStatus({
+				id: intentId,
+				status: body.status,
+				txHash: body.txHash,
+				note: body.note,
+				paymentSignatureHeader: body.paymentSignatureHeader,
+				paymentPayload: body.paymentPayload as X402PaymentPayload | undefined,
+				settlementReceipt: body.settlementReceipt as X402SettlementReceipt | undefined,
+			});
+		} catch (err) {
+			if (err instanceof IntentStatusConflictError) {
+				jsonError(res, err.message, 409);
+				return;
+			}
+			throw err;
+		}
 
 		if (!intent) {
 			jsonError(res, "Intent not found", 404);
 			return;
 		}
 
-		console.log(
-			`[Intent ${body.status.toUpperCase()}] ${intent.id}${body.txHash ? ` tx: ${body.txHash}` : ""}`,
+		logger.info(
+			{ intentId: intent.id, status: body.status, txHash: body.txHash },
+			`Intent ${body.status}`,
 		);
 
 		jsonSuccess(res, { intent });

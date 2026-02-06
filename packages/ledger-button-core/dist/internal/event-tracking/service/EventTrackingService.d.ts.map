@@ -1,0 +1,1 @@
+{"version":3,"file":"EventTrackingService.d.ts","sourceRoot":"","sources":["../../../../src/internal/event-tracking/service/EventTrackingService.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,YAAY,EAAE,MAAM,mCAAmC,CAAC;AAEtE,MAAM,WAAW,oBAAoB;IACnC,YAAY,IAAI,MAAM,CAAC;IAEvB,UAAU,CAAC,KAAK,EAAE,YAAY,GAAG,OAAO,CAAC,IAAI,CAAC,CAAC;CAChD"}

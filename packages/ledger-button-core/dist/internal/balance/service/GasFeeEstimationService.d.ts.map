@@ -1,0 +1,1 @@
+{"version":3,"file":"GasFeeEstimationService.d.ts","sourceRoot":"","sources":["../../../../src/internal/balance/service/GasFeeEstimationService.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,gBAAgB,EAAE,eAAe,EAAE,MAAM,mBAAmB,CAAC;AAEtE,MAAM,WAAW,uBAAuB;IACtC,qBAAqB,CAAC,EAAE,EAAE,eAAe,GAAG,OAAO,CAAC,gBAAgB,CAAC,CAAC;IACtE,aAAa,CAAC,EAAE,EAAE,eAAe,GAAG,OAAO,CAAC,MAAM,CAAC,CAAC;CACrD"}

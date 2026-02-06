@@ -20,17 +20,7 @@ type VerifyResponse = {
 };
 
 export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
-	// Auth is currently disabled (half-baked backend). Treat any connected wallet as "authed".
-	// This prevents infinite retries against `/api/auth/challenge` in production.
-	//
-	// Re-enable later by removing this early return and reinstating the flow below.
 	const ledger = useLedger();
-	let authDisabledAuthed = false;
-
-	if (ledger.isConnected && ledger.account) {
-		authDisabledAuthed = true;
-	}
-
 	const { account, chainId, isConnected, signTypedDataV4 } = ledger;
 	const [status, setStatus] = useState<AuthStatus>("idle");
 	const [error, setError] = useState<Error | null>(null);
@@ -38,9 +28,6 @@ export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
 	const lastWalletRef = useRef<string | null>(null);
 
 	useEffect(() => {
-		// Auth is disabled: do not run the network flow.
-		if (authDisabledAuthed) return;
-
 		if (!isConnected || !account || !chainId) return;
 		const walletLower = account.toLowerCase();
 
@@ -92,10 +79,6 @@ export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
 			}
 		})();
 	}, [isConnected, account, chainId, signTypedDataV4, status]);
-
-	if (authDisabledAuthed) {
-		return { status: "authed", error: null };
-	}
 
 	return { status, error };
 }
