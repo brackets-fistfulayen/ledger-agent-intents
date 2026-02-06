@@ -1,7 +1,16 @@
 /**
  * Shared types for Ledger Agent Payments system
  */
-export type IntentStatus = "pending" | "approved" | "rejected" | "signed" | "authorized" | "confirmed" | "failed" | "expired";
+export type IntentStatus = "pending" | "approved" | "rejected" | "broadcasting" | "authorized" | "executing" | "confirmed" | "failed" | "expired";
+/**
+ * Valid status transitions for intents.
+ * Terminal states (rejected, confirmed, failed, expired) have no outgoing transitions.
+ */
+export declare const INTENT_TRANSITIONS: Record<IntentStatus, IntentStatus[]>;
+/**
+ * Check if a status transition is valid according to the state machine.
+ */
+export declare function isValidTransition(from: IntentStatus, to: IntentStatus): boolean;
 export type IntentType = "transfer" | "swap" | "nft" | "contract";
 export type IntentUrgency = "low" | "normal" | "high" | "critical";
 export type PaymentCategory = "api_payment" | "subscription" | "purchase" | "p2p_transfer" | "defi" | "bill_payment" | "donation" | "other";
@@ -97,6 +106,8 @@ export interface X402Context {
     paymentSignatureHeader?: string;
     /** Settlement receipt from PAYMENT-RESPONSE header after agent retries with proof */
     settlementReceipt?: X402SettlementReceipt;
+    /** ISO timestamp when the x402 authorization expires (derived from validBefore) */
+    expiresAt?: string;
 }
 export interface TransferIntent {
     type: "transfer";
@@ -127,7 +138,7 @@ export interface Intent {
     createdAt: string;
     expiresAt?: string;
     reviewedAt?: string;
-    signedAt?: string;
+    broadcastAt?: string;
     confirmedAt?: string;
     txHash?: string;
     txUrl?: string;
@@ -175,7 +186,7 @@ export interface CreateIntentResponse {
     error?: string;
 }
 export interface IntentWebhook {
-    event: "intent.created" | "intent.approved" | "intent.rejected" | "intent.signed" | "intent.confirmed" | "intent.failed" | "intent.expired";
+    event: "intent.created" | "intent.approved" | "intent.rejected" | "intent.broadcasting" | "intent.confirmed" | "intent.failed" | "intent.expired";
     intent: Intent;
     timestamp: string;
 }
@@ -219,4 +230,19 @@ export declare function isSupportedChain(chainId: number): chainId is SupportedC
 export declare function getChainName(chainId: number): string;
 export declare function generateIntentId(): string;
 export declare function formatAmount(amount: string, token: string): string;
+/**
+ * Parse a CAIP-2 "eip155:<chainId>" network string to a numeric chain ID.
+ * Returns `null` if the string is not a valid eip155 network identifier.
+ */
+export declare function parseEip155ChainId(network: string): number | null;
+/**
+ * Format an atomic (smallest-unit) amount to a human-readable decimal string.
+ * e.g. formatAtomicAmount("10000", 6) => "0.01"
+ */
+export declare function formatAtomicAmount(atomicAmount: string, decimals: number): string;
+/**
+ * Extract the hostname from a URL for display purposes.
+ * Returns the raw string if parsing fails.
+ */
+export declare function extractDomain(url: string): string;
 //# sourceMappingURL=index.d.ts.map

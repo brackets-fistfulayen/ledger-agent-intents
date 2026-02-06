@@ -12,7 +12,9 @@
 		"typecheck": "tsc --noEmit",
 		"test:intent:base-usdc-self": "tsx src/test-intent-base-usdc-self.ts",
 		"test:intent:base-usdc-2": "tsx src/test-intent-base-usdc-2.ts",
-		"test:intent:x402": "tsx src/test-intent-x402-credential.ts"
+		"test:intent:x402": "tsx src/test-intent-x402-credential.ts",
+		"test:x402:integration": "tsx src/__tests__/x402-fetch-integration.test.ts",
+		"test:x402:smoke": "tsx src/x402-live-smoke-test.ts"
 	},
 	"dependencies": {
 		"@agent-intents/shared": "workspace:*",

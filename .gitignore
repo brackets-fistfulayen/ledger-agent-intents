@@ -10,7 +10,9 @@ apps/**/dist/
 .next/
 out/
 *.tsbuildinfo
-
+create-intent-2usdc-base.js
+x402-clear-signing-analysis.md
+x402.json
 # Turbo
 .turbo/
 # Cursor

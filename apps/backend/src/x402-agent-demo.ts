@@ -12,12 +12,15 @@
  * Usage: npx tsx src/x402-agent-demo.ts
  */
 
-import type {
-	CreateIntentRequest,
-	Intent,
-	X402AcceptedExactEvm,
-	X402Resource,
-	X402SettlementReceipt,
+import {
+	type CreateIntentRequest,
+	type Intent,
+	type X402AcceptedExactEvm,
+	type X402Resource,
+	type X402SettlementReceipt,
+	parseEip155ChainId,
+	formatAtomicAmount,
+	extractDomain,
 } from "@agent-intents/shared";
 
 // =============================================================================
@@ -101,7 +104,7 @@ async function createX402Intent(
 			tokenAddress: accepted.asset,
 			amount: formatAtomicAmount(accepted.amount, 6),
 			recipient: accepted.payTo,
-			chainId: parseChainId(accepted.network),
+			chainId: parseEip155ChainId(accepted.network) ?? 84532,
 			memo: `API payment for ${extractDomain(resource.url)}`,
 			resource: resource.url,
 			category: "api_payment",
@@ -196,28 +199,6 @@ async function pollForAuthorization(
 // =============================================================================
 // Helper Functions
 // =============================================================================
-
-function parseChainId(network: string): number {
-	const match = /^eip155:(\d+)$/.exec(network);
-	return match?.[1] ? Number(match[1]) : 84532; // Default to Base Sepolia
-}
-
-function formatAtomicAmount(amount: string, decimals: number): string {
-	const num = BigInt(amount);
-	const divisor = BigInt(10 ** decimals);
-	const intPart = num / divisor;
-	const fracPart = num % divisor;
-	const fracStr = fracPart.toString().padStart(decimals, "0").replace(/0+$/, "");
-	return fracStr ? `${intPart}.${fracStr}` : intPart.toString();
-}
-
-function extractDomain(url: string): string {
-	try {
-		return new URL(url).hostname;
-	} catch {
-		return url;
-	}
-}
 
 // =============================================================================
 // Simulated x402 API Interaction

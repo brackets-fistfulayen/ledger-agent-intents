@@ -212,7 +212,7 @@ async function handleList(args) {
 					{
 						pending: "⏳",
 						approved: "✓",
-						signed: "📝",
+						broadcasting: "📡",
 						confirmed: "✅",
 						rejected: "✗",
 						failed: "❌",

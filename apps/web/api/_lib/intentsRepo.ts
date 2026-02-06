@@ -1,15 +1,16 @@
 /**
  * Intents repository - database operations for intents
  */
-import type {
-	Intent,
-	IntentStatus,
-	TransferIntent,
-	IntentUrgency,
-	X402PaymentPayload,
-	X402SettlementReceipt,
+import {
+	type Intent,
+	type IntentStatus,
+	type IntentUrgency,
+	type TransferIntent,
+	type X402PaymentPayload,
+	type X402SettlementReceipt,
+	getExplorerTxUrl,
+	isValidTransition,
 } from "@agent-intents/shared";
-import { getExplorerTxUrl } from "@agent-intents/shared";
 import { sql } from "./db.js";
 
 // Database row types
@@ -24,7 +25,7 @@ interface IntentRow {
 	created_at: Date;
 	expires_at: Date | null;
 	reviewed_at: Date | null;
-	signed_at: Date | null;
+	broadcast_at: Date | null;
 	confirmed_at: Date | null;
 	tx_hash: string | null;
 	tx_url: string | null;
@@ -46,6 +47,18 @@ interface StatusHistoryRowWithIntentId extends StatusHistoryRow {
  * Convert database row to Intent type
  */
 function rowToIntent(row: IntentRow, history: StatusHistoryRow[]): Intent {
+	// Derive effective status: if the authorization has expired and the DB
+	// row hasn't been updated yet (cron may lag), surface "expired" to callers.
+	let effectiveStatus: IntentStatus = row.status;
+	const x402ExpiresAt = row.details?.x402?.expiresAt ?? row.expires_at?.toISOString();
+	if (
+		x402ExpiresAt &&
+		(row.status === "authorized" || row.status === "approved") &&
+		new Date(x402ExpiresAt) < new Date()
+	) {
+		effectiveStatus = "expired";
+	}
+
 	return {
 		id: row.id,
 		userId: row.user_id,
@@ -53,13 +66,13 @@ function rowToIntent(row: IntentRow, history: StatusHistoryRow[]): Intent {
 		agentName: row.agent_name,
 		details: row.details,
 		urgency: row.urgency,
-		status: row.status,
+		status: effectiveStatus,
 		trustChainId: row.trust_chain_id ?? undefined,
 		createdByMemberId: row.created_by_member_id ?? undefined,
 		createdAt: row.created_at.toISOString(),
 		expiresAt: row.expires_at?.toISOString(),
 		reviewedAt: row.reviewed_at?.toISOString(),
-		signedAt: row.signed_at?.toISOString(),
+		broadcastAt: row.broadcast_at?.toISOString(),
 		confirmedAt: row.confirmed_at?.toISOString(),
 		txHash: row.tx_hash ?? undefined,
 		txUrl: row.tx_url ?? undefined,
@@ -68,6 +81,31 @@ function rowToIntent(row: IntentRow, history: StatusHistoryRow[]): Intent {
 			timestamp: h.timestamp.toISOString(),
 			note: h.note ?? undefined,
 		})),
+	};
+}
+
+/**
+ * Strip sensitive x402 fields from an intent for public API responses.
+ * The paymentSignatureHeader is a bearer credential that could be replayed
+ * to obtain the paid resource. Only the owning agent (who already has the
+ * signature from polling) should see it.
+ */
+export function sanitizeIntent(intent: Intent): Intent {
+	if (!intent.details.x402) return intent;
+
+	const {
+		paymentSignatureHeader: _sig,
+		paymentPayload: _payload,
+		signature: _rawSig,
+		...safeX402
+	} = intent.details.x402;
+
+	return {
+		...intent,
+		details: {
+			...intent.details,
+			x402: safeX402,
+		},
 	};
 }
 
@@ -89,7 +127,7 @@ async function getStatusHistory(intentId: string): Promise<StatusHistoryRow[]> {
  * Returns a Map of intentId -> StatusHistoryRow[]
  */
 async function getStatusHistoriesBatch(
-	intentIds: string[]
+	intentIds: string[],
 ): Promise<Map<string, StatusHistoryRow[]>> {
 	const historyMap = new Map<string, StatusHistoryRow[]>();
 
@@ -131,7 +169,17 @@ export async function createIntent(params: {
 	trustChainId?: string;
 	createdByMemberId?: string;
 }): Promise<Intent> {
-	const { id, userId, agentId, agentName, details, urgency, expiresAt, trustChainId, createdByMemberId } = params;
+	const {
+		id,
+		userId,
+		agentId,
+		agentName,
+		details,
+		urgency,
+		expiresAt,
+		trustChainId,
+		createdByMemberId,
+	} = params;
 
 	// Insert intent
 	const result = await sql`
@@ -217,6 +265,68 @@ export async function getIntentsByUser(params: {
 }
 
 /**
+ * Build an enriched audit note for the status history, adding structured
+ * x402 context at key transitions. Stored as JSON in the TEXT `note` column.
+ */
+function buildAuditNote(
+	status: IntentStatus,
+	userNote: string | undefined,
+	intentRow: IntentRow,
+	params: {
+		paymentPayload?: X402PaymentPayload;
+		settlementReceipt?: X402SettlementReceipt;
+		txHash?: string;
+	},
+): string | null {
+	const isX402 = !!intentRow.details?.x402;
+	if (!isX402 && !userNote) return userNote ?? null;
+
+	const context: Record<string, unknown> = {};
+
+	if (userNote) {
+		context.message = userNote;
+	}
+
+	if (status === "authorized" && params.paymentPayload?.payload?.authorization) {
+		const auth = params.paymentPayload.payload.authorization;
+		context.signer = auth.from;
+		context.nonce = auth.nonce;
+		context.validBefore = auth.validBefore;
+		context.network = params.paymentPayload.accepted?.network;
+	}
+
+	if (status === "confirmed") {
+		const receipt = params.settlementReceipt ?? intentRow.details?.x402?.settlementReceipt;
+		if (receipt) {
+			context.txHash = receipt.txHash;
+			context.network = receipt.network;
+			context.settledAt = receipt.settledAt;
+		}
+		if (params.txHash) {
+			context.txHash = params.txHash;
+		}
+	}
+
+	if (status === "failed") {
+		context.reason = userNote ?? "Unknown failure";
+		const x402 = intentRow.details?.x402;
+		if (x402?.accepted?.network) {
+			context.network = x402.accepted.network;
+		}
+	}
+
+	if (status === "executing") {
+		context.resource = intentRow.details?.x402?.resource?.url;
+	}
+
+	// If no extra context was added, just return the user note
+	if (Object.keys(context).length === 0) return userNote ?? null;
+	if (Object.keys(context).length === 1 && context.message) return userNote ?? null;
+
+	return JSON.stringify(context);
+}
+
+/**
  * Update intent status
  */
 export async function updateIntentStatus(params: {
@@ -227,8 +337,18 @@ export async function updateIntentStatus(params: {
 	paymentSignatureHeader?: string;
 	paymentPayload?: X402PaymentPayload;
 	settlementReceipt?: X402SettlementReceipt;
+	expiresAt?: string;
 }): Promise<Intent | null> {
-	const { id, status, txHash, note, paymentSignatureHeader, paymentPayload, settlementReceipt } = params;
+	const {
+		id,
+		status,
+		txHash,
+		note,
+		paymentSignatureHeader,
+		paymentPayload,
+		settlementReceipt,
+		expiresAt,
+	} = params;
 
 	// Get current intent to check it exists
 	const existing = await sql`SELECT * FROM intents WHERE id = ${id}`;
@@ -239,14 +359,19 @@ export async function updateIntentStatus(params: {
 	const intentRow = existing.rows[0] as IntentRow;
 	const nowIso = new Date().toISOString();
 
+	// Enforce state machine: reject invalid transitions
+	const currentStatus = intentRow.status as IntentStatus;
+	if (!isValidTransition(currentStatus, status)) {
+		throw new Error(`Invalid status transition: ${currentStatus} -> ${status}`);
+	}
+
 	// If we received x402 proof data or settlement receipt, persist it inside the JSON `details` blob.
 	// This avoids needing extra columns/migrations for the demo.
 	if (paymentSignatureHeader || paymentPayload || settlementReceipt) {
 		const existing = intentRow.details.x402;
-		const base =
-			paymentPayload
-				? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }
-				: existing;
+		const base = paymentPayload
+			? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }
+			: existing;
 
 		if (base) {
 			const nextDetails: TransferIntent = {
@@ -254,10 +379,11 @@ export async function updateIntentStatus(params: {
 				x402: {
 					...base,
 					...(existing ?? {}),
-					paymentSignatureHeader:
-						paymentSignatureHeader ?? existing?.paymentSignatureHeader,
+					paymentSignatureHeader: paymentSignatureHeader ?? existing?.paymentSignatureHeader,
 					paymentPayload: paymentPayload ?? existing?.paymentPayload,
 					settlementReceipt: settlementReceipt ?? existing?.settlementReceipt,
+					// Store expiry timestamp from the authorization's validBefore
+					...(expiresAt ? { expiresAt } : {}),
 				},
 			};
 
@@ -272,9 +398,18 @@ export async function updateIntentStatus(params: {
 		}
 	}
 
+	// Persist expiresAt on the intent row itself (used by cron + derived status)
+	if (expiresAt) {
+		await sql`
+      UPDATE intents
+      SET expires_at = ${expiresAt}
+      WHERE id = ${id}
+    `;
+	}
+
 	// Build update based on status
 	let txUrl: string | null = null;
-	if (status === "signed" && txHash) {
+	if (status === "broadcasting" && txHash) {
 		txUrl = getExplorerTxUrl(intentRow.details.chainId, txHash);
 	}
 
@@ -285,17 +420,17 @@ export async function updateIntentStatus(params: {
       SET status = ${status}, reviewed_at = ${nowIso}
       WHERE id = ${id}
     `;
-	} else if (status === "signed" && txHash) {
+	} else if (status === "broadcasting" && txHash) {
 		await sql`
       UPDATE intents
-      SET status = ${status}, signed_at = ${nowIso}, tx_hash = ${txHash}, tx_url = ${txUrl}
+      SET status = ${status}, broadcast_at = ${nowIso}, tx_hash = ${txHash}, tx_url = ${txUrl}
       WHERE id = ${id}
     `;
-	} else if (status === "signed") {
-		// Signed may mean an x402 authorization signature (no onchain tx hash yet)
+	} else if (status === "broadcasting") {
+		// Broadcasting without a tx hash (edge case)
 		await sql`
       UPDATE intents
-      SET status = ${status}, signed_at = ${nowIso}
+      SET status = ${status}, broadcast_at = ${nowIso}
       WHERE id = ${id}
     `;
 	} else if (status === "confirmed") {
@@ -318,10 +453,13 @@ export async function updateIntentStatus(params: {
     `;
 	}
 
+	// Build enriched audit note with x402 context
+	const auditNote = buildAuditNote(status, note, intentRow, params);
+
 	// Add status history entry
 	await sql`
     INSERT INTO intent_status_history (intent_id, status, timestamp, note)
-    VALUES (${id}, ${status}, ${nowIso}, ${note ?? null})
+    VALUES (${id}, ${status}, ${nowIso}, ${auditNote})
   `;
 
 	// Return updated intent

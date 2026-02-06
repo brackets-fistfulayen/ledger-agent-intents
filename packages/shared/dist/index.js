@@ -1,6 +1,28 @@
 /**
  * Shared types for Ledger Agent Payments system
  */
+/**
+ * Valid status transitions for intents.
+ * Terminal states (rejected, confirmed, failed, expired) have no outgoing transitions.
+ */
+export const INTENT_TRANSITIONS = {
+    pending: ["approved", "rejected", "broadcasting", "authorized", "failed", "expired"],
+    approved: ["broadcasting", "authorized", "failed", "expired"],
+    rejected: [],
+    broadcasting: ["confirmed", "failed", "expired"],
+    authorized: ["executing", "confirmed", "failed", "expired"],
+    executing: ["confirmed", "failed"],
+    confirmed: [],
+    failed: [],
+    expired: [],
+};
+/**
+ * Check if a status transition is valid according to the state machine.
+ */
+export function isValidTransition(from, to) {
+    const allowed = INTENT_TRANSITIONS[from];
+    return allowed ? allowed.includes(to) : false;
+}
 // =============================================================================
 // Supported Chains
 // =============================================================================
@@ -89,4 +111,49 @@ export function generateIntentId() {
 // Utility: format amount for display
 export function formatAmount(amount, token) {
     return `${amount} ${token}`;
+}
+// =============================================================================
+// x402 / CAIP-2 Utility Functions
+// =============================================================================
+/**
+ * Parse a CAIP-2 "eip155:<chainId>" network string to a numeric chain ID.
+ * Returns `null` if the string is not a valid eip155 network identifier.
+ */
+export function parseEip155ChainId(network) {
+    const match = /^eip155:(\d+)$/.exec(network);
+    if (!match?.[1])
+        return null;
+    return Number(match[1]);
+}
+/**
+ * Format an atomic (smallest-unit) amount to a human-readable decimal string.
+ * e.g. formatAtomicAmount("10000", 6) => "0.01"
+ */
+export function formatAtomicAmount(atomicAmount, decimals) {
+    try {
+        const num = BigInt(atomicAmount);
+        const divisor = BigInt(10 ** decimals);
+        const intPart = num / divisor;
+        const fracPart = num % divisor;
+        const fracStr = fracPart.toString().padStart(decimals, "0").replace(/0+$/, "");
+        if (fracStr) {
+            return `${intPart}.${fracStr}`;
+        }
+        return intPart.toString();
+    }
+    catch {
+        return atomicAmount;
+    }
+}
+/**
+ * Extract the hostname from a URL for display purposes.
+ * Returns the raw string if parsing fails.
+ */
+export function extractDomain(url) {
+    try {
+        return new URL(url).hostname;
+    }
+    catch {
+        return url;
+    }
 }

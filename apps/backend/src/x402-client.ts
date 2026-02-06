@@ -6,12 +6,15 @@
  * into any agent or application.
  */
 
-import type {
-	CreateIntentRequest,
-	Intent,
-	X402AcceptedExactEvm,
-	X402Resource,
-	X402SettlementReceipt,
+import {
+	type CreateIntentRequest,
+	type Intent,
+	type X402AcceptedExactEvm,
+	type X402Resource,
+	type X402SettlementReceipt,
+	extractDomain,
+	formatAtomicAmount,
+	parseEip155ChainId,
 } from "@agent-intents/shared";
 
 // =============================================================================
@@ -73,41 +76,57 @@ export function decodePaymentResponse(header: string): X402SettlementReceipt {
 }
 
 /**
- * Parse CAIP-2 network string to chain ID
- */
-export function parseChainId(network: string): number {
-	const match = /^eip155:(\d+)$/.exec(network);
-	return match?.[1] ? Number(match[1]) : 0;
-}
-
-/**
- * Format atomic amount to human-readable string
- */
-export function formatAtomicAmount(amount: string, decimals: number): string {
-	const num = BigInt(amount);
-	const divisor = BigInt(10 ** decimals);
-	const intPart = num / divisor;
-	const fracPart = num % divisor;
-	const fracStr = fracPart.toString().padStart(decimals, "0").replace(/0+$/, "");
-	return fracStr ? `${intPart}.${fracStr}` : intPart.toString();
-}
-
-/**
- * Extract domain from URL
- */
-export function extractDomain(url: string): string {
-	try {
-		return new URL(url).hostname;
-	} catch {
-		return url;
-	}
-}
-
-/**
  * Sleep for specified milliseconds
  */
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Fetch with exponential backoff retry for 5xx errors and network failures.
+ * Retries up to 3 times with 1s, 2s, 4s delays.
+ * Does NOT retry 4xx errors (including 402) -- those are protocol-level.
+ */
+async function fetchWithRetry(
+	url: string,
+	options: RequestInit,
+	maxRetries = 3,
+): Promise<Response> {
+	let lastError: Error | undefined;
+
+	for (let attempt = 0; attempt <= maxRetries; attempt++) {
+		try {
+			const response = await fetch(url, options);
+
+			// Don't retry client errors (4xx) -- they won't change on retry
+			if (response.status < 500) {
+				return response;
+			}
+
+			// Server error (5xx) -- retry
+			if (attempt < maxRetries) {
+				const delayMs = 1000 * 2 ** attempt; // 1s, 2s, 4s
+				console.warn(
+					`[x402] Retry ${attempt + 1}/${maxRetries}: ${response.status} from ${url}, waiting ${delayMs}ms`,
+				);
+				await sleep(delayMs);
+			} else {
+				return response; // Max retries reached, return last response
+			}
+		} catch (err) {
+			lastError = err instanceof Error ? err : new Error(String(err));
+
+			if (attempt < maxRetries) {
+				const delayMs = 1000 * 2 ** attempt;
+				console.warn(
+					`[x402] Retry ${attempt + 1}/${maxRetries}: network error (${lastError.message}), waiting ${delayMs}ms`,
+				);
+				await sleep(delayMs);
+			}
+		}
+	}
+
+	throw lastError ?? new Error("fetchWithRetry: max retries exceeded");
 }
 
 // =============================================================================
@@ -130,8 +149,14 @@ export class X402Client {
 	 */
 	async createIntent(
 		resource: X402Resource,
-		accepted: X402AcceptedExactEvm
+		accepted: X402AcceptedExactEvm,
 	): Promise<Intent | null> {
+		const chainId = parseEip155ChainId(accepted.network);
+		if (chainId === null) {
+			console.error(`Unsupported x402 network: ${accepted.network}`);
+			return null;
+		}
+
 		const intentRequest: CreateIntentRequest & { userId: string } = {
 			userId: this.config.userWallet,
 			agentId: this.config.agentId,
@@ -142,7 +167,7 @@ export class X402Client {
 				tokenAddress: accepted.asset,
 				amount: formatAtomicAmount(accepted.amount, 6),
 				recipient: accepted.payTo,
-				chainId: parseChainId(accepted.network),
+				chainId,
 				memo: `API payment for ${extractDomain(resource.url)}`,
 				resource: resource.url,
 				category: "api_payment",
@@ -169,9 +194,7 @@ export class X402Client {
 	 * Get an intent by ID
 	 */
 	async getIntent(intentId: string): Promise<Intent | null> {
-		const response = await fetch(
-			`${this.config.apiBaseUrl}/api/intents/${intentId}`
-		);
+		const response = await fetch(`${this.config.apiBaseUrl}/api/intents/${intentId}`);
 		const data = await response.json();
 		return data.intent ?? null;
 	}
@@ -204,26 +227,42 @@ export class X402Client {
 	}
 
 	/**
-	 * Update intent with settlement receipt
+	 * Update intent status with optional settlement receipt.
+	 * Uses POST /api/intents/status with id in body (the canonical endpoint).
 	 */
-	async confirmIntent(
+	async updateIntentStatus(
 		intentId: string,
-		receipt: X402SettlementReceipt
+		status: string,
+		receipt?: X402SettlementReceipt,
+		note?: string,
 	): Promise<Intent | null> {
-		const response = await fetch(
-			`${this.config.apiBaseUrl}/api/intents/${intentId}/status`,
-			{
-				method: "PATCH",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({
-					status: "confirmed",
-					settlementReceipt: receipt,
-				}),
-			}
-		);
+		const response = await fetch(`${this.config.apiBaseUrl}/api/intents/status`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				id: intentId,
+				status,
+				...(receipt ? { settlementReceipt: receipt } : {}),
+				...(note ? { note } : {}),
+			}),
+		});
 
 		const data = await response.json();
 		return data.intent ?? null;
+	}
+
+	/**
+	 * Update intent with settlement receipt (confirm payment).
+	 */
+	async confirmIntent(intentId: string, receipt: X402SettlementReceipt): Promise<Intent | null> {
+		return this.updateIntentStatus(intentId, "confirmed", receipt);
+	}
+
+	/**
+	 * Mark intent as failed with an error note.
+	 */
+	async failIntent(intentId: string, reason: string): Promise<Intent | null> {
+		return this.updateIntentStatus(intentId, "failed", undefined, reason);
 	}
 
 	/**
@@ -231,7 +270,7 @@ export class X402Client {
 	 * Returns the payment signature header to use for retry
 	 */
 	async handlePaymentRequired(
-		paymentRequiredHeader: string
+		paymentRequiredHeader: string,
 	): Promise<{ paymentSignatureHeader: string; intent: Intent } | null> {
 		// Decode the header
 		const paymentRequired = decodePaymentRequired(paymentRequiredHeader);
@@ -244,10 +283,7 @@ export class X402Client {
 		}
 
 		// Create intent
-		const intent = await this.createIntent(
-			paymentRequired.resource,
-			accepted
-		);
+		const intent = await this.createIntent(paymentRequired.resource, accepted);
 		if (!intent) {
 			console.error("Failed to create intent");
 			return null;
@@ -264,8 +300,7 @@ export class X402Client {
 		}
 
 		// Extract payment signature
-		const paymentSignatureHeader =
-			authorizedIntent.details.x402?.paymentSignatureHeader;
+		const paymentSignatureHeader = authorizedIntent.details.x402?.paymentSignatureHeader;
 		if (!paymentSignatureHeader) {
 			console.error("No payment signature header found");
 			return null;
@@ -277,10 +312,7 @@ export class X402Client {
 	/**
 	 * Complete the payment flow by confirming with settlement receipt
 	 */
-	async completePayment(
-		intentId: string,
-		paymentResponseHeader: string
-	): Promise<Intent | null> {
+	async completePayment(intentId: string, paymentResponseHeader: string): Promise<Intent | null> {
 		const receipt = decodePaymentResponse(paymentResponseHeader);
 		return this.confirmIntent(intentId, receipt);
 	}
@@ -300,8 +332,8 @@ export class X402Client {
  */
 export async function x402Fetch(
 	url: string,
-	options: RequestInit = {},
-	x402Config: X402ClientConfig
+	options: RequestInit,
+	x402Config: X402ClientConfig,
 ): Promise<X402FetchResult> {
 	const client = new X402Client(x402Config);
 
@@ -340,38 +372,76 @@ export async function x402Fetch(
 		};
 	}
 
-	// Retry with payment signature
-	const retryResponse = await fetch(url, {
-		...options,
-		headers: {
-			...options.headers,
-			"PAYMENT-SIGNATURE": paymentResult.paymentSignatureHeader,
-		},
-	});
+	// Transition intent to "executing" before the retry request
+	await client.updateIntentStatus(paymentResult.intent.id, "executing");
 
-	if (!retryResponse.ok) {
+	// Retry with payment signature -- includes error handling for various failure modes
+	const retryHeaders = {
+		...options.headers,
+		"PAYMENT-SIGNATURE": paymentResult.paymentSignatureHeader,
+	};
+
+	let retryResponse: Response;
+	try {
+		retryResponse = await fetchWithRetry(url, {
+			...options,
+			headers: retryHeaders,
+		});
+	} catch (err) {
+		const errorMsg = `Network error during retry: ${err instanceof Error ? err.message : String(err)}`;
+		await client.failIntent(paymentResult.intent.id, errorMsg);
 		return {
 			success: false,
-			error: `Retry failed: HTTP ${retryResponse.status}`,
+			error: errorMsg,
 			intent: paymentResult.intent,
 		};
 	}
 
-	// Extract settlement receipt
-	const paymentResponseHeader = retryResponse.headers.get("PAYMENT-RESPONSE");
-	let settlementReceipt: X402SettlementReceipt | undefined;
-
-	if (paymentResponseHeader) {
-		settlementReceipt = decodePaymentResponse(paymentResponseHeader);
-
-		// Confirm the intent with receipt
-		await client.confirmIntent(paymentResult.intent.id, settlementReceipt);
+	// 402 again after retry => facilitator rejected the signature
+	if (retryResponse.status === 402) {
+		const errorMsg = "Payment signature rejected by facilitator (received 402 on retry)";
+		await client.failIntent(paymentResult.intent.id, errorMsg);
+		return {
+			success: false,
+			error: errorMsg,
+			intent: paymentResult.intent,
+		};
 	}
+
+	if (!retryResponse.ok) {
+		const errorMsg = `Retry failed: HTTP ${retryResponse.status} ${retryResponse.statusText}`;
+		await client.failIntent(paymentResult.intent.id, errorMsg);
+		return {
+			success: false,
+			error: errorMsg,
+			intent: paymentResult.intent,
+		};
+	}
+
+	// Extract settlement receipt -- PAYMENT-RESPONSE is mandatory per x402 spec
+	const paymentResponseHeader = retryResponse.headers.get("PAYMENT-RESPONSE");
+
+	if (!paymentResponseHeader) {
+		// Protocol violation: paid resource must return PAYMENT-RESPONSE header
+		const errorMsg = "Server returned 200 but missing PAYMENT-RESPONSE header (protocol violation)";
+		await client.failIntent(paymentResult.intent.id, errorMsg);
+		return {
+			success: false,
+			error: errorMsg,
+			data: await retryResponse.json().catch(() => retryResponse.text()),
+			intent: paymentResult.intent,
+		};
+	}
+
+	const settlementReceipt = decodePaymentResponse(paymentResponseHeader);
+
+	// Confirm the intent with settlement receipt
+	const confirmedIntent = await client.confirmIntent(paymentResult.intent.id, settlementReceipt);
 
 	return {
 		success: true,
 		data: await retryResponse.json().catch(() => retryResponse.text()),
-		intent: paymentResult.intent,
+		intent: confirmedIntent ?? paymentResult.intent,
 		settlementReceipt,
 	};
 }

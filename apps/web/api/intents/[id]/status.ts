@@ -1,10 +1,21 @@
+import type {
+	IntentStatus,
+	X402PaymentPayload,
+	X402SettlementReceipt,
+} from "@agent-intents/shared";
 /**
- * Update intent status endpoint
+ * Update intent status endpoint (legacy dynamic route)
  * PATCH /api/intents/:id/status
+ *
+ * Authentication:
+ *  - AgentAuth header: agent can set "confirmed" | "failed"
+ *  - Session cookie: user can set "approved" | "rejected" | "authorized"
+ *  - No auth (legacy/demo): allowed with deprecation warning
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import type { IntentStatus, X402PaymentPayload, X402SettlementReceipt } from "@agent-intents/shared";
-import { methodRouter, jsonSuccess, jsonError, parseBody } from "../../_lib/http.js";
+import { verifyAgentAuth } from "../../_lib/agentAuth.js";
+import { requireSession } from "../../_lib/auth.js";
+import { jsonError, jsonSuccess, methodRouter, parseBody } from "../../_lib/http.js";
 import { getIntentById, updateIntentStatus } from "../../_lib/intentsRepo.js";
 
 interface UpdateStatusBody {
@@ -20,12 +31,19 @@ const VALID_STATUSES: IntentStatus[] = [
 	"pending",
 	"approved",
 	"rejected",
-	"signed",
-	"authorized", // x402 payment authorization ready for agent
+	"broadcasting",
+	"authorized",
+	"executing",
 	"confirmed",
 	"failed",
 	"expired",
 ];
+
+/** Statuses an authenticated agent is allowed to set */
+const AGENT_ALLOWED_STATUSES: IntentStatus[] = ["executing", "confirmed", "failed"];
+
+/** Statuses an authenticated user (session) is allowed to set */
+const USER_ALLOWED_STATUSES: IntentStatus[] = ["approved", "rejected", "authorized", "broadcasting"];
 
 export default methodRouter({
 	PATCH: async (req: VercelRequest, res: VercelResponse) => {
@@ -50,6 +68,60 @@ export default methodRouter({
 			return;
 		}
 
+		// --- Authentication & authorization ---
+		const authHeader = req.headers.authorization;
+		if (authHeader?.startsWith("AgentAuth ")) {
+			try {
+				const { member } = await verifyAgentAuth(req);
+
+				if (!AGENT_ALLOWED_STATUSES.includes(body.status)) {
+					jsonError(
+						res,
+						`Agents can only set status to: ${AGENT_ALLOWED_STATUSES.join(", ")}`,
+						403,
+					);
+					return;
+				}
+
+				if (existing.trustChainId && existing.trustChainId !== member.trustchainId) {
+					jsonError(res, "Agent does not own this intent", 403);
+					return;
+				}
+			} catch (err) {
+				const message = err instanceof Error ? err.message : "Authentication failed";
+				jsonError(res, message, 401);
+				return;
+			}
+		} else {
+			try {
+				const session = await requireSession(req);
+
+				if (!USER_ALLOWED_STATUSES.includes(body.status)) {
+					jsonError(res, `Users can only set status to: ${USER_ALLOWED_STATUSES.join(", ")}`, 403);
+					return;
+				}
+
+				if (existing.userId !== session.walletAddress) {
+					jsonError(res, "User does not own this intent", 403);
+					return;
+				}
+			} catch {
+				// No valid session -- legacy/demo mode (no auth)
+				// Restrict to user-safe statuses to prevent anonymous privilege escalation
+				if (!USER_ALLOWED_STATUSES.includes(body.status)) {
+					jsonError(
+						res,
+						`Unauthenticated requests can only set status to: ${USER_ALLOWED_STATUSES.join(", ")}`,
+						403,
+					);
+					return;
+				}
+				console.warn(
+					`[DEPRECATION] Unauthenticated status update on intent ${intentId} -> ${body.status}`,
+				);
+			}
+		}
+
 		const intent = await updateIntentStatus({
 			id: intentId,
 			status: body.status,
@@ -66,7 +138,7 @@ export default methodRouter({
 		}
 
 		console.log(
-			`[Intent ${body.status.toUpperCase()}] ${intent.id}${body.txHash ? ` tx: ${body.txHash}` : ""}`
+			`[Intent ${body.status.toUpperCase()}] ${intent.id}${body.txHash ? ` tx: ${body.txHash}` : ""}`,
 		);
 
 		jsonSuccess(res, { intent });

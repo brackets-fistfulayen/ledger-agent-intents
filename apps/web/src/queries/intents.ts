@@ -99,6 +99,8 @@ interface UpdateIntentStatusParams {
 	// x402: base64-encoded JSON PaymentPayload for PAYMENT-SIGNATURE header
 	paymentSignatureHeader?: string;
 	paymentPayload?: X402PaymentPayload;
+	// x402 authorization expiry (ISO timestamp derived from validBefore)
+	expiresAt?: string;
 }
 
 /**
@@ -116,13 +118,14 @@ export function useUpdateIntentStatus() {
 			note,
 			paymentSignatureHeader,
 			paymentPayload,
+			expiresAt,
 		}: UpdateIntentStatusParams): Promise<Intent> => {
 			const url = `${API_BASE}/api/intents/status`;
 			const res = await fetch(url, {
 				method: "POST",
 				credentials: "include",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ id, status, txHash, note, paymentSignatureHeader, paymentPayload }),
+				body: JSON.stringify({ id, status, txHash, note, paymentSignatureHeader, paymentPayload, expiresAt }),
 			});
 
 			if (!res.ok) {

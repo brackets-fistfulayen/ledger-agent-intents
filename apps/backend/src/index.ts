@@ -187,12 +187,12 @@ app.post("/api/intents/status", (req, res) => {
 
 	if (status === "approved") {
 		intent.reviewedAt = now;
-	} else if (status === "signed" && txHash) {
-		intent.signedAt = now;
+	} else if (status === "broadcasting" && txHash) {
+		intent.broadcastAt = now;
 		intent.txHash = txHash;
 		intent.txUrl = getExplorerTxUrl(intent.details.chainId, txHash);
-	} else if (status === "signed") {
-		intent.signedAt = now;
+	} else if (status === "broadcasting") {
+		intent.broadcastAt = now;
 	} else if (status === "confirmed") {
 		intent.confirmedAt = now;
 	} else if (status === "rejected") {
@@ -249,14 +249,13 @@ app.patch("/api/intents/:id/status", (req, res) => {
 
 	if (status === "approved") {
 		intent.reviewedAt = now;
-	} else if (status === "signed" && txHash) {
-		intent.signedAt = now;
+	} else if (status === "broadcasting" && txHash) {
+		intent.broadcastAt = now;
 		intent.txHash = txHash;
 		// Generate explorer link using shared helper
 		intent.txUrl = getExplorerTxUrl(intent.details.chainId, txHash);
-	} else if (status === "signed") {
-		// Signed may also mean x402 authorization signature (no onchain tx hash)
-		intent.signedAt = now;
+	} else if (status === "broadcasting") {
+		intent.broadcastAt = now;
 	} else if (status === "confirmed") {
 		intent.confirmedAt = now;
 	} else if (status === "rejected") {

@@ -3,6 +3,11 @@
  */
 
 import type { X402AcceptedExactEvm, X402Resource } from "@agent-intents/shared";
+import { http, type Address, type Chain, createPublicClient, erc20Abi } from "viem";
+import { base, baseSepolia, sepolia } from "viem/chains";
+
+// Re-export shared utilities so existing import sites don't break
+export { parseEip155ChainId, formatAtomicAmount, extractDomain } from "@agent-intents/shared";
 
 // =============================================================================
 // Constants
@@ -58,15 +63,6 @@ export function isValidUint256String(value: string): boolean {
 }
 
 /**
- * Parse CAIP-2 eip155 network to chain ID.
- */
-export function parseEip155ChainId(network: string): number | null {
-	const match = /^eip155:(\d+)$/.exec(network);
-	if (!match?.[1]) return null;
-	return Number(match[1]);
-}
-
-/**
  * Validate x402 resource object.
  */
 export function validateX402Resource(resource: X402Resource | undefined): X402ValidationResult {
@@ -85,7 +81,9 @@ export function validateX402Resource(resource: X402Resource | undefined): X402Va
 /**
  * Validate x402 accepted payment requirements for EVM exact scheme.
  */
-export function validateX402Accepted(accepted: X402AcceptedExactEvm | undefined): X402ValidationResult {
+export function validateX402Accepted(
+	accepted: X402AcceptedExactEvm | undefined,
+): X402ValidationResult {
 	if (!accepted) {
 		return { valid: false, error: "Missing x402 payment requirements" };
 	}
@@ -145,33 +143,63 @@ export function validateX402ForSigning(
 	return { valid: true };
 }
 
+// =============================================================================
+// On-chain balance check
+// =============================================================================
+
+const CHAIN_CONFIG: Record<number, { chain: Chain; rpcUrl?: string }> = {
+	8453: { chain: base },
+	84532: { chain: baseSepolia },
+	11155111: { chain: sepolia },
+};
+
 /**
- * Format atomic units to human-readable amount.
+ * Check if the user's USDC balance is sufficient for the x402 payment.
+ * Returns null if sufficient, or an error message if insufficient.
+ * Fails silently (returns null) on RPC errors so signing is not blocked.
  */
-export function formatAtomicAmount(atomicAmount: string, decimals: number): string {
+export async function checkUsdcBalance(
+	userAddress: string,
+	tokenAddress: string,
+	requiredAmount: string,
+	chainId: number,
+): Promise<string | null> {
+	const config = CHAIN_CONFIG[chainId];
+	if (!config) return null; // Unknown chain -- skip check
+
 	try {
-		const num = BigInt(atomicAmount);
-		const divisor = BigInt(10 ** decimals);
-		const intPart = num / divisor;
-		const fracPart = num % divisor;
-		const fracStr = fracPart.toString().padStart(decimals, "0").replace(/0+$/, "");
-		if (fracStr) {
-			return `${intPart}.${fracStr}`;
+		const client = createPublicClient({
+			chain: config.chain,
+			transport: http(config.rpcUrl),
+		});
+
+		const balance = await client.readContract({
+			address: tokenAddress as Address,
+			abi: erc20Abi,
+			functionName: "balanceOf",
+			args: [userAddress as Address],
+		});
+
+		const required = BigInt(requiredAmount);
+		if (balance < required) {
+			// Format both for display
+			const balanceStr = formatBalanceForDisplay(balance, 6);
+			const requiredStr = formatBalanceForDisplay(required, 6);
+			return `Insufficient USDC balance: you have ${balanceStr} USDC but need ${requiredStr} USDC`;
 		}
-		return intPart.toString();
-	} catch {
-		return atomicAmount;
+
+		return null; // Balance is sufficient
+	} catch (err) {
+		// Fail open: don't block signing on RPC errors
+		console.warn("[x402] Balance check failed (proceeding anyway):", err);
+		return null;
 	}
 }
 
-/**
- * Extract domain from URL for display.
- */
-export function extractDomain(url: string): string {
-	try {
-		const parsed = new URL(url);
-		return parsed.hostname;
-	} catch {
-		return url;
-	}
+function formatBalanceForDisplay(amount: bigint, decimals: number): string {
+	const divisor = BigInt(10 ** decimals);
+	const intPart = amount / divisor;
+	const fracPart = amount % divisor;
+	const fracStr = fracPart.toString().padStart(decimals, "0").slice(0, 4); // Show 4 decimals
+	return `${intPart}.${fracStr}`;
 }

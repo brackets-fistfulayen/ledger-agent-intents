@@ -1,3 +1,4 @@
+import type { CreateIntentRequest, IntentStatus } from "@agent-intents/shared";
 /**
  * Intents endpoint
  *
@@ -11,17 +12,27 @@
  * 2. **Legacy/demo** – No auth, accepts userId in body or defaults to 'demo-user'.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import type { CreateIntentRequest, IntentStatus } from "@agent-intents/shared";
+import { sql } from "@vercel/postgres";
 import { v4 as uuidv4 } from "uuid";
-import { methodRouter, jsonSuccess, jsonError, parseBody, getQueryParam, getQueryNumber } from "./_lib/http.js";
-import { createIntent, getIntentsByUser } from "./_lib/intentsRepo.js";
 import { verifyAgentAuth } from "./_lib/agentAuth.js";
+import {
+	getQueryNumber,
+	getQueryParam,
+	jsonError,
+	jsonSuccess,
+	methodRouter,
+	parseBody,
+} from "./_lib/http.js";
+import { createIntent, getIntentsByUser } from "./_lib/intentsRepo.js";
+
+/** Maximum intents per agent per minute */
+const RATE_LIMIT_PER_MINUTE = 10;
 
 const VALID_STATUSES: IntentStatus[] = [
 	"pending",
 	"approved",
 	"rejected",
-	"signed",
+	"broadcasting",
 	"authorized",
 	"confirmed",
 	"failed",
@@ -38,9 +49,10 @@ export default methodRouter({
 		}
 
 		const statusParam = getQueryParam(req, "status");
-		const status = statusParam && VALID_STATUSES.includes(statusParam as IntentStatus)
-			? (statusParam as IntentStatus)
-			: undefined;
+		const status =
+			statusParam && VALID_STATUSES.includes(statusParam as IntentStatus)
+				? (statusParam as IntentStatus)
+				: undefined;
 
 		const limit = getQueryNumber(req, "limit", 50, 1, 100);
 
@@ -78,6 +90,30 @@ export default methodRouter({
 		} else {
 			// Legacy/demo flow – accept userId in body or default
 			userId = body.userId || "demo-user";
+		}
+
+		// Rate limiting: max N intents per agent per minute
+		// Uses idx_intents_agent_created index for efficient lookup
+		try {
+			const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+			const countResult = await sql`
+				SELECT COUNT(*)::int AS cnt
+				FROM intents
+				WHERE agent_id = ${body.agentId}
+					AND created_at > ${oneMinuteAgo}
+			`;
+			const recentCount = (countResult.rows[0] as { cnt: number })?.cnt ?? 0;
+			if (recentCount >= RATE_LIMIT_PER_MINUTE) {
+				jsonError(
+					res,
+					`Rate limit exceeded: agent "${body.agentId}" has created ${recentCount} intents in the last minute (max ${RATE_LIMIT_PER_MINUTE})`,
+					429,
+				);
+				return;
+			}
+		} catch (err) {
+			// Fail open on rate limit check errors -- don't block intent creation
+			console.warn("[rate-limit] Check failed, proceeding:", err);
 		}
 
 		// Generate ID

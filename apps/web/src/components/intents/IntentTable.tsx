@@ -138,6 +138,48 @@ function ChainLogo({ chainId, className }: { chainId: number; className?: string
 }
 
 // =============================================================================
+// USDC Logo Component
+// =============================================================================
+
+function UsdcLogo({ className }: { className?: string }) {
+	return (
+		<svg
+			className={cn("size-24 rounded-full", className)}
+			viewBox="0 0 2000 2000"
+			xmlns="http://www.w3.org/2000/svg"
+		>
+			<path
+				d="M1000 2000c554.17 0 1000-445.83 1000-1000S1554.17 0 1000 0 0 445.83 0 1000s445.83 1000 1000 1000z"
+				fill="#2775ca"
+			/>
+			<path
+				d="M1275 1158.33c0-145.83-87.5-195.83-262.5-216.66-125-16.67-150-50-150-108.34s41.67-95.83 125-95.83c75 0 116.67 25 137.5 87.5 4.17 12.5 16.67 20.83 29.17 20.83h66.66c16.67 0 29.17-12.5 29.17-29.16v-4.17c-16.67-91.67-91.67-162.5-187.5-170.83v-100c0-16.67-12.5-29.17-33.33-33.34h-62.5c-16.67 0-29.17 12.5-33.34 33.34v95.83c-125 16.67-204.16 100-204.16 204.17 0 137.5 83.33 191.66 258.33 212.5 116.67 20.83 154.17 45.83 154.17 112.5s-58.34 112.5-137.5 112.5c-108.34 0-145.84-45.84-158.34-108.34-4.16-16.66-16.66-25-29.16-25h-70.84c-16.66 0-29.16 12.5-29.16 29.17v4.17c16.66 104.16 83.33 179.16 220.83 200v100c0 16.66 12.5 29.16 33.33 33.33h62.5c16.67 0 29.17-12.5 33.34-33.33v-100c125-20.84 208.33-108.34 208.33-220.84z"
+				fill="#fff"
+			/>
+			<path
+				d="M787.5 1595.83c-325-116.66-491.67-479.16-370.83-800 62.5-175 200-308.33 370.83-370.83 16.67-8.33 25-20.83 25-41.67V325c0-16.67-8.33-29.17-25-33.33-4.17 0-12.5 0-16.67 4.16-395.83 125-612.5 545.84-487.5 941.67 75 233.33 254.17 412.5 487.5 487.5 16.67 8.33 33.34 0 37.5-16.67 4.17-4.16 4.17-8.33 4.17-16.66v-58.34c0-12.5-12.5-29.16-25-37.5zM1229.17 295.83c-16.67-8.33-33.34 0-37.5 16.67-4.17 4.17-4.17 8.33-4.17 16.67v58.33c0 16.67 12.5 33.33 25 41.67 325 116.66 491.67 479.16 370.83 800-62.5 175-200 308.33-370.83 370.83-16.67 8.33-25 20.83-25 41.67V1700c0 16.67 8.33 29.17 25 33.33 4.17 0 12.5 0 16.67-4.16 395.83-125 612.5-545.84 487.5-941.67-75-237.5-258.34-416.67-487.5-491.67z"
+				fill="#fff"
+			/>
+		</svg>
+	);
+}
+
+// =============================================================================
+// Address Tooltip Component
+// =============================================================================
+
+function AddressWithTooltip({ address, children }: { address: string; children: React.ReactNode }) {
+	return (
+		<span className="relative group/tooltip">
+			{children}
+			<span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-8 hidden group-hover/tooltip:flex whitespace-nowrap rounded-sm bg-base px-12 py-6 font-mono body-3 text-on-accent shadow-lg z-50">
+				{address}
+			</span>
+		</span>
+	);
+}
+
+// =============================================================================
 // Table Header Component
 // =============================================================================
 
@@ -157,12 +199,12 @@ function TableHeader() {
 				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
 					Amount
 				</th>
-				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-					Chain
-				</th>
-				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-					Status
-				</th>
+			<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
+				Created At
+			</th>
+			<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
+				Status
+			</th>
 				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
 					Actions
 				</th>
@@ -230,8 +272,8 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 	const tokenDecimals = tokenInfo?.decimals ?? 6;
 	const isX402 = !!details.x402?.accepted;
 
-	// Format intent ID (first 8 chars)
-	const shortId = intent.id.slice(0, 8);
+	// Shortened intent ID: first 8 chars + ... + last 4 chars
+	const shortId = `${intent.id.slice(0, 8)}...${intent.id.slice(-4)}`;
 
 	// ==========================================================================
 	// Handlers
@@ -506,43 +548,68 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 				{/* Intent ID */}
 				<td className="py-20 px-24">
 					<div className="flex items-center gap-8">
-						<code className="font-mono body-2 text-muted">{shortId}...</code>
+						<code className="font-mono body-2 text-muted" title={intent.id}>{shortId}</code>
 						<span className="body-2 text-base">{intent.agentName}</span>
 					</div>
 				</td>
 
-				{/* From */}
-				<td className="py-20 px-24">
-					<code className="font-mono body-2 text-base">
-						{account ? formatAddress(account) : "—"}
+		{/* From */}
+		<td className="py-20 px-24">
+			{account ? (
+				<AddressWithTooltip address={account}>
+					<code className="font-mono body-2 text-base cursor-default">
+						{formatAddress(account)}
 					</code>
-				</td>
+				</AddressWithTooltip>
+			) : (
+				<span className="body-2 text-muted">—</span>
+			)}
+		</td>
 
-				{/* To */}
-				<td className="py-20 px-24">
-					<div className="flex flex-col gap-2">
-						<code className="font-mono body-2 text-base">
-							{formatAddress(details.recipient)}
-						</code>
-						{details.recipientEns && (
-							<span className="body-3 text-muted">{details.recipientEns}</span>
-						)}
-					</div>
-				</td>
+		{/* To */}
+		<td className="py-20 px-24">
+			<div className="flex flex-col gap-2">
+				<AddressWithTooltip address={details.recipient}>
+					<code className="font-mono body-2 text-base cursor-default">
+						{formatAddress(details.recipient)}
+					</code>
+				</AddressWithTooltip>
+				{details.recipientEns && (
+					<span className="body-3 text-muted">{details.recipientEns}</span>
+				)}
+			</div>
+		</td>
 
-				{/* Amount */}
-				<td className="py-20 px-24">
+			{/* Amount */}
+			<td className="py-20 px-24">
+				<div className="flex items-center gap-8">
 					<span className="body-1-semi-bold text-base">
 						{details.amount} {details.token}
 					</span>
-				</td>
+					{details.token === "USDC" && <UsdcLogo />}
+				</div>
+			</td>
 
-				{/* Chain */}
-				<td className="py-20 px-24">
-					<ChainLogo chainId={intentChainId} />
-				</td>
+	{/* Created At */}
+		<td className="py-20 px-24">
+			<div className="flex flex-col">
+				<span className="body-2 text-base">
+					{new Date(intent.createdAt).toLocaleDateString(undefined, {
+						year: "numeric",
+						month: "short",
+						day: "numeric",
+					})}
+				</span>
+				<span className="body-3 text-muted">
+					{new Date(intent.createdAt).toLocaleTimeString(undefined, {
+						hour: "2-digit",
+						minute: "2-digit",
+					})}
+				</span>
+			</div>
+		</td>
 
-				{/* Status */}
+			{/* Status */}
 				<td className="py-20 px-24">
 					<StatusBadge status={intent.status} />
 				</td>

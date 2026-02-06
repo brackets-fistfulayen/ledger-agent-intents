@@ -7,11 +7,36 @@ export type IntentStatus =
 	| "pending" // Created by agent, awaiting human review
 	| "approved" // Human approved, ready to sign
 	| "rejected" // Human rejected
-	| "signed" // Signed on device, broadcasting (for on-chain transactions)
+	| "broadcasting" // Signed on device, transaction broadcasting (for on-chain transactions)
 	| "authorized" // x402 payment authorized (signature ready for agent to use)
-	| "confirmed" // Transaction confirmed on-chain
-	| "failed" // Transaction failed
+	| "executing" // x402: agent is retrying with PAYMENT-SIGNATURE (transient)
+	| "confirmed" // Transaction confirmed on-chain / x402 payment settled
+	| "failed" // Transaction or payment failed
 	| "expired"; // Intent expired without action
+
+/**
+ * Valid status transitions for intents.
+ * Terminal states (rejected, confirmed, failed, expired) have no outgoing transitions.
+ */
+export const INTENT_TRANSITIONS: Record<IntentStatus, IntentStatus[]> = {
+	pending: ["approved", "rejected", "broadcasting", "authorized", "failed", "expired"],
+	approved: ["broadcasting", "authorized", "failed", "expired"],
+	rejected: [],
+	broadcasting: ["confirmed", "failed", "expired"],
+	authorized: ["executing", "confirmed", "failed", "expired"],
+	executing: ["confirmed", "failed"],
+	confirmed: [],
+	failed: [],
+	expired: [],
+};
+
+/**
+ * Check if a status transition is valid according to the state machine.
+ */
+export function isValidTransition(from: IntentStatus, to: IntentStatus): boolean {
+	const allowed = INTENT_TRANSITIONS[from];
+	return allowed ? allowed.includes(to) : false;
+}
 
 // Supported intent types
 export type IntentType =
@@ -138,6 +163,8 @@ export interface X402Context {
 	paymentSignatureHeader?: string;
 	/** Settlement receipt from PAYMENT-RESPONSE header after agent retries with proof */
 	settlementReceipt?: X402SettlementReceipt;
+	/** ISO timestamp when the x402 authorization expires (derived from validBefore) */
+	expiresAt?: string;
 }
 
 // Token transfer intent
@@ -184,7 +211,7 @@ export interface Intent {
 	createdAt: string; // ISO timestamp
 	expiresAt?: string; // Optional expiration
 	reviewedAt?: string; // When human reviewed
-	signedAt?: string; // When signed on device
+	broadcastAt?: string; // When signed on device and broadcast started
 	confirmedAt?: string; // When confirmed on-chain
 
 	// Transaction data (populated after signing)
@@ -254,7 +281,7 @@ export interface IntentWebhook {
 		| "intent.created"
 		| "intent.approved"
 		| "intent.rejected"
-		| "intent.signed"
+		| "intent.broadcasting"
 		| "intent.confirmed"
 		| "intent.failed"
 		| "intent.expired";
@@ -366,4 +393,50 @@ export function generateIntentId(): string {
 // Utility: format amount for display
 export function formatAmount(amount: string, token: string): string {
 	return `${amount} ${token}`;
+}
+
+// =============================================================================
+// x402 / CAIP-2 Utility Functions
+// =============================================================================
+
+/**
+ * Parse a CAIP-2 "eip155:<chainId>" network string to a numeric chain ID.
+ * Returns `null` if the string is not a valid eip155 network identifier.
+ */
+export function parseEip155ChainId(network: string): number | null {
+	const match = /^eip155:(\d+)$/.exec(network);
+	if (!match?.[1]) return null;
+	return Number(match[1]);
+}
+
+/**
+ * Format an atomic (smallest-unit) amount to a human-readable decimal string.
+ * e.g. formatAtomicAmount("10000", 6) => "0.01"
+ */
+export function formatAtomicAmount(atomicAmount: string, decimals: number): string {
+	try {
+		const num = BigInt(atomicAmount);
+		const divisor = BigInt(10 ** decimals);
+		const intPart = num / divisor;
+		const fracPart = num % divisor;
+		const fracStr = fracPart.toString().padStart(decimals, "0").replace(/0+$/, "");
+		if (fracStr) {
+			return `${intPart}.${fracStr}`;
+		}
+		return intPart.toString();
+	} catch {
+		return atomicAmount;
+	}
+}
+
+/**
+ * Extract the hostname from a URL for display purposes.
+ * Returns the raw string if parsing fails.
+ */
+export function extractDomain(url: string): string {
+	try {
+		return new URL(url).hostname;
+	} catch {
+		return url;
+	}
 }

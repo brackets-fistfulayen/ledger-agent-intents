@@ -9,6 +9,7 @@ import {
 	isValidEvmAddress,
 	formatAtomicAmount,
 	extractDomain,
+	checkUsdcBalance,
 } from "@/lib/x402-validation";
 import { useUpdateIntentStatus } from "@/queries/intents";
 import {
@@ -258,16 +259,16 @@ function RecipientSection({ intent }: { intent: Intent }) {
 		<div className="rounded-lg bg-muted-transparent p-16">
 			<div className="body-3 text-muted mb-6">To</div>
 			<div className="flex items-center justify-between gap-8">
-				<div className="flex flex-col gap-2">
-					<code className="font-mono body-2 text-base">
-						{formatAddress(details.recipient)}
-					</code>
-					{details.recipientEns && (
-						<span className="body-3 text-muted">{details.recipientEns}</span>
-					)}
-				</div>
-				<CopyButton text={details.recipient} />
+			<div className="flex flex-col gap-2 min-w-0">
+				<code className="font-mono body-2 text-base break-all">
+					{details.recipient}
+				</code>
+				{details.recipientEns && (
+					<span className="body-3 text-muted">{details.recipientEns}</span>
+				)}
 			</div>
+			<CopyButton text={details.recipient} />
+		</div>
 		</div>
 	);
 }
@@ -289,7 +290,7 @@ function X402PaymentSection({ intent }: { intent: Intent }) {
 	const domain = extractDomain(resource.url);
 	
 	return (
-		<div className="rounded-lg border border-interactive/30 bg-interactive/5 p-16 flex flex-col gap-12">
+		<div className="rounded-lg bg-interactive/5 p-16 flex flex-col gap-12">
 			<div className="flex items-center gap-8">
 				<div className="size-8 rounded-full bg-interactive" />
 				<span className="body-2-semi-bold text-interactive">x402 Payment Details</span>
@@ -306,16 +307,16 @@ function X402PaymentSection({ intent }: { intent: Intent }) {
 				</div>
 			</div>
 			
-			{/* Payment Recipient */}
-			<div className="flex flex-col gap-4">
-				<span className="body-3 text-muted">Payment Recipient</span>
-				<div className="flex items-center justify-between gap-8">
-					<code className="font-mono body-2 text-base">
-						{formatAddress(accepted.payTo)}
-					</code>
-					<CopyButton text={accepted.payTo} />
-				</div>
+		{/* Payment Recipient */}
+		<div className="flex flex-col gap-4">
+			<span className="body-3 text-muted">Payment Recipient</span>
+			<div className="flex items-center justify-between gap-8">
+				<code className="font-mono body-2 text-base break-all">
+					{accepted.payTo}
+				</code>
+				<CopyButton text={accepted.payTo} />
 			</div>
+		</div>
 			
 			{/* Network */}
 			<div className="flex items-center justify-between">
@@ -536,32 +537,48 @@ function TechnicalDetailsSection({ intent }: { intent: Intent }) {
 			</button>
 
 			{isExpanded && (
-				<div className="mt-12 flex flex-col gap-8 body-3 text-muted">
-					<div className="flex justify-between">
-						<span>Intent ID</span>
-						<code className="font-mono text-base">{intent.id.slice(0, 16)}...</code>
+			<div className="mt-12 flex flex-col gap-8 body-3 text-muted">
+				<div className="flex flex-col gap-4">
+					<span>Intent ID</span>
+					<code className="font-mono text-base break-all">{intent.id}</code>
+				</div>
+				{tokenAddress && (
+					<div className="flex flex-col gap-4">
+						<span>Token Contract</span>
+						<code className="font-mono text-base break-all">{tokenAddress}</code>
 					</div>
-					{tokenAddress && (
-						<div className="flex justify-between">
-							<span>Token Contract</span>
-							<code className="font-mono text-base">{formatAddress(tokenAddress)}</code>
-						</div>
-					)}
+				)}
 					<div className="flex justify-between">
 						<span>Agent ID</span>
 						<code className="font-mono text-base">{intent.agentId}</code>
 					</div>
-					{intent.statusHistory.length > 0 && (
-						<div className="flex flex-col gap-4 mt-8">
-							<span className="body-3-semi-bold">Status History</span>
-							{intent.statusHistory.map((entry, idx) => (
+				{intent.statusHistory.length > 0 && (
+					<div className="flex flex-col gap-4 mt-8">
+						<span className="body-3-semi-bold">Timeline</span>
+						{intent.statusHistory.map((entry, idx) => {
+							const date = new Date(entry.timestamp);
+							const formatted = `${date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })} ${date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+							const label =
+								entry.status === "pending"
+									? "Created"
+									: entry.status === "broadcasting" || entry.status === "confirmed"
+										? "Broadcasted"
+										: entry.status === "authorized"
+											? "Authorized"
+											: entry.status === "rejected"
+												? "Rejected"
+												: entry.status === "failed"
+													? "Failed"
+													: entry.status.charAt(0).toUpperCase() + entry.status.slice(1);
+							return (
 								<div key={idx} className="flex justify-between text-muted">
-									<span>{entry.status}</span>
-									<span>{formatTimeAgo(entry.timestamp)}</span>
+									<span>{label}</span>
+									<span className="font-mono">{formatted}</span>
 								</div>
-							))}
-						</div>
-					)}
+							);
+						})}
+					</div>
+				)}
 				</div>
 			)}
 		</div>
@@ -643,6 +660,19 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 				setError(
 					`Switch to ${SUPPORTED_CHAINS[chainId as SupportedChainId]?.name ?? `Chain ${chainId}`} to authorize this API payment`,
 				);
+				return;
+			}
+
+			// Pre-sign USDC balance check: avoid wasting a Ledger interaction if
+			// the user doesn't have enough USDC to cover the payment.
+			const balanceError = await checkUsdcBalance(
+				account,
+				accepted.asset,
+				accepted.amount,
+				chainId,
+			);
+			if (balanceError) {
+				setError(balanceError);
 				return;
 			}
 
@@ -732,22 +762,26 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 					console.warn("Local signature verification failed:", verifyErr);
 				}
 
-				const paymentPayload: X402PaymentPayload = {
-					x402Version: 2,
-					resource,
-					accepted,
-					payload: { signature, authorization },
-					extensions: {},
-				};
+			const paymentPayload: X402PaymentPayload = {
+				x402Version: 2,
+				resource,
+				accepted,
+				payload: { signature, authorization },
+				extensions: {},
+			};
 
-				const paymentSignatureHeader = base64EncodeUtf8(JSON.stringify(paymentPayload));
+			const paymentSignatureHeader = base64EncodeUtf8(JSON.stringify(paymentPayload));
 
-				await updateStatus.mutateAsync({
-					id: intent.id,
-					status: "authorized", // x402 payment authorized
-					paymentSignatureHeader,
-					paymentPayload,
-				});
+			// Compute expiry from validBefore (Unix seconds -> ISO string)
+			const expiresAt = new Date(Number(authorization.validBefore) * 1000).toISOString();
+
+			await updateStatus.mutateAsync({
+				id: intent.id,
+				status: "authorized", // x402 payment authorized
+				paymentSignatureHeader,
+				paymentPayload,
+				expiresAt,
+			});
 
 				onClose();
 			} catch (err) {
