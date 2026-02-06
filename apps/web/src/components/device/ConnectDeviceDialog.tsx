@@ -146,13 +146,13 @@ export function ConnectDeviceDialog() {
 		setShowConnectDialog,
 		connect,
 		disconnect,
-		isConnected,
 		isConnecting,
 		account,
 		dismissDeviceAction,
 		connectingTransport,
 		isDerivingAddresses,
 		deviceActionState,
+		hasActiveSession,
 	} = useLedger();
 
 	const handleClose = () => {
@@ -174,7 +174,7 @@ export function ConnectDeviceDialog() {
 					<RadixDialog.Title>Connect a Ledger signer</RadixDialog.Title>
 				</VisuallyHidden.Root>
 
-				{isConnected ? (
+				{hasActiveSession ? (
 					<>
 						<DialogHeader appearance="compact" title="Connected Device" onClose={handleClose} />
 						<DialogBody>

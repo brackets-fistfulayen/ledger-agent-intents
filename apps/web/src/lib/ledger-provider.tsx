@@ -110,6 +110,8 @@ interface LedgerContextType {
 	isDerivingAddresses: boolean;
 	/** Retry opening the Ethereum app on the already-connected device. */
 	retryOpenApp: () => Promise<void>;
+	/** Whether there is an active DMK session (device physically connected). */
+	hasActiveSession: boolean;
 }
 
 const LedgerContext = createContext<LedgerContextType | null>(null);
@@ -421,6 +423,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	const [derivedAddresses, setDerivedAddresses] = useState<DerivedAddress[]>([]);
 	const [showAddressPicker, setShowAddressPicker] = useState(false);
 	const [isDerivingAddresses, setIsDerivingAddresses] = useState(false);
+	const [hasActiveSession, setHasActiveSession] = useState(false);
 
 	const sessionIdRef = useRef<DeviceSessionId | null>(null);
 	const derivationPathRef = useRef<string>(
@@ -469,6 +472,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 					// signing operations.
 					setDeviceModelId(null);
 					sessionIdRef.current = null;
+					setHasActiveSession(false);
 				}
 				// NOTE: We intentionally do NOT react to DeviceStatus.LOCKED
 				// here. Lock errors are surfaced naturally when the user
@@ -479,6 +483,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			error: () => {
 				setDeviceModelId(null);
 				sessionIdRef.current = null;
+				setHasActiveSession(false);
 			},
 		});
 
@@ -636,6 +641,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 				const sessionId = await dmk.connect({ device });
 
 				sessionIdRef.current = sessionId;
+				setHasActiveSession(true);
 
 				// Retrieve connected device info for model detection
 				try {
@@ -765,6 +771,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 		deviceSessionSubRef.current?.unsubscribe();
 		deviceSessionSubRef.current = null;
 		sessionIdRef.current = null;
+		setHasActiveSession(false);
 		setAccount(null);
 		setDeviceModelId(null);
 		setError(null);
@@ -1227,6 +1234,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			deriveCustomAddress,
 			isDerivingAddresses,
 			retryOpenApp,
+			hasActiveSession,
 		}),
 		[
 			account,
@@ -1250,6 +1258,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			deriveCustomAddress,
 			isDerivingAddresses,
 			retryOpenApp,
+			hasActiveSession,
 		],
 	);
 
