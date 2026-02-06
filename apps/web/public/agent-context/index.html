@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Context for Agents — Agent Payments with Ledger</title>
+		<meta
+			name="description"
+			content="Quickstart guide for AI agents to create payment intents using a JSON credential file."
+		/>
+		<style>
+			:root {
+				color-scheme: dark;
+				--bg: #0b0f14;
+				--panel: #0f1621;
+				--text: #e6edf3;
+				--muted: #9aa4b2;
+				--border: #223042;
+				--accent: #7c5cff;
+				--good: #2ea043;
+				--warn: #d29922;
+				--bad: #f85149;
+				--mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+					"Liberation Mono", "Courier New", monospace;
+				--sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial,
+					"Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+			}
+			body { margin: 0; font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; }
+			a { color: var(--accent); text-decoration: none; }
+			a:hover { text-decoration: underline; }
+			.container { max-width: 900px; margin: 0 auto; padding: 32px 16px 80px; }
+			h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -0.01em; }
+			h2 { font-size: 22px; margin: 32px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+			h3 { font-size: 17px; margin: 24px 0 8px; color: var(--accent); }
+			p, li { margin: 6px 0; }
+			ul { padding-left: 20px; }
+			.header { padding: 20px; border: 1px solid var(--border); background: linear-gradient(180deg, rgba(124,92,255,0.12), transparent); border-radius: 12px; margin-bottom: 24px; }
+			.meta { margin-top: 10px; color: var(--muted); font-size: 14px; }
+			pre { margin: 8px 0; padding: 12px; border: 1px solid var(--border); background: rgba(0,0,0,0.25); border-radius: 8px; overflow: auto; font-family: var(--mono); font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+			code { font-family: var(--mono); font-size: 13px; }
+			.k { font-family: var(--mono); padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: rgba(255,255,255,0.03); font-size: 12px; white-space: nowrap; }
+			table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+			th { text-align: left; padding: 8px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 600; }
+			td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+			td code { font-size: 12px; }
+			.note { padding: 12px; border-radius: 8px; border-left: 3px solid var(--accent); background: rgba(124,92,255,0.08); margin: 12px 0; font-size: 13px; }
+			.warn { border-left-color: var(--warn); background: rgba(210,153,34,0.08); }
+			hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+		</style>
+	</head>
+	<body>
+		<div class="container">
+			<div class="header">
+				<h1>Context for Agents — Create a Payment Intent</h1>
+				<p>Quickstart guide for AI agents to create payment intents using a JSON credential file and the Agent Payments with Ledger API.</p>
+				<div class="meta">
+					Markdown: <a href="/agent-context.md"><span class="k">/agent-context.md</span></a>
+					&nbsp;&bull;&nbsp; JSON: <a href="/agent-context.json"><span class="k">/agent-context.json</span></a>
+					&nbsp;&bull;&nbsp; Full API docs: <a href="/docs"><span class="k">/docs</span></a>
+					&nbsp;&bull;&nbsp; OpenAPI spec: <a href="/openapi.json"><span class="k">/openapi.json</span></a>
+				</div>
+			</div>
+
+			<p><strong>Prerequisites:</strong> <a href="https://book.getfoundry.sh/getting-started/installation">Foundry</a> (<code>cast</code>), <code>curl</code>, and <code>jq</code>.</p>
+
+			<!-- ============================================================ -->
+			<h2 id="credential-file">1. Credential File</h2>
+			<!-- ============================================================ -->
+
+			<p>You need a JSON credential file with this shape. The human owner generates this file when registering your agent from the web UI.</p>
+
+<pre>{
+  "version": 1,
+  "label": "My Agent",
+  "trustchainId": "0x&lt;owner-wallet-address&gt;",
+  "privateKey": "0x&lt;hex-encoded-secp256k1-private-key&gt;",
+  "publicKey": "0x&lt;hex-encoded-compressed-public-key&gt;",
+  "createdAt": "2026-01-01T00:00:00.000Z"
+}</pre>
+
+			<div class="warn note"><strong>Security:</strong> Never commit this file to version control. Add it to <code>.gitignore</code> and restrict file permissions (<code>chmod 600</code>). The <code>privateKey</code> field is a secret &mdash; treat it like a password.</div>
+
+			<!-- ============================================================ -->
+			<h2 id="agentauth-header">2. Build the AgentAuth Header</h2>
+			<!-- ============================================================ -->
+
+			<p>Every request to the API requires an <code>Authorization</code> header:</p>
+
+<pre>Authorization: AgentAuth &lt;timestamp&gt;.&lt;bodyHash&gt;.&lt;signature&gt;</pre>
+
+			<table>
+				<thead>
+					<tr><th>Part</th><th>How to compute</th></tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><code>timestamp</code></td>
+						<td>Current Unix epoch in <strong>seconds</strong> as a string. Must be within 5 minutes of server time.</td>
+					</tr>
+					<tr>
+						<td><code>bodyHash</code></td>
+						<td><code>cast keccak "$BODY"</code> &mdash; returns <code>0x</code>-prefixed keccak256 hash. For GET requests (no body), use the literal string <code>0x</code>.</td>
+					</tr>
+					<tr>
+						<td><code>signature</code></td>
+						<td><code>cast wallet sign --private-key "$KEY" "$MESSAGE"</code> &mdash; EIP-191 <code>personal_sign</code> over <code>"&lt;timestamp&gt;.&lt;bodyHash&gt;"</code>.</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<div class="note"><strong>Important:</strong> All hex values (<code>bodyHash</code>, <code>signature</code>) <strong>must</strong> include the <code>0x</code> prefix. Omitting it will result in a <code>401 Authentication failed</code> error.</div>
+
+			<h3>Body hashing</h3>
+			<p>The <code>bodyHash</code> is computed over the <strong>exact bytes</strong> sent in the request body. Write the JSON body as a compact literal string (no extra whitespace between keys and values) to ensure a deterministic hash.</p>
+
+			<!-- ============================================================ -->
+			<h2 id="send-intent">3. Send an Intent</h2>
+			<!-- ============================================================ -->
+
+			<p><strong><code>POST https://www.agentintents.io/api/intents</code></strong></p>
+
+			<h3>Request body</h3>
+
+<pre>{"agentId":"my-agent","agentName":"My Agent","details":{"type":"transfer","token":"USDC","amount":"1.00","recipient":"0xRecipientAddress","chainId":8453,"memo":"Reason for payment"},"urgency":"normal","expiresInMinutes":60}</pre>
+
+			<h3>Response (201 Created)</h3>
+
+<pre>{
+  "success": true,
+  "intent": {
+    "id": "int_1770399036079_804497de",
+    "userId": "0x20bfb083c5adacc91c46ac4d37905d0447968166",
+    "agentId": "my-agent",
+    "agentName": "My Agent",
+    "details": { "type": "transfer", "token": "USDC", "amount": "1.00", "recipient": "0xRecipientAddress", "chainId": 8453, "memo": "Reason for payment" },
+    "urgency": "normal",
+    "status": "pending",
+    "trustChainId": "0x20bfb083c5adacc91c46ac4d37905d0447968166",
+    "createdAt": "2026-02-06T17:30:36.127Z",
+    "expiresAt": "2026-02-06T18:30:36.080Z",
+    "statusHistory": [
+      { "status": "pending", "timestamp": "2026-02-06T17:30:36.222Z" }
+    ]
+  },
+  "paymentUrl": "https://www.agentintents.io/pay/int_1770399036079_804497de"
+}</pre>
+
+			<p>Share the <code>paymentUrl</code> with the human so they can review and sign the transaction.</p>
+
+			<!-- ============================================================ -->
+			<h2 id="poll">4. Poll for Completion</h2>
+			<!-- ============================================================ -->
+
+			<p><strong><code>GET https://www.agentintents.io/api/intents/&lt;intent-id&gt;</code></strong></p>
+
+			<p>Poll until <code>status</code> is one of the terminal states: <code>confirmed</code>, <code>rejected</code>, <code>failed</code>, or <code>expired</code>.</p>
+
+			<hr />
+
+			<!-- ============================================================ -->
+			<h2 id="complete-example">Complete Example</h2>
+			<!-- ============================================================ -->
+
+<pre>#!/usr/bin/env bash
+set -euo pipefail
+
+# ── Configuration ────────────────────────────────────────────────
+CREDENTIAL_FILE="agent-credential.json"
+PRIVATE_KEY=$(jq -r '.privateKey' "$CREDENTIAL_FILE")
+AGENT_LABEL=$(jq -r '.label' "$CREDENTIAL_FILE")
+
+# ── 1. Build compact JSON body ──────────────────────────────────
+BODY=$(jq -cn \
+  --arg agentName "$AGENT_LABEL" \
+  '{
+    agentId: "my-agent",
+    agentName: $agentName,
+    details: {
+      type: "transfer",
+      token: "USDC",
+      amount: "1.00",
+      recipient: "0xRecipientAddress",
+      chainId: 8453,
+      memo: "Reason for payment"
+    },
+    urgency: "normal",
+    expiresInMinutes: 60
+  }')
+
+# ── 2. Compute auth header ──────────────────────────────────────
+TIMESTAMP=$(date +%s)
+BODY_HASH=$(cast keccak "$BODY")
+SIGNATURE=$(cast wallet sign --private-key "$PRIVATE_KEY" "${TIMESTAMP}.${BODY_HASH}")
+
+# ── 3. Send intent ──────────────────────────────────────────────
+RESPONSE=$(curl -s -X POST "https://www.agentintents.io/api/intents" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: AgentAuth ${TIMESTAMP}.${BODY_HASH}.${SIGNATURE}" \
+  -d "$BODY")
+
+echo "$RESPONSE" | jq .
+
+PAYMENT_URL=$(echo "$RESPONSE" | jq -r '.paymentUrl')
+echo ""
+echo "Share this link with the human: $PAYMENT_URL"
+
+# ── 4. Poll for completion ──────────────────────────────────────
+INTENT_ID=$(echo "$RESPONSE" | jq -r '.intent.id')
+STATUS="pending"
+
+for i in $(seq 1 120); do
+  case "$STATUS" in confirmed|rejected|failed|expired) break ;; esac
+  sleep 30
+  POLL_TS=$(date +%s)
+  POLL_SIG=$(cast wallet sign --private-key "$PRIVATE_KEY" "${POLL_TS}.0x")
+  STATUS=$(curl -s "https://www.agentintents.io/api/intents/${INTENT_ID}" \
+    -H "Authorization: AgentAuth ${POLL_TS}.0x.${POLL_SIG}" \
+    | jq -r '.intent.status')
+  echo "Poll $i: status=$STATUS"
+done
+
+echo "Final status: $STATUS"</pre>
+
+			<div class="note"><strong>Tip:</strong> <code>cast keccak</code> and <code>cast wallet sign</code> both return <code>0x</code>-prefixed output &mdash; no manual hex formatting needed.</div>
+
+			<!-- ============================================================ -->
+			<h2 id="supported-chains">Supported Chains</h2>
+			<!-- ============================================================ -->
+
+			<table>
+				<thead>
+					<tr><th>Chain ID</th><th>Name</th><th>Token</th><th>Notes</th></tr>
+				</thead>
+				<tbody>
+					<tr><td><code>8453</code></td><td>Base</td><td>USDC</td><td>Mainnet</td></tr>
+					<tr><td><code>84532</code></td><td>Base Sepolia</td><td>USDC</td><td>Testnet</td></tr>
+					<tr><td><code>11155111</code></td><td>Sepolia</td><td>USDC</td><td>Testnet</td></tr>
+				</tbody>
+			</table>
+
+			<!-- ============================================================ -->
+			<h2 id="troubleshooting">Troubleshooting</h2>
+			<!-- ============================================================ -->
+
+			<table>
+				<thead>
+					<tr><th>Error</th><th>Cause</th><th>Fix</th></tr>
+				</thead>
+				<tbody>
+					<tr>
+						<td><code>401 Authentication failed</code></td>
+						<td>Signature or body hash is malformed</td>
+						<td>Ensure <code>bodyHash</code> and <code>signature</code> are <code>0x</code>-prefixed hex strings</td>
+					</tr>
+					<tr>
+						<td><code>401 Authentication failed</code></td>
+						<td>Timestamp drift</td>
+						<td>Ensure your system clock is accurate (within 5 minutes of server time)</td>
+					</tr>
+					<tr>
+						<td><code>401 Authentication failed</code></td>
+						<td>Body hash mismatch</td>
+						<td>Ensure you hash the <strong>exact</strong> bytes sent as the request body (compact JSON, no trailing newline)</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<hr />
+
+			<p style="color: var(--muted); font-size: 13px;">
+				Agent Payments with Ledger &mdash; Context for Agents
+				&nbsp;&bull;&nbsp; <a href="/agent-context.md">/agent-context.md</a>
+				&nbsp;&bull;&nbsp; <a href="/agent-context.json">/agent-context.json</a>
+				&nbsp;&bull;&nbsp; <a href="/docs">/docs</a>
+				&nbsp;&bull;&nbsp; <a href="/openapi.json">/openapi.json</a>
+				&nbsp;&bull;&nbsp; <a href="/">Home</a>
+			</p>
+
+			<p style="color: var(--muted); font-size: 12px;">This page is static HTML (no JavaScript required), so fetch-only tools can read it directly.</p>
+		</div>
+	</body>
+</html>
