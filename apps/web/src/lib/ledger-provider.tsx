@@ -161,6 +161,10 @@ function getRpcUrl(chainId: number): string {
 // Default derivation path (Ledger Live)
 const DEFAULT_DERIVATION_PATH = "44'/60'/0'/0/0";
 
+// localStorage keys for persisting the selected address across refreshes
+const LS_ACCOUNT_KEY = "ledger:account";
+const LS_DERIVATION_PATH_KEY = "ledger:derivationPath";
+
 /**
  * Derivation paths to present in the address picker.
  * Mix of Ledger Live paths (44'/60'/N'/0/0) and BIP44 paths (44'/60'/0'/0/N).
@@ -402,7 +406,9 @@ function buildEthSigner(dmk: DeviceManagementKit, sessionId: DeviceSessionId) {
 // =============================================================================
 
 export function LedgerProvider({ children }: { children: ReactNode }) {
-	const [account, setAccount] = useState<string | null>(null);
+	const [account, setAccountRaw] = useState<string | null>(
+		() => localStorage.getItem(LS_ACCOUNT_KEY) ?? null,
+	);
 	const [chainId, setChainId] = useState<number | null>(DEFAULT_CHAIN_ID);
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
@@ -415,7 +421,25 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	const [isDerivingAddresses, setIsDerivingAddresses] = useState(false);
 
 	const sessionIdRef = useRef<DeviceSessionId | null>(null);
-	const derivationPathRef = useRef<string>(DEFAULT_DERIVATION_PATH);
+	const derivationPathRef = useRef<string>(
+		localStorage.getItem(LS_DERIVATION_PATH_KEY) ?? DEFAULT_DERIVATION_PATH,
+	);
+
+	// Wrap setAccount to sync with localStorage
+	const setAccount = useCallback((value: string | null) => {
+		setAccountRaw(value);
+		if (value) {
+			localStorage.setItem(LS_ACCOUNT_KEY, value);
+		} else {
+			localStorage.removeItem(LS_ACCOUNT_KEY);
+		}
+	}, []);
+
+	// Also persist derivation path when selecting an address
+	const persistDerivationPath = useCallback((path: string) => {
+		derivationPathRef.current = path;
+		localStorage.setItem(LS_DERIVATION_PATH_KEY, path);
+	}, []);
 	const deviceSessionSubRef = useRef<{ unsubscribe: () => void } | null>(null);
 
 	// -----------------------------------------------------------------------
@@ -437,25 +461,20 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 		const subscription = dmk.getDeviceSessionState({ sessionId }).subscribe({
 			next: (state) => {
 				if (state.deviceStatus === DeviceStatus.NOT_CONNECTED) {
-					setAccount(null);
+					// Device physically disconnected — clear the session
+					// but keep the persisted address so the UI still shows
+					// the account. The user will need to reconnect for
+					// signing operations.
 					setDeviceModelId(null);
 					sessionIdRef.current = null;
-					setDeviceActionState({
-						status: "error",
-						message: "Device disconnected. Please reconnect your Ledger.",
-						error: new Error("Device disconnected"),
-					});
-				} else if (state.deviceStatus === DeviceStatus.LOCKED) {
-					// Device was locked while connected — surface unlock UI
-					setDeviceActionState({
-						status: "unlock-device",
-						message: "Please unlock your Ledger device",
-						canRetry: true,
-					});
 				}
+				// NOTE: We intentionally do NOT react to DeviceStatus.LOCKED
+				// here. Lock errors are surfaced naturally when the user
+				// attempts an operation (sign, connect, derive). Showing
+				// an unlock dialog while the user is just browsing is
+				// disruptive and unnecessary.
 			},
 			error: () => {
-				setAccount(null);
 				setDeviceModelId(null);
 				sessionIdRef.current = null;
 			},
@@ -727,18 +746,23 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 		setConnectingTransport(null);
 		setDerivedAddresses([]);
 		setShowAddressPicker(false);
-	}, []);
+		localStorage.removeItem(LS_ACCOUNT_KEY);
+		localStorage.removeItem(LS_DERIVATION_PATH_KEY);
+	}, [setAccount]);
 
 	// -----------------------------------------------------------------------
 	// Select a derived address from the picker
 	// -----------------------------------------------------------------------
-	const selectAddress = useCallback((derived: DerivedAddress) => {
-		derivationPathRef.current = derived.derivationPath;
-		setAccount(derived.address);
-		setShowAddressPicker(false);
-		setDerivedAddresses([]);
-		setDeviceActionState(null);
-	}, []);
+	const selectAddress = useCallback(
+		(derived: DerivedAddress) => {
+			persistDerivationPath(derived.derivationPath);
+			setAccount(derived.address);
+			setShowAddressPicker(false);
+			setDerivedAddresses([]);
+			setDeviceActionState(null);
+		},
+		[setAccount, persistDerivationPath],
+	);
 
 	// -----------------------------------------------------------------------
 	// Derive a custom address from a manually entered path
