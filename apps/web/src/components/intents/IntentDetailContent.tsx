@@ -552,17 +552,33 @@ function TechnicalDetailsSection({ intent }: { intent: Intent }) {
 						<span>Agent ID</span>
 						<code className="font-mono text-base">{intent.agentId}</code>
 					</div>
-					{intent.statusHistory.length > 0 && (
-						<div className="flex flex-col gap-4 mt-8">
-							<span className="body-3-semi-bold">Status History</span>
-							{intent.statusHistory.map((entry, idx) => (
+				{intent.statusHistory.length > 0 && (
+					<div className="flex flex-col gap-4 mt-8">
+						<span className="body-3-semi-bold">Timeline</span>
+						{intent.statusHistory.map((entry, idx) => {
+							const date = new Date(entry.timestamp);
+							const formatted = `${date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })} ${date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+							const label =
+								entry.status === "pending"
+									? "Created"
+									: entry.status === "broadcasting" || entry.status === "confirmed"
+										? "Broadcasted"
+										: entry.status === "authorized"
+											? "Authorized"
+											: entry.status === "rejected"
+												? "Rejected"
+												: entry.status === "failed"
+													? "Failed"
+													: entry.status.charAt(0).toUpperCase() + entry.status.slice(1);
+							return (
 								<div key={idx} className="flex justify-between text-muted">
-									<span>{entry.status}</span>
-									<span>{formatTimeAgo(entry.timestamp)}</span>
+									<span>{label}</span>
+									<span className="font-mono">{formatted}</span>
 								</div>
-							))}
-						</div>
-					)}
+							);
+						})}
+					</div>
+				)}
 				</div>
 			)}
 		</div>

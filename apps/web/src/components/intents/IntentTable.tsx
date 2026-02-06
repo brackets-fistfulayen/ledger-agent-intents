@@ -143,30 +143,39 @@ function ChainLogo({ chainId, className }: { chainId: number; className?: string
 
 function UsdcLogo({ className }: { className?: string }) {
 	return (
-		<div
-			className={cn(
-				"flex items-center justify-center size-24 rounded-full bg-[#2775CA]",
-				className,
-			)}
-			title="USDC"
+		<svg
+			className={cn("size-24 rounded-full", className)}
+			viewBox="0 0 2000 2000"
+			xmlns="http://www.w3.org/2000/svg"
 		>
-			<svg
-				width="14"
-				height="14"
-				viewBox="0 0 32 32"
-				fill="none"
-				xmlns="http://www.w3.org/2000/svg"
-			>
-				<path
-					d="M16 30C23.732 30 30 23.732 30 16C30 8.26801 23.732 2 16 2C8.26801 2 2 8.26801 2 16C2 23.732 8.26801 30 16 30Z"
-					fill="#2775CA"
-				/>
-				<path
-					d="M20.5 18.5C20.5 16.25 19.125 15.375 16.375 15.0625C14.375 14.8125 14 14.25 14 13.3125C14 12.375 14.625 11.75 15.875 11.75C17 11.75 17.625 12.125 17.875 13.0625C17.9375 13.25 18.125 13.375 18.3125 13.375H19.25C19.5 13.375 19.6875 13.1875 19.6875 12.9375V12.875C19.4375 11.5625 18.375 10.5625 17 10.375V9.125C17 8.875 16.8125 8.6875 16.5 8.625H15.5625C15.3125 8.625 15.125 8.8125 15.0625 9.0625V10.3125C13.3125 10.5625 12.1875 11.8125 12.1875 13.375C12.1875 15.5 13.5 16.4375 16.25 16.75C18.125 17.0625 18.6875 17.5 18.6875 18.5625C18.6875 19.625 17.75 20.3125 16.5 20.3125C14.8125 20.3125 14.25 19.5625 14.0625 18.625C14 18.4375 13.8125 18.3125 13.625 18.3125H12.625C12.375 18.3125 12.1875 18.5 12.1875 18.75V18.8125C12.4375 20.3125 13.375 21.375 15.125 21.6875V22.9375C15.125 23.1875 15.3125 23.375 15.625 23.4375H16.5625C16.8125 23.4375 17 23.25 17.0625 23V21.6875C18.8125 21.375 20.5 20.1875 20.5 18.5Z"
-					fill="white"
-				/>
-			</svg>
-		</div>
+			<path
+				d="M1000 2000c554.17 0 1000-445.83 1000-1000S1554.17 0 1000 0 0 445.83 0 1000s445.83 1000 1000 1000z"
+				fill="#2775ca"
+			/>
+			<path
+				d="M1275 1158.33c0-145.83-87.5-195.83-262.5-216.66-125-16.67-150-50-150-108.34s41.67-95.83 125-95.83c75 0 116.67 25 137.5 87.5 4.17 12.5 16.67 20.83 29.17 20.83h66.66c16.67 0 29.17-12.5 29.17-29.16v-4.17c-16.67-91.67-91.67-162.5-187.5-170.83v-100c0-16.67-12.5-29.17-33.33-33.34h-62.5c-16.67 0-29.17 12.5-33.34 33.34v95.83c-125 16.67-204.16 100-204.16 204.17 0 137.5 83.33 191.66 258.33 212.5 116.67 20.83 154.17 45.83 154.17 112.5s-58.34 112.5-137.5 112.5c-108.34 0-145.84-45.84-158.34-108.34-4.16-16.66-16.66-25-29.16-25h-70.84c-16.66 0-29.16 12.5-29.16 29.17v4.17c16.66 104.16 83.33 179.16 220.83 200v100c0 16.66 12.5 29.16 33.33 33.33h62.5c16.67 0 29.17-12.5 33.34-33.33v-100c125-20.84 208.33-108.34 208.33-220.84z"
+				fill="#fff"
+			/>
+			<path
+				d="M787.5 1595.83c-325-116.66-491.67-479.16-370.83-800 62.5-175 200-308.33 370.83-370.83 16.67-8.33 25-20.83 25-41.67V325c0-16.67-8.33-29.17-25-33.33-4.17 0-12.5 0-16.67 4.16-395.83 125-612.5 545.84-487.5 941.67 75 233.33 254.17 412.5 487.5 487.5 16.67 8.33 33.34 0 37.5-16.67 4.17-4.16 4.17-8.33 4.17-16.66v-58.34c0-12.5-12.5-29.16-25-37.5zM1229.17 295.83c-16.67-8.33-33.34 0-37.5 16.67-4.17 4.17-4.17 8.33-4.17 16.67v58.33c0 16.67 12.5 33.33 25 41.67 325 116.66 491.67 479.16 370.83 800-62.5 175-200 308.33-370.83 370.83-16.67 8.33-25 20.83-25 41.67V1700c0 16.67 8.33 29.17 25 33.33 4.17 0 12.5 0 16.67-4.16 395.83-125 612.5-545.84 487.5-941.67-75-237.5-258.34-416.67-487.5-491.67z"
+				fill="#fff"
+			/>
+		</svg>
+	);
+}
+
+// =============================================================================
+// Address Tooltip Component
+// =============================================================================
+
+function AddressWithTooltip({ address, children }: { address: string; children: React.ReactNode }) {
+	return (
+		<span className="relative group/tooltip">
+			{children}
+			<span className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-8 hidden group-hover/tooltip:flex whitespace-nowrap rounded-sm bg-base px-12 py-6 font-mono body-3 text-on-accent shadow-lg z-50">
+				{address}
+			</span>
+		</span>
 	);
 }
 
@@ -544,24 +553,32 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 					</div>
 				</td>
 
-			{/* From */}
-			<td className="py-20 px-24">
-				<code className="font-mono body-2 text-base" title={account ?? undefined}>
-					{account ? formatAddress(account) : "—"}
-				</code>
-			</td>
+		{/* From */}
+		<td className="py-20 px-24">
+			{account ? (
+				<AddressWithTooltip address={account}>
+					<code className="font-mono body-2 text-base cursor-default">
+						{formatAddress(account)}
+					</code>
+				</AddressWithTooltip>
+			) : (
+				<span className="body-2 text-muted">—</span>
+			)}
+		</td>
 
-			{/* To */}
-			<td className="py-20 px-24">
-				<div className="flex flex-col gap-2">
-					<code className="font-mono body-2 text-base" title={details.recipient}>
+		{/* To */}
+		<td className="py-20 px-24">
+			<div className="flex flex-col gap-2">
+				<AddressWithTooltip address={details.recipient}>
+					<code className="font-mono body-2 text-base cursor-default">
 						{formatAddress(details.recipient)}
 					</code>
-					{details.recipientEns && (
-						<span className="body-3 text-muted">{details.recipientEns}</span>
-					)}
-				</div>
-			</td>
+				</AddressWithTooltip>
+				{details.recipientEns && (
+					<span className="body-3 text-muted">{details.recipientEns}</span>
+				)}
+			</div>
+		</td>
 
 			{/* Amount */}
 			<td className="py-20 px-24">

@@ -14,7 +14,7 @@ const badgeVariants = cva(
 				default: "bg-muted-transparent text-base",
 				pending: "bg-warning text-warning",
 				approved: "bg-interactive text-interactive",
-				broadcasting: "bg-interactive text-interactive",
+				broadcasting: "bg-success text-success",
 				authorized: "bg-success text-success", // x402 payment authorized
 				executing: "bg-interactive text-interactive", // x402 settlement in progress
 				confirmed: "bg-success text-success",
@@ -65,7 +65,7 @@ const statusBadgeVariants = cva(
 			status: {
 				pending: "bg-warning-strong/25 text-warning",
 				approved: "bg-accent/25 text-interactive",
-				broadcasting: "bg-accent/25 text-interactive",
+				broadcasting: "bg-success-strong/25 text-success",
 				authorized: "bg-success-strong/25 text-success", // x402 payment authorized
 				executing: "bg-accent/25 text-interactive", // x402 payment being settled
 				confirmed: "bg-success-strong/25 text-success",
@@ -83,7 +83,7 @@ const statusBadgeVariants = cva(
 const STATUS_LABELS: Record<IntentStatus, string> = {
 	pending: "Pending",
 	approved: "Approved",
-	broadcasting: "Broadcasting",
+	broadcasting: "Success",
 	authorized: "Authorized", // x402 payment authorized
 	executing: "Executing", // x402 payment being settled
 	confirmed: "Confirmed",
