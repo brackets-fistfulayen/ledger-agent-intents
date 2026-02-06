@@ -64,9 +64,10 @@ export function IntentList() {
 		enabled: isConnected && !!account && authStatus === "authed",
 	});
 
-	// Sort intents if we have them
-	const sortedIntents = intents ? sortIntents(intents) : undefined;
-	const pendingCount = intents?.filter((i) => i.status === "pending").length ?? 0;
+	// Only show pending intents in the main table (completed ones go to history)
+	const pendingIntents = intents?.filter((i) => i.status === "pending");
+	const sortedIntents = pendingIntents ? sortIntents(pendingIntents) : undefined;
+	const pendingCount = pendingIntents?.length ?? 0;
 	const pendingTotal = intents ? calculatePendingTotal(intents) : 0;
 
 	return (
@@ -99,9 +100,9 @@ export function IntentList() {
 						</span>
 					)}
 				</div>
-				{intents && intents.length > 0 && (
-					<span className="body-2 text-muted">{intents.length} total</span>
-				)}
+			{intents && intents.length > 0 && (
+				<span className="body-2 text-muted">{intents.length} total intents</span>
+			)}
 			</div>
 
 			{/* Error display */}

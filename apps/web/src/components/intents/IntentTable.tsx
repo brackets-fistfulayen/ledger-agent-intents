@@ -233,8 +233,8 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 	const tokenDecimals = tokenInfo?.decimals ?? 6;
 	const isX402 = !!details.x402?.accepted;
 
-	// Full intent ID
-	const fullId = intent.id;
+	// Shortened intent ID: first 8 chars + ... + last 4 chars
+	const shortId = `${intent.id.slice(0, 8)}...${intent.id.slice(-4)}`;
 
 	// ==========================================================================
 	// Handlers
@@ -509,7 +509,7 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 				{/* Intent ID */}
 				<td className="py-20 px-24">
 					<div className="flex items-center gap-8">
-						<code className="font-mono body-2 text-muted">{fullId}</code>
+						<code className="font-mono body-2 text-muted" title={intent.id}>{shortId}</code>
 						<span className="body-2 text-base">{intent.agentName}</span>
 					</div>
 				</td>
@@ -545,20 +545,24 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 				<ChainLogo chainId={intentChainId} />
 			</td>
 
-			{/* Created At */}
-			<td className="py-20 px-24">
-				<span className="body-2 text-muted">
+		{/* Created At */}
+		<td className="py-20 px-24">
+			<div className="flex flex-col">
+				<span className="body-2 text-base">
 					{new Date(intent.createdAt).toLocaleDateString(undefined, {
 						year: "numeric",
 						month: "short",
 						day: "numeric",
-					})}{" "}
+					})}
+				</span>
+				<span className="body-3 text-muted">
 					{new Date(intent.createdAt).toLocaleTimeString(undefined, {
 						hour: "2-digit",
 						minute: "2-digit",
 					})}
 				</span>
-			</td>
+			</div>
+		</td>
 
 			{/* Status */}
 				<td className="py-20 px-24">
