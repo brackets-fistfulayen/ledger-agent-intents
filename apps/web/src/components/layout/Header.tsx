@@ -1,4 +1,5 @@
 import { Button } from "@ledgerhq/lumen-ui-react";
+import { Devices } from "@ledgerhq/lumen-ui-react/symbols";
 import { Link } from "@tanstack/react-router";
 
 import { ChainLogo } from "@/components/ui";
@@ -14,6 +15,8 @@ function LedgerLogo() {
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
 			className="text-black dark:text-white"
+			role="img"
+			aria-label="Ledger"
 		>
 			<path
 				d="M0,479.29v190.06h289.22V627.2H42.14V479.29H0z M726.77,479.29V627.2H479.69v42.14h289.22V479.29H726.77z M289.64,190.06v289.22h190.05v-38.01H331.78V190.06H289.64z M0,0v190.06h42.14V42.14h247.08V0H0z M479.69,0v42.14h247.08v147.92h42.14V0H479.69z"
@@ -24,8 +27,7 @@ function LedgerLogo() {
 }
 
 export function Header() {
-	const { account, chainId, isConnected, isConnecting, openLedgerModal } =
-		useLedger();
+	const { account, chainId, isConnected, isConnecting, openLedgerModal } = useLedger();
 
 	return (
 		<header className="flex h-80 items-center justify-between px-40">
@@ -36,31 +38,28 @@ export function Header() {
 
 			{/* Right: Actions */}
 			<div className="flex items-center gap-16">
-				<Link
-					to="/docs"
-					className="body-2-semi-bold text-muted hover:text-base transition-colors"
-				>
+				<Link to="/docs" className="body-2-semi-bold text-muted hover:text-base transition-colors">
 					API Docs
 				</Link>
 				{isConnected ? (
-					<Button
-						appearance="transparent"
-						size="md"
-						onClick={openLedgerModal}
-					>
+					<Button appearance="gray" size="md" icon={Devices} onClick={openLedgerModal}>
 						<span className="flex items-center gap-8">
 							<ChainLogo chainId={chainId} size={20} />
-							<span>{account?.slice(0, 6)}...{account?.slice(-4)}</span>
+							<span>
+								{account?.slice(0, 6)}...{account?.slice(-4)}
+							</span>
 						</span>
 					</Button>
 				) : (
 					<Button
-						appearance="transparent"
+						appearance="gray"
 						size="md"
+						icon={Devices}
 						onClick={openLedgerModal}
 						disabled={isConnecting}
+						loading={isConnecting}
 					>
-						{isConnecting ? "Connecting..." : "Connect"}
+						Connect
 					</Button>
 				)}
 			</div>
