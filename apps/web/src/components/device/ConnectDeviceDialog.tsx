@@ -1,20 +1,6 @@
 import { useLedger } from "@/lib/ledger-provider";
-import {
-	Button,
-	Dialog,
-	DialogBody,
-	DialogContent,
-	DialogHeader,
-	Spinner,
-	Spot,
-} from "@ledgerhq/lumen-ui-react";
-import {
-	CheckmarkCircle,
-	ChevronRight,
-	Close,
-	LedgerLogo,
-	Usb,
-} from "@ledgerhq/lumen-ui-react/symbols";
+import { Button, Dialog, DialogBody, DialogContent, Spinner, Spot } from "@ledgerhq/lumen-ui-react";
+import { ChevronRight, Close, LedgerLogo, Usb } from "@ledgerhq/lumen-ui-react/symbols";
 import * as RadixDialog from "@radix-ui/react-dialog";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 
@@ -110,32 +96,6 @@ function DerivingAddresses() {
 	);
 }
 
-/** "Connected" view */
-function ConnectedView({
-	account,
-	onDisconnect,
-}: { account: string | null; onDisconnect: () => void }) {
-	return (
-		<div className="flex flex-col gap-16 py-16">
-			<div className="flex items-center gap-12 rounded-md bg-muted p-16">
-				<div className="flex size-40 items-center justify-center rounded-full bg-success-transparent">
-					<CheckmarkCircle size={24} className="text-success" />
-				</div>
-				<div className="flex flex-col gap-2">
-					<span className="body-2-semi-bold text-base">Ledger Connected</span>
-					<span className="body-3 text-muted font-mono">
-						{account?.slice(0, 6)}...{account?.slice(-4)}
-					</span>
-				</div>
-			</div>
-
-			<Button appearance="transparent" size="md" onClick={onDisconnect}>
-				Disconnect
-			</Button>
-		</div>
-	);
-}
-
 // =============================================================================
 // Main component
 // =============================================================================
@@ -145,9 +105,7 @@ export function ConnectDeviceDialog() {
 		showConnectDialog,
 		setShowConnectDialog,
 		connect,
-		disconnect,
 		isConnecting,
-		account,
 		dismissDeviceAction,
 		connectingTransport,
 		isDerivingAddresses,
@@ -164,7 +122,9 @@ export function ConnectDeviceDialog() {
 	// anything (interaction, error, success) — it takes priority.
 	const deviceActionActive = deviceActionState != null;
 
-	const isOpen = showConnectDialog && !deviceActionActive;
+	// Don't show the dialog if there's an active session (disconnect
+	// is available from the header) or if a device action is in progress.
+	const isOpen = showConnectDialog && !deviceActionActive && !hasActiveSession;
 
 	return (
 		<Dialog open={isOpen} onOpenChange={setShowConnectDialog}>
@@ -174,14 +134,7 @@ export function ConnectDeviceDialog() {
 					<RadixDialog.Title>Connect a Ledger signer</RadixDialog.Title>
 				</VisuallyHidden.Root>
 
-				{hasActiveSession ? (
-					<>
-						<DialogHeader appearance="compact" title="Connected Device" onClose={handleClose} />
-						<DialogBody>
-							<ConnectedView account={account} onDisconnect={disconnect} />
-						</DialogBody>
-					</>
-				) : isDerivingAddresses ? (
+				{isDerivingAddresses ? (
 					<>
 						<CustomHeader title="Connect a Ledger signer" onClose={handleClose} />
 						<DialogBody>
