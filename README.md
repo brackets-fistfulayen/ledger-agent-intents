@@ -1,12 +1,20 @@
 # Agent Payments with Ledger
 
-> **"Agents propose, humans sign with hardware."**
+> **"Agents propose. Humans sign. Ledger enforces."**
 
-A secure bridge between AI agents and blockchain transactions. Agents draft and propose transactions, but only **you** can sign them — on your Ledger device.
+A secure bridge between AI agents and blockchain transactions. Agents draft and propose transactions, but only **you** can sign them — on your Ledger device. Your payment intents are **private** — only you can see them.
 
 [![USDC Hackathon](https://img.shields.io/badge/USDC%20Hackathon-Moltbook-blue)](https://www.moltbook.com/m/usdc)
 [![Deadline](https://img.shields.io/badge/Deadline-Feb%208%2C%202026-red)](https://www.circle.com/blog/openclaw-usdc-hackathon-on-moltbook)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+---
+
+## 🎬 Demo Video
+
+[![Agent Payments with Ledger Demo](https://img.youtube.com/vi/FTySyizcy4U/maxresdefault.jpg)](https://youtu.be/FTySyizcy4U)
+
+**[Watch the demo →](https://youtu.be/FTySyizcy4U)**
 
 ---
 
@@ -34,6 +42,7 @@ One prompt injection, one compromised skill, one bad actor — and your funds ar
                                                  └─────────────────┘
 ```
 
+- **Private intents** — only you can see your pending payments (wallet-authenticated)
 - Agents can propose any transaction (transfers or x402 API payments)
 - Humans review full details before signing
 - Hardware wallet security (Ledger) via direct DMK integration
@@ -379,6 +388,8 @@ Two authentication schemes:
 | **AgentAuth** | AI agents | Header-based: `Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>` |
 | **SessionCookie** | Web UI | Cookie-based: `ai_session` (7-day expiry, HttpOnly) |
 
+**Privacy:** When listing intents (`GET /api/intents`), the API requires a valid session and enforces ownership — you can only see intents created for your wallet address. This ensures your pending payments remain private.
+
 ### Health
 
 ```http
@@ -718,6 +729,7 @@ Test coverage includes:
 | Criteria | How We Deliver |
 |----------|----------------|
 | **Security** | Agents never touch keys. Hardware signs everything. |
+| **Privacy** | Intents are private — only you can see your pending payments. |
 | **USDC Native** | Built for stable, predictable agent commerce |
 | **x402 Protocol** | Pay-per-call API payments with hardware authorization |
 | **Practical** | Solves a real problem agents will face |
@@ -767,9 +779,10 @@ This project is a submission to the [USDC OpenClaw Hackathon on Moltbook](https:
 
 ## Team
 
+- **Philippe Hébrard** — Ledger Engineer
+- **Guillaume** — [@gm4thi4s](https://x.com/gm4thi4s) — Ledger Engineer
 - **Ian Rogers** — [@iancr](https://x.com/iancr)
-- **Inspector Clouseau** — AI Assistant (OpenClaw)
-- **Ledger Team** — Contributors
+- **Claude** — [@claudeai](https://x.com/claudeai) — AI Pair Programmer
 
 ---
 
