@@ -6,6 +6,11 @@ const API_BASE = import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_URL || "") 
 
 type AuthStatus = "idle" | "authing" | "authed" | "error";
 
+type MeResponse = {
+	success: boolean;
+	walletAddress?: string;
+};
+
 type ChallengeResponse = {
 	success: boolean;
 	challengeId: string;
@@ -18,6 +23,25 @@ type VerifyResponse = {
 	walletAddress: string;
 	error?: string;
 };
+
+/**
+ * Check whether the browser already holds a valid session cookie for `wallet`.
+ * Uses GET /api/me which validates the cookie against the DB.
+ */
+async function hasExistingSession(wallet: string): Promise<boolean> {
+	try {
+		const res = await fetch(`${API_BASE}/api/me`, { credentials: "include" });
+		if (!res.ok) return false;
+		const json = (await res.json()) as MeResponse;
+		return (
+			json.success === true &&
+			typeof json.walletAddress === "string" &&
+			json.walletAddress.toLowerCase() === wallet
+		);
+	} catch {
+		return false;
+	}
+}
 
 export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
 	const ledger = useLedger();
@@ -48,6 +72,17 @@ export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
 
 		(async () => {
 			try {
+				// ── Fast path: reuse an existing session cookie ──────────
+				// Sessions last 7 days. If the browser already has a valid
+				// cookie for this wallet we can skip the challenge-sign-verify
+				// round-trip entirely — no Ledger interaction required.
+				const alreadyAuthed = await hasExistingSession(walletLower);
+				if (alreadyAuthed) {
+					setStatus("authed");
+					return;
+				}
+
+				// ── Slow path: full EIP-712 challenge → sign → verify ───
 				const challengeRes = await fetch(`${API_BASE}/api/auth/challenge`, {
 					method: "POST",
 					credentials: "include",
