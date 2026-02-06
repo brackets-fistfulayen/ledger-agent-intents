@@ -429,6 +429,11 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	const derivationPathRef = useRef<string>(
 		localStorage.getItem(LS_DERIVATION_PATH_KEY) ?? DEFAULT_DERIVATION_PATH,
 	);
+	// Resolver for pending signing operations waiting for a session
+	const pendingSessionResolverRef = useRef<{
+		resolve: (value: { dmk: DeviceManagementKit; sessionId: DeviceSessionId }) => void;
+		reject: (reason?: unknown) => void;
+	} | null>(null);
 
 	// Wrap setAccount to sync with localStorage
 	const setAccount = useCallback((value: string | null) => {
@@ -453,8 +458,23 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	useEffect(() => {
 		return () => {
 			deviceSessionSubRef.current?.unsubscribe();
+			if (pendingSessionResolverRef.current) {
+				pendingSessionResolverRef.current.reject(new Error("Component unmounted"));
+				pendingSessionResolverRef.current = null;
+			}
 		};
 	}, []);
+
+	// Reject any pending session promise when the connect dialog is
+	// closed without a successful connection (user clicked X / escaped).
+	useEffect(() => {
+		if (!showConnectDialog && pendingSessionResolverRef.current && !sessionIdRef.current) {
+			pendingSessionResolverRef.current.reject(
+				new Error("Please connect your Ledger device to continue."),
+			);
+			pendingSessionResolverRef.current = null;
+		}
+	}, [showConnectDialog]);
 
 	// -----------------------------------------------------------------------
 	// Monitor device session state for disconnection
@@ -746,6 +766,16 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 					setDeviceActionState(null);
 					setIsDerivingAddresses(false);
 					setShowConnectDialog(false);
+
+					// If a signing operation is waiting for a session,
+					// resolve it now so it can proceed automatically.
+					if (pendingSessionResolverRef.current) {
+						pendingSessionResolverRef.current.resolve({
+							dmk,
+							sessionId,
+						});
+						pendingSessionResolverRef.current = null;
+					}
 				} else {
 					// Fresh connect — derive addresses and show the picker
 					await openAppAndDeriveAddresses();
@@ -757,6 +787,12 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 				setConnectingTransport(null);
 				setIsDerivingAddresses(false);
 				setShowConnectDialog(false);
+
+				// Reject any pending signing operation waiting for a session
+				if (pendingSessionResolverRef.current) {
+					pendingSessionResolverRef.current.reject(err);
+					pendingSessionResolverRef.current = null;
+				}
 
 				// Check if this is a recoverable device error (locked, refused, etc.)
 				const recoverable = classifyRecoverableError(err);
@@ -872,18 +908,22 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	// If the session is missing (e.g. after a page refresh), open the
 	// connect dialog so the user can re-pair the device.
 	// -----------------------------------------------------------------------
-	const ensureSession = useCallback((): {
+	const ensureSession = useCallback((): Promise<{
 		dmk: DeviceManagementKit;
 		sessionId: DeviceSessionId;
-	} => {
+	}> => {
 		const sessionId = sessionIdRef.current;
-		if (!sessionId) {
-			// Open the connect dialog so the user can reconnect,
-			// then retry the operation.
-			setShowConnectDialog(true);
-			throw new Error("Please connect your Ledger device to continue.");
+		if (sessionId) {
+			return Promise.resolve({ dmk: getDmk(), sessionId });
 		}
-		return { dmk: getDmk(), sessionId };
+
+		// No active session — open the connect dialog and return a
+		// Promise that will be resolved once the connect flow completes.
+		setShowConnectDialog(true);
+
+		return new Promise((resolve, reject) => {
+			pendingSessionResolverRef.current = { resolve, reject };
+		});
 	}, []);
 
 	// -----------------------------------------------------------------------
@@ -1051,7 +1091,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	// -----------------------------------------------------------------------
 	const sendTransaction = useCallback(
 		async (tx: TransactionRequest): Promise<string> => {
-			const { dmk, sessionId } = ensureSession();
+			const { dmk, sessionId } = await ensureSession();
 			const currentChainId = chainId ?? DEFAULT_CHAIN_ID;
 			const chain = getChain(currentChainId);
 			const rpcUrl = getRpcUrl(currentChainId);
@@ -1153,7 +1193,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	// -----------------------------------------------------------------------
 	const signTypedDataV4 = useCallback(
 		async (typedData: unknown): Promise<string> => {
-			const { dmk, sessionId } = ensureSession();
+			const { dmk, sessionId } = await ensureSession();
 
 			setDeviceActionState({
 				status: "open-app",
@@ -1195,7 +1235,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	// -----------------------------------------------------------------------
 	const personalSign = useCallback(
 		async (message: string): Promise<string> => {
-			const { dmk, sessionId } = ensureSession();
+			const { dmk, sessionId } = await ensureSession();
 
 			setDeviceActionState({
 				status: "open-app",
