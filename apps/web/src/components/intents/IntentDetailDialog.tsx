@@ -39,7 +39,7 @@ export function IntentDetailDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent>
+			<DialogContent className="max-w-[540px]">
 				<DialogHeader
 					appearance="compact"
 					title={dialogTitle}

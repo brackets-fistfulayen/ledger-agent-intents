@@ -138,6 +138,39 @@ function ChainLogo({ chainId, className }: { chainId: number; className?: string
 }
 
 // =============================================================================
+// USDC Logo Component
+// =============================================================================
+
+function UsdcLogo({ className }: { className?: string }) {
+	return (
+		<div
+			className={cn(
+				"flex items-center justify-center size-24 rounded-full bg-[#2775CA]",
+				className,
+			)}
+			title="USDC"
+		>
+			<svg
+				width="14"
+				height="14"
+				viewBox="0 0 32 32"
+				fill="none"
+				xmlns="http://www.w3.org/2000/svg"
+			>
+				<path
+					d="M16 30C23.732 30 30 23.732 30 16C30 8.26801 23.732 2 16 2C8.26801 2 2 8.26801 2 16C2 23.732 8.26801 30 16 30Z"
+					fill="#2775CA"
+				/>
+				<path
+					d="M20.5 18.5C20.5 16.25 19.125 15.375 16.375 15.0625C14.375 14.8125 14 14.25 14 13.3125C14 12.375 14.625 11.75 15.875 11.75C17 11.75 17.625 12.125 17.875 13.0625C17.9375 13.25 18.125 13.375 18.3125 13.375H19.25C19.5 13.375 19.6875 13.1875 19.6875 12.9375V12.875C19.4375 11.5625 18.375 10.5625 17 10.375V9.125C17 8.875 16.8125 8.6875 16.5 8.625H15.5625C15.3125 8.625 15.125 8.8125 15.0625 9.0625V10.3125C13.3125 10.5625 12.1875 11.8125 12.1875 13.375C12.1875 15.5 13.5 16.4375 16.25 16.75C18.125 17.0625 18.6875 17.5 18.6875 18.5625C18.6875 19.625 17.75 20.3125 16.5 20.3125C14.8125 20.3125 14.25 19.5625 14.0625 18.625C14 18.4375 13.8125 18.3125 13.625 18.3125H12.625C12.375 18.3125 12.1875 18.5 12.1875 18.75V18.8125C12.4375 20.3125 13.375 21.375 15.125 21.6875V22.9375C15.125 23.1875 15.3125 23.375 15.625 23.4375H16.5625C16.8125 23.4375 17 23.25 17.0625 23V21.6875C18.8125 21.375 20.5 20.1875 20.5 18.5Z"
+					fill="white"
+				/>
+			</svg>
+		</div>
+	);
+}
+
+// =============================================================================
 // Table Header Component
 // =============================================================================
 
@@ -157,9 +190,6 @@ function TableHeader() {
 				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
 					Amount
 				</th>
-			<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-				Chain
-			</th>
 			<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
 				Created At
 			</th>
@@ -181,7 +211,7 @@ function TableHeader() {
 function EmptyRow({ message }: { message: string }) {
 	return (
 		<tr>
-			<td colSpan={8} className="py-64 px-24 text-center">
+			<td colSpan={7} className="py-64 px-24 text-center">
 				<span className="body-1 text-muted">{message}</span>
 			</td>
 		</tr>
@@ -195,7 +225,7 @@ function EmptyRow({ message }: { message: string }) {
 function LoadingRow() {
 	return (
 		<tr>
-			<td colSpan={8} className="py-64 px-24 text-center">
+			<td colSpan={7} className="py-64 px-24 text-center">
 				<div className="flex items-center justify-center gap-12">
 					<Spinner size="lg" className="text-muted" />
 					<span className="body-1 text-muted">Loading intents...</span>
@@ -514,38 +544,36 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 					</div>
 				</td>
 
-				{/* From */}
-				<td className="py-20 px-24">
-					<code className="font-mono body-2 text-base">
-						{account ? formatAddress(account) : "—"}
+			{/* From */}
+			<td className="py-20 px-24">
+				<code className="font-mono body-2 text-base" title={account ?? undefined}>
+					{account ? formatAddress(account) : "—"}
+				</code>
+			</td>
+
+			{/* To */}
+			<td className="py-20 px-24">
+				<div className="flex flex-col gap-2">
+					<code className="font-mono body-2 text-base" title={details.recipient}>
+						{formatAddress(details.recipient)}
 					</code>
-				</td>
+					{details.recipientEns && (
+						<span className="body-3 text-muted">{details.recipientEns}</span>
+					)}
+				</div>
+			</td>
 
-				{/* To */}
-				<td className="py-20 px-24">
-					<div className="flex flex-col gap-2">
-						<code className="font-mono body-2 text-base">
-							{formatAddress(details.recipient)}
-						</code>
-						{details.recipientEns && (
-							<span className="body-3 text-muted">{details.recipientEns}</span>
-						)}
-					</div>
-				</td>
-
-				{/* Amount */}
-				<td className="py-20 px-24">
+			{/* Amount */}
+			<td className="py-20 px-24">
+				<div className="flex items-center gap-8">
 					<span className="body-1-semi-bold text-base">
 						{details.amount} {details.token}
 					</span>
-				</td>
-
-			{/* Chain */}
-			<td className="py-20 px-24">
-				<ChainLogo chainId={intentChainId} />
+					{details.token === "USDC" && <UsdcLogo />}
+				</div>
 			</td>
 
-		{/* Created At */}
+	{/* Created At */}
 		<td className="py-20 px-24">
 			<div className="flex flex-col">
 				<span className="body-2 text-base">
@@ -613,7 +641,7 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 			{/* Error row */}
 			{error && (
 				<tr>
-					<td colSpan={8} className="px-24 pb-16">
+					<td colSpan={7} className="px-24 pb-16">
 						<div className="rounded-sm bg-error-transparent px-16 py-10 body-2 text-error">
 							{error}
 						</div>

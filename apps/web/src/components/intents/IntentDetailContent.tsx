@@ -259,16 +259,16 @@ function RecipientSection({ intent }: { intent: Intent }) {
 		<div className="rounded-lg bg-muted-transparent p-16">
 			<div className="body-3 text-muted mb-6">To</div>
 			<div className="flex items-center justify-between gap-8">
-				<div className="flex flex-col gap-2">
-					<code className="font-mono body-2 text-base">
-						{formatAddress(details.recipient)}
-					</code>
-					{details.recipientEns && (
-						<span className="body-3 text-muted">{details.recipientEns}</span>
-					)}
-				</div>
-				<CopyButton text={details.recipient} />
+			<div className="flex flex-col gap-2 min-w-0">
+				<code className="font-mono body-2 text-base break-all">
+					{details.recipient}
+				</code>
+				{details.recipientEns && (
+					<span className="body-3 text-muted">{details.recipientEns}</span>
+				)}
 			</div>
+			<CopyButton text={details.recipient} />
+		</div>
 		</div>
 	);
 }
@@ -307,16 +307,16 @@ function X402PaymentSection({ intent }: { intent: Intent }) {
 				</div>
 			</div>
 			
-			{/* Payment Recipient */}
-			<div className="flex flex-col gap-4">
-				<span className="body-3 text-muted">Payment Recipient</span>
-				<div className="flex items-center justify-between gap-8">
-					<code className="font-mono body-2 text-base">
-						{formatAddress(accepted.payTo)}
-					</code>
-					<CopyButton text={accepted.payTo} />
-				</div>
+		{/* Payment Recipient */}
+		<div className="flex flex-col gap-4">
+			<span className="body-3 text-muted">Payment Recipient</span>
+			<div className="flex items-center justify-between gap-8">
+				<code className="font-mono body-2 text-base break-all">
+					{accepted.payTo}
+				</code>
+				<CopyButton text={accepted.payTo} />
 			</div>
+		</div>
 			
 			{/* Network */}
 			<div className="flex items-center justify-between">
@@ -537,17 +537,17 @@ function TechnicalDetailsSection({ intent }: { intent: Intent }) {
 			</button>
 
 			{isExpanded && (
-				<div className="mt-12 flex flex-col gap-8 body-3 text-muted">
-					<div className="flex justify-between">
-						<span>Intent ID</span>
-						<code className="font-mono text-base">{intent.id.slice(0, 16)}...</code>
+			<div className="mt-12 flex flex-col gap-8 body-3 text-muted">
+				<div className="flex flex-col gap-4">
+					<span>Intent ID</span>
+					<code className="font-mono text-base break-all">{intent.id}</code>
+				</div>
+				{tokenAddress && (
+					<div className="flex flex-col gap-4">
+						<span>Token Contract</span>
+						<code className="font-mono text-base break-all">{tokenAddress}</code>
 					</div>
-					{tokenAddress && (
-						<div className="flex justify-between">
-							<span>Token Contract</span>
-							<code className="font-mono text-base">{formatAddress(tokenAddress)}</code>
-						</div>
-					)}
+				)}
 					<div className="flex justify-between">
 						<span>Agent ID</span>
 						<code className="font-mono text-base">{intent.agentId}</code>
