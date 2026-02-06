@@ -13,12 +13,12 @@
  * (which is the user's wallet address).
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { recoverMessageAddress } from "viem";
 import { sql } from "@vercel/postgres";
-import { methodRouter, jsonSuccess, jsonError, parseBodyWithSchema } from "../_lib/http.js";
-import { registerAgentRequestSchema } from "../_lib/validation.js";
+import { recoverMessageAddress } from "viem";
+import { getActiveMemberByPubkey, registerAgent } from "../_lib/agentsRepo.js";
+import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
 import { logger } from "../_lib/logger.js";
-import { registerAgent, getActiveMemberByPubkey } from "../_lib/agentsRepo.js";
+import { registerAgentRequestSchema } from "../_lib/validation.js";
 
 /** Max agent registrations per wallet per minute */
 const RATE_LIMIT_REGISTRATIONS_PER_MINUTE = 5;
@@ -70,7 +70,10 @@ export default methodRouter({
 			});
 
 			if (recoveredAddress.toLowerCase() !== trustchainId) {
-				logger.error({ recovered: recoveredAddress.toLowerCase(), expected: trustchainId }, "Agent registration: signature mismatch");
+				logger.error(
+					{ recovered: recoveredAddress.toLowerCase(), expected: trustchainId },
+					"Agent registration: signature mismatch",
+				);
 				jsonError(res, "Authorization signature does not match the connected wallet", 403);
 				return;
 			}

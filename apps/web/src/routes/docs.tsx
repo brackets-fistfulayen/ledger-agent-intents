@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { CodeBlock } from "@/components/ui";
 import { SUPPORTED_CHAINS, SUPPORTED_TOKENS } from "@agent-intents/shared";
 import { Tag } from "@ledgerhq/lumen-ui-react";
-import { CodeBlock } from "@/components/ui";
+import { Link, createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/docs")({
 	component: DocsPage,
@@ -76,9 +76,7 @@ function Endpoint({
 
 	return (
 		<div className="flex items-start gap-12 p-16 rounded-md bg-muted">
-			<span
-				className={`px-8 py-4 rounded-xs body-3-semi-bold ${methodColors[method]}`}
-			>
+			<span className={`px-8 py-4 rounded-xs body-3-semi-bold ${methodColors[method]}`}>
 				{method}
 			</span>
 			<div className="flex-1 min-w-0">
@@ -102,16 +100,10 @@ function Param({
 }) {
 	return (
 		<div className="flex items-start gap-8 py-8 border-b border-[#30363d] last:border-0">
-			<code className="body-2 text-accent font-mono whitespace-nowrap">
-				{name}
-			</code>
-			<span className="body-4 text-[#8b949e] bg-[#21262d] px-6 py-2 rounded-xs">
-				{type}
-			</span>
+			<code className="body-2 text-accent font-mono whitespace-nowrap">{name}</code>
+			<span className="body-4 text-[#8b949e] bg-[#21262d] px-6 py-2 rounded-xs">{type}</span>
 			{required && (
-				<span className="body-4 text-[#f85149] bg-[#f8514920] px-6 py-2 rounded-xs">
-					required
-				</span>
+				<span className="body-4 text-[#f85149] bg-[#f8514920] px-6 py-2 rounded-xs">required</span>
 			)}
 			<span className="body-2 text-muted flex-1">{description}</span>
 		</div>
@@ -204,8 +196,8 @@ function DocsPage() {
 						<div>
 							<p className="body-2-semi-bold text-accent">Built for Agents</p>
 							<p className="body-2 text-muted">
-								This API enables AI agents to propose transactions. Humans review
-								and sign on Ledger hardware.
+								This API enables AI agents to propose transactions. Humans review and sign on Ledger
+								hardware.
 							</p>
 						</div>
 					</div>
@@ -214,15 +206,16 @@ function DocsPage() {
 				{/* Overview */}
 				<Section id="overview" title="Overview">
 					<p className="body-1 text-base">
-						The Ledger Agent Payments API allows AI agents to submit transaction intents that will be queued for human review and hardware signing. This creates a secure bridge where agents can propose transactions but never access private keys.
+						The Ledger Agent Payments API allows AI agents to submit transaction intents that will
+						be queued for human review and hardware signing. This creates a secure bridge where
+						agents can propose transactions but never access private keys.
 					</p>
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-16">
 						<div className="p-16 rounded-md bg-muted">
 							<div className="text-2xl mb-8">📝</div>
 							<h4 className="body-1-semi-bold text-base">1. Agent Proposes</h4>
 							<p className="body-2 text-muted mt-4">
-								Submit a structured intent via API or CLI. Get an intent ID for
-								tracking.
+								Submit a structured intent via API or CLI. Get an intent ID for tracking.
 							</p>
 						</div>
 						<div className="p-16 rounded-md bg-muted">
@@ -236,14 +229,13 @@ function DocsPage() {
 							<div className="text-2xl mb-8">🔐</div>
 							<h4 className="body-1-semi-bold text-base">3. Ledger Signs</h4>
 							<p className="body-2 text-muted mt-4">
-								Transaction is signed on Ledger device and broadcast to the
-								blockchain.
+								Transaction is signed on Ledger device and broadcast to the blockchain.
 							</p>
 						</div>
 					</div>
 
 					<CodeBlock language="text" title="Architecture" className="font-mono">
-{`┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
+						{`┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │   AI Agent      │────▶│   Intent Queue   │────▶│  Ledger Signer  │
 │   (You)         │     │   (This API)     │     │  (Human + HW)   │
 │                 │     │                  │     │                 │
@@ -257,12 +249,13 @@ function DocsPage() {
 				{/* Quick Start */}
 				<Section id="quick-start" title="Quick Start">
 					<p className="body-1 text-base">
-						Create your first intent with AgentAuth. Your agent key must be registered first (human signs authorization on Ledger).
+						Create your first intent with AgentAuth. Your agent key must be registered first (human
+						signs authorization on Ledger).
 					</p>
 
 					<Subsection id="quick-start-curl" title="1. Create an Intent">
 						<CodeBlock language="bash" title="POST /api/intents (with AgentAuth)">
-{`curl -X POST https://agent-intents-web.vercel.app/api/intents \\
+							{`curl -X POST https://agent-intents-web.vercel.app/api/intents \\
   -H "Content-Type: application/json" \\
   -H "Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>" \\
   -d '{
@@ -284,7 +277,7 @@ function DocsPage() {
 
 					<Subsection id="quick-start-response" title="2. Response (201)">
 						<CodeBlock language="json" title="Success Response">
-{`{
+							{`{
   "success": true,
   "intent": {
     "id": "int_1707048000_abc12345",
@@ -312,23 +305,25 @@ function DocsPage() {
 						</CodeBlock>
 						<div className="p-16 rounded-md bg-accent/10 mt-12">
 							<p className="body-2 text-accent">
-								<strong>Share the paymentUrl</strong> with the human. They open it in their browser to review and sign the payment on their Ledger.
+								<strong>Share the paymentUrl</strong> with the human. They open it in their browser
+								to review and sign the payment on their Ledger.
 							</p>
 						</div>
 					</Subsection>
 
 					<Subsection id="quick-start-poll" title="3. Poll for Status">
 						<CodeBlock language="bash" title="GET /api/intents/:id">
-{`curl https://agent-intents-web.vercel.app/api/intents/int_1707048000_abc12345 \\
+							{`curl https://agent-intents-web.vercel.app/api/intents/int_1707048000_abc12345 \\
   -H "Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>"`}
 						</CodeBlock>
 						<p className="body-2 text-muted mt-8">
-							Poll until <code className="bg-muted px-4 py-2 rounded-xs text-accent">status</code> reaches
-							a terminal state: <code className="bg-muted px-4 py-2 rounded-xs text-accent">confirmed</code>,{" "}
+							Poll until <code className="bg-muted px-4 py-2 rounded-xs text-accent">status</code>{" "}
+							reaches a terminal state:{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">confirmed</code>,{" "}
 							<code className="bg-muted px-4 py-2 rounded-xs text-accent">rejected</code>,{" "}
 							<code className="bg-muted px-4 py-2 rounded-xs text-accent">failed</code>, or{" "}
-							<code className="bg-muted px-4 py-2 rounded-xs text-accent">expired</code>.
-							With AgentAuth, the response includes full x402 secrets if applicable.
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">expired</code>. With
+							AgentAuth, the response includes full x402 secrets if applicable.
 						</p>
 					</Subsection>
 				</Section>
@@ -341,26 +336,49 @@ function DocsPage() {
 								Every authenticated agent request must include:
 							</p>
 							<CodeBlock language="text" title="Authorization Header">
-{`Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>`}
+								{"Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>"}
 							</CodeBlock>
 						</div>
 						<div className="rounded-lg p-16 bg-[#0d1117] mt-12">
-							<Param name="timestamp" type="number" required description="Unix epoch seconds. Must be within 5 minutes of server time." />
-							<Param name="bodyHash" type="string" required description="keccak256 of the raw JSON body as hex. Use '0x' for GET requests." />
-							<Param name="signature" type="string" required description="EIP-191 personal_sign of '<timestamp>.<bodyHash>' using the agent's secp256k1 private key." />
+							<Param
+								name="timestamp"
+								type="number"
+								required
+								description="Unix epoch seconds. Must be within 5 minutes of server time."
+							/>
+							<Param
+								name="bodyHash"
+								type="string"
+								required
+								description="keccak256 of the raw JSON body as hex. Use '0x' for GET requests."
+							/>
+							<Param
+								name="signature"
+								type="string"
+								required
+								description="EIP-191 personal_sign of '<timestamp>.<bodyHash>' using the agent's secp256k1 private key."
+							/>
 						</div>
 						<p className="body-2 text-muted mt-12">
-							The server recovers the signer address from the signature and matches it against registered agent public keys. The intent is automatically linked to the agent's trustchain identity.
+							The server recovers the signer address from the signature and matches it against
+							registered agent public keys. The intent is automatically linked to the agent's
+							trustchain identity.
 						</p>
 					</Subsection>
 					<Subsection id="auth-session" title="Session Cookie (for web UI humans)">
 						<p className="body-2 text-muted">
 							The web UI uses{" "}
-							<code className="bg-muted px-4 py-2 rounded-xs text-accent">POST /api/auth/challenge</code> +{" "}
-							<code className="bg-muted px-4 py-2 rounded-xs text-accent">POST /api/auth/verify</code>{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">
+								POST /api/auth/challenge
+							</code>{" "}
+							+{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">
+								POST /api/auth/verify
+							</code>{" "}
 							(EIP-712) to establish an{" "}
-							<code className="bg-muted px-4 py-2 rounded-xs text-accent">ai_session</code> cookie (valid 7 days).
-							This is used for human actions like approve, reject, and authorize. Agents do not use session cookies.
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">ai_session</code> cookie
+							(valid 7 days). This is used for human actions like approve, reject, and authorize.
+							Agents do not use session cookies.
 						</p>
 					</Subsection>
 				</Section>
@@ -404,18 +422,14 @@ function DocsPage() {
 							/>
 						</div>
 						<p className="body-2 text-muted mt-8">
-							The <code className="bg-muted px-4 py-2 rounded-xs text-accent">userId</code> is automatically derived from your AgentAuth — do not pass it in the body.
+							The <code className="bg-muted px-4 py-2 rounded-xs text-accent">userId</code> is
+							automatically derived from your AgentAuth — do not pass it in the body.
 						</p>
 					</Subsection>
 
 					<Subsection id="transfer-intent-schema" title="TransferIntent Schema">
 						<div className="rounded-lg p-16 bg-[#0d1117]">
-							<Param
-								name="type"
-								type="string"
-								required
-								description="Must be 'transfer'"
-							/>
+							<Param name="type" type="string" required description="Must be 'transfer'" />
 							<Param
 								name="token"
 								type="string"
@@ -470,7 +484,7 @@ function DocsPage() {
 
 					<Subsection id="create-intent-example" title="Full Example">
 						<CodeBlock language="json" title="Request Body (with AgentAuth header)">
-{`{
+							{`{
   "agentId": "podcast-agent",
   "agentName": "Podcast Payment Bot",
   "urgency": "normal",
@@ -489,11 +503,13 @@ function DocsPage() {
 
 					<Subsection id="create-intent-response" title="Response (201)">
 						<p className="body-2 text-muted mb-8">
-							The response includes a <code className="bg-muted px-4 py-2 rounded-xs text-accent">paymentUrl</code> that you can share with
-							the user so they can review and sign the payment directly in their browser.
+							The response includes a{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">paymentUrl</code> that you
+							can share with the user so they can review and sign the payment directly in their
+							browser.
 						</p>
 						<CodeBlock language="json" title="Response">
-{`{
+							{`{
   "success": true,
   "intent": {
     "id": "int_1707048000_abc12345",
@@ -504,8 +520,9 @@ function DocsPage() {
 }`}
 						</CodeBlock>
 						<p className="body-2 text-muted mt-8">
-							Send this link to the user — they'll be able to connect their Ledger and approve the payment.
-							If generating a link isn't possible, direct the user to the main dashboard where all pending intents are displayed.
+							Send this link to the user — they'll be able to connect their Ledger and approve the
+							payment. If generating a link isn't possible, direct the user to the main dashboard
+							where all pending intents are displayed.
 						</p>
 					</Subsection>
 				</Section>
@@ -520,13 +537,13 @@ function DocsPage() {
 
 					<Subsection id="get-intent-usage" title="Usage">
 						<CodeBlock language="bash" title="Poll Intent Status">
-{`curl https://your-api-url.com/api/intents/int_1707048000_abc12345`}
+							{"curl https://your-api-url.com/api/intents/int_1707048000_abc12345"}
 						</CodeBlock>
 					</Subsection>
 
 					<Subsection id="intent-status-lifecycle" title="Status Lifecycle">
 						<CodeBlock language="text" title="State Machine">
-{`pending → approved → broadcasting → confirmed       (on-chain tx path)
+							{`pending → approved → broadcasting → confirmed       (on-chain tx path)
 pending → approved → authorized → executing → confirmed  (x402 path)
 pending → rejected
 any non-terminal → expired  (cron job, every minute)
@@ -681,10 +698,10 @@ any non-terminal → failed`}
 
 					<Subsection id="list-intents-example" title="Example">
 						<CodeBlock language="bash" title="List Pending Intents (query style)">
-{`curl "https://your-api-url.com/api/intents?userId=ian&status=pending&limit=50"`}
+							{`curl "https://your-api-url.com/api/intents?userId=ian&status=pending&limit=50"`}
 						</CodeBlock>
 						<CodeBlock language="bash" title="List Pending Intents (path style)">
-{`curl "https://your-api-url.com/api/users/ian/intents?status=pending&limit=50"`}
+							{`curl "https://your-api-url.com/api/users/ian/intents?status=pending&limit=50"`}
 						</CodeBlock>
 					</Subsection>
 				</Section>
@@ -705,10 +722,19 @@ any non-terminal → failed`}
 					<Subsection id="update-status-body" title="Request Body (POST route)">
 						<div className="rounded-lg p-16 bg-[#0d1117]">
 							<Param name="id" type="string" required description="Intent ID" />
-							<Param name="status" type="string" required description="New status (see permissions below)" />
+							<Param
+								name="status"
+								type="string"
+								required
+								description="New status (see permissions below)"
+							/>
 							<Param name="txHash" type="string" description="Transaction hash (if applicable)" />
 							<Param name="note" type="string" description="Audit note" />
-							<Param name="settlementReceipt" type="object" description="x402 settlement receipt from the server" />
+							<Param
+								name="settlementReceipt"
+								type="object"
+								description="x402 settlement receipt from the server"
+							/>
 						</div>
 					</Subsection>
 
@@ -718,7 +744,9 @@ any non-terminal → failed`}
 								<thead className="bg-[#161b22]">
 									<tr>
 										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Auth Type</th>
-										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Allowed Statuses</th>
+										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
+											Allowed Statuses
+										</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -746,10 +774,11 @@ any non-terminal → failed`}
 
 					<div className="p-16 rounded-md bg-accent/10">
 						<p className="body-2 text-accent">
-							<strong>For agents:</strong> After the human authorizes an x402 payment, update status to{" "}
-							<code className="bg-accent/20 px-4 py-2 rounded-xs">executing</code>, then to{" "}
+							<strong>For agents:</strong> After the human authorizes an x402 payment, update status
+							to <code className="bg-accent/20 px-4 py-2 rounded-xs">executing</code>, then to{" "}
 							<code className="bg-accent/20 px-4 py-2 rounded-xs">confirmed</code> or{" "}
-							<code className="bg-accent/20 px-4 py-2 rounded-xs">failed</code> based on the outcome.
+							<code className="bg-accent/20 px-4 py-2 rounded-xs">failed</code> based on the
+							outcome.
 						</p>
 					</div>
 
@@ -757,9 +786,11 @@ any non-terminal → failed`}
 						<strong>Errors:</strong>{" "}
 						<code className="bg-muted px-4 py-2 rounded-xs text-warning">400</code> invalid fields,{" "}
 						<code className="bg-muted px-4 py-2 rounded-xs text-error">401</code> auth failed,{" "}
-						<code className="bg-muted px-4 py-2 rounded-xs text-error">403</code> wrong owner or disallowed status,{" "}
+						<code className="bg-muted px-4 py-2 rounded-xs text-error">403</code> wrong owner or
+						disallowed status,{" "}
 						<code className="bg-muted px-4 py-2 rounded-xs text-warning">404</code> not found,{" "}
-						<code className="bg-muted px-4 py-2 rounded-xs text-warning">409</code> invalid state transition
+						<code className="bg-muted px-4 py-2 rounded-xs text-warning">409</code> invalid state
+						transition
 					</p>
 				</Section>
 
@@ -767,7 +798,8 @@ any non-terminal → failed`}
 				<Section id="agents" title="Agents">
 					<p className="body-1 text-base">
 						Register an agent public key under a trustchain identity, then use AgentAuth to
-						authenticate calls like <code className="bg-muted px-4 py-2 rounded-xs text-accent">POST /api/intents</code>.
+						authenticate calls like{" "}
+						<code className="bg-muted px-4 py-2 rounded-xs text-accent">POST /api/intents</code>.
 					</p>
 
 					<Endpoint
@@ -789,11 +821,7 @@ any non-terminal → failed`}
 								required
 								description="0x-prefixed hex-encoded secp256k1 compressed public key"
 							/>
-							<Param
-								name="agentLabel"
-								type="string"
-								description="Optional human-readable label"
-							/>
+							<Param name="agentLabel" type="string" description="Optional human-readable label" />
 							<Param
 								name="authorizationSignature"
 								type="string"
@@ -837,50 +865,68 @@ any non-terminal → failed`}
 						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
 							<span className="body-1-semi-bold text-accent w-24 text-center">1</span>
 							<p className="body-2 text-base flex-1">
-								<strong>Parse</strong> the <code className="bg-[#21262d] px-4 py-2 rounded-xs">PAYMENT-REQUIRED</code> header to extract payment requirements (network, amount, asset, payTo)
+								<strong>Parse</strong> the{" "}
+								<code className="bg-[#21262d] px-4 py-2 rounded-xs">PAYMENT-REQUIRED</code> header
+								to extract payment requirements (network, amount, asset, payTo)
 							</p>
 						</div>
 						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
 							<span className="body-1-semi-bold text-accent w-24 text-center">2</span>
 							<p className="body-2 text-base flex-1">
-								<strong>Create intent</strong> with <code className="bg-[#21262d] px-4 py-2 rounded-xs">details.x402</code> containing the resource URL and accepted payment fields
+								<strong>Create intent</strong> with{" "}
+								<code className="bg-[#21262d] px-4 py-2 rounded-xs">details.x402</code> containing
+								the resource URL and accepted payment fields
 							</p>
 						</div>
 						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
 							<span className="body-1-semi-bold text-accent w-24 text-center">3</span>
 							<p className="body-2 text-base flex-1">
-								<strong>Share the <code className="bg-[#21262d] px-4 py-2 rounded-xs">paymentUrl</code></strong> with the human — they sign the EIP-3009 TransferWithAuthorization on their Ledger
+								<strong>
+									Share the <code className="bg-[#21262d] px-4 py-2 rounded-xs">paymentUrl</code>
+								</strong>{" "}
+								with the human — they sign the EIP-3009 TransferWithAuthorization on their Ledger
 							</p>
 						</div>
 						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
 							<span className="body-1-semi-bold text-accent w-24 text-center">4</span>
 							<p className="body-2 text-base flex-1">
-								<strong>Poll</strong> until status = <code className="bg-[#21262d] px-4 py-2 rounded-xs">authorized</code>
+								<strong>Poll</strong> until status ={" "}
+								<code className="bg-[#21262d] px-4 py-2 rounded-xs">authorized</code>
 							</p>
 						</div>
 						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
 							<span className="body-1-semi-bold text-accent w-24 text-center">5</span>
 							<p className="body-2 text-base flex-1">
-								<strong>Fetch intent</strong> with AgentAuth — response now includes <code className="bg-[#21262d] px-4 py-2 rounded-xs">details.x402.paymentSignatureHeader</code>
+								<strong>Fetch intent</strong> with AgentAuth — response now includes{" "}
+								<code className="bg-[#21262d] px-4 py-2 rounded-xs">
+									details.x402.paymentSignatureHeader
+								</code>
 							</p>
 						</div>
 						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
 							<span className="body-1-semi-bold text-accent w-24 text-center">6</span>
 							<p className="body-2 text-base flex-1">
-								<strong>Retry</strong> your original HTTP request with <code className="bg-[#21262d] px-4 py-2 rounded-xs">PAYMENT: &lt;paymentSignatureHeader&gt;</code> header
+								<strong>Retry</strong> your original HTTP request with{" "}
+								<code className="bg-[#21262d] px-4 py-2 rounded-xs">
+									PAYMENT: &lt;paymentSignatureHeader&gt;
+								</code>{" "}
+								header
 							</p>
 						</div>
 						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
 							<span className="body-1-semi-bold text-accent w-24 text-center">7</span>
 							<p className="body-2 text-base flex-1">
-								<strong>Update status</strong> to <code className="bg-[#21262d] px-4 py-2 rounded-xs">confirmed</code> (with settlement receipt) or <code className="bg-[#21262d] px-4 py-2 rounded-xs">failed</code>
+								<strong>Update status</strong> to{" "}
+								<code className="bg-[#21262d] px-4 py-2 rounded-xs">confirmed</code> (with
+								settlement receipt) or{" "}
+								<code className="bg-[#21262d] px-4 py-2 rounded-xs">failed</code>
 							</p>
 						</div>
 					</div>
 
 					<Subsection id="x402-example" title="x402 Intent Example">
 						<CodeBlock language="json" title="Request body with x402 context">
-{`{
+							{`{
   "agentId": "my-agent",
   "details": {
     "type": "transfer",
@@ -937,7 +983,8 @@ any non-terminal → failed`}
 				{/* CLI Skill */}
 				<Section id="cli-install" title="CLI Skill Installation">
 					<p className="body-1 text-base">
-						The <code className="bg-muted px-4 py-2 rounded-xs text-accent">ledger-intent</code> CLI provides a convenient way to interact with the API.
+						The <code className="bg-muted px-4 py-2 rounded-xs text-accent">ledger-intent</code> CLI
+						provides a convenient way to interact with the API.
 					</p>
 
 					<Subsection id="cli-env" title="Environment Variables">
@@ -969,7 +1016,7 @@ any non-terminal → failed`}
 				<Section id="cli-commands" title="CLI Commands">
 					<Subsection id="cli-send" title="send">
 						<CodeBlock language="bash" title="Send Tokens">
-{`ledger-intent send <amount> <token> to <address> [for "reason"] [--chain <id>] [--urgency <level>]
+							{`ledger-intent send <amount> <token> to <address> [for "reason"] [--chain <id>] [--urgency <level>]
 
 # Parameters:
 #   amount    - Amount to send (e.g., "50", "0.5")
@@ -983,7 +1030,7 @@ any non-terminal → failed`}
 
 					<Subsection id="cli-status" title="status">
 						<CodeBlock language="bash" title="Check Status">
-{`ledger-intent status <intent-id>
+							{`ledger-intent status <intent-id>
 
 # Returns current status, transaction hash (if signed), and explorer link`}
 						</CodeBlock>
@@ -991,7 +1038,7 @@ any non-terminal → failed`}
 
 					<Subsection id="cli-list" title="list">
 						<CodeBlock language="bash" title="List Intents">
-{`ledger-intent list [--status <status>]
+							{`ledger-intent list [--status <status>]
 
 # Lists all intents, optionally filtered by status`}
 						</CodeBlock>
@@ -1001,19 +1048,19 @@ any non-terminal → failed`}
 				<Section id="cli-examples" title="CLI Examples">
 					<div className="space-y-16">
 						<CodeBlock language="bash" title="Pay for Podcast Work">
-{`ledger-intent send 50 USDC to 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 for "podcast intro music"`}
+							{`ledger-intent send 50 USDC to 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 for "podcast intro music"`}
 						</CodeBlock>
 
 						<CodeBlock language="bash" title="Urgent Payment on Base">
-{`ledger-intent send 100 USDC to 0xabc...def for "time-sensitive invoice" --chain 8453 --urgency high`}
+							{`ledger-intent send 100 USDC to 0xabc...def for "time-sensitive invoice" --chain 8453 --urgency high`}
 						</CodeBlock>
 
 						<CodeBlock language="bash" title="Check Pending Intents">
-{`ledger-intent list --status pending`}
+							{"ledger-intent list --status pending"}
 						</CodeBlock>
 
 						<CodeBlock language="bash" title="Poll Until Confirmed">
-{`# Bash loop to poll until confirmed
+							{`# Bash loop to poll until confirmed
 INTENT_ID="int_1707048000_abc12345"
 while true; do
   STATUS=$(ledger-intent status $INTENT_ID | grep "Status:" | cut -d' ' -f2)
@@ -1031,7 +1078,7 @@ done`}
 				<Section id="types" title="Types & Schemas">
 					<Subsection id="intent-type" title="Intent Object">
 						<CodeBlock language="typescript" title="Intent Type">
-{`interface Intent {
+							{`interface Intent {
   id: string;                    // Unique intent ID (e.g., "int_1707048000_abc12345")
   userId: string;                // Wallet address of the human signer
   agentId: string;               // Agent that created the intent
@@ -1068,7 +1115,7 @@ done`}
 
 					<Subsection id="transfer-intent-type" title="TransferIntent Object">
 						<CodeBlock language="typescript" title="TransferIntent Type">
-{`interface TransferIntent {
+							{`interface TransferIntent {
   type: "transfer";              // Intent type
   token: string;                 // Token symbol (e.g., "USDC", "ETH")
   tokenAddress?: string;         // ERC-20 contract address
@@ -1089,7 +1136,7 @@ done`}
 
 					<Subsection id="status-enum" title="IntentStatus Enum">
 						<CodeBlock language="typescript" title="IntentStatus Type">
-{`type IntentStatus =
+							{`type IntentStatus =
   | "pending"      // Created by agent, awaiting human review
   | "approved"     // Human approved, ready to sign
   | "rejected"     // Human rejected
@@ -1108,25 +1155,15 @@ done`}
 
 				{/* Supported Chains */}
 				<Section id="chains" title="Supported Chains">
-					<p className="body-1 text-base mb-16">
-						Supported chains (Base mainnet + testnets):
-					</p>
+					<p className="body-1 text-base mb-16">Supported chains (Base mainnet + testnets):</p>
 					<div className="rounded-md overflow-hidden bg-[#0d1117]">
 						<table className="w-full body-2">
 							<thead className="bg-[#161b22]">
 								<tr>
-									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
-										Chain ID
-									</th>
-									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
-										Name
-									</th>
-									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
-										Native Token
-									</th>
-									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
-										Explorer
-									</th>
+									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Chain ID</th>
+									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Name</th>
+									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Native Token</th>
+									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Explorer</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -1161,20 +1198,15 @@ done`}
 						{Object.entries(SUPPORTED_TOKENS).map(([chainId, tokens]) => (
 							<div key={chainId}>
 								<h4 className="body-1-semi-bold text-base mb-8">
-									{SUPPORTED_CHAINS[
-										Number(chainId) as keyof typeof SUPPORTED_CHAINS
-									]?.name || chainId}
+									{SUPPORTED_CHAINS[Number(chainId) as keyof typeof SUPPORTED_CHAINS]?.name ||
+										chainId}
 								</h4>
 								<div className="rounded-md overflow-hidden bg-[#0d1117]">
 									<table className="w-full body-2">
 										<thead className="bg-[#161b22]">
 											<tr>
-												<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
-													Token
-												</th>
-												<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
-													Decimals
-												</th>
+												<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Token</th>
+												<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Decimals</th>
 												<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
 													Contract Address
 												</th>
@@ -1183,13 +1215,9 @@ done`}
 										<tbody>
 											{Object.entries(tokens).map(([symbol, token]) => (
 												<tr key={symbol} className="border-t border-[#30363d]">
-													<td className="p-12 body-2-semi-bold text-base">
-														{symbol}
-													</td>
+													<td className="p-12 body-2-semi-bold text-base">{symbol}</td>
 													<td className="p-12 text-base">{token.decimals}</td>
-													<td className="p-12 font-mono body-3 text-[#8b949e]">
-														{token.address}
-													</td>
+													<td className="p-12 font-mono body-3 text-[#8b949e]">{token.address}</td>
 												</tr>
 											))}
 										</tbody>
@@ -1208,7 +1236,7 @@ done`}
 
 					<Subsection id="error-format" title="Error Response Format">
 						<CodeBlock language="json" title="Error Response">
-{`{
+							{`{
   "success": false,
   "error": "Human-readable error message"
 }`}
@@ -1220,15 +1248,9 @@ done`}
 							<table className="w-full body-2">
 								<thead className="bg-[#161b22]">
 									<tr>
-										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
-											Status
-										</th>
-										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
-											Error
-										</th>
-										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">
-											Description
-										</th>
+										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Status</th>
+										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Error</th>
+										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Description</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -1256,9 +1278,7 @@ done`}
 									<tr className="border-t border-[#30363d]">
 										<td className="p-12 font-mono text-warning">404</td>
 										<td className="p-12 text-base">Not found</td>
-										<td className="p-12 text-[#8b949e]">
-											Intent or agent ID does not exist
-										</td>
+										<td className="p-12 text-[#8b949e]">Intent or agent ID does not exist</td>
 									</tr>
 									<tr className="border-t border-[#30363d]">
 										<td className="p-12 font-mono text-warning">409</td>
@@ -1282,7 +1302,9 @@ done`}
 									<tr className="border-t border-[#30363d]">
 										<td className="p-12 font-mono text-error">503</td>
 										<td className="p-12 text-base">Unavailable</td>
-										<td className="p-12 text-[#8b949e]">Service temporarily unavailable. Retry with backoff.</td>
+										<td className="p-12 text-[#8b949e]">
+											Service temporarily unavailable. Retry with backoff.
+										</td>
 									</tr>
 								</tbody>
 							</table>
@@ -1300,12 +1322,11 @@ done`}
 									<strong>429 (rate limited):</strong> Wait 60 seconds, then retry.
 								</li>
 								<li>
-									<strong>500–599 errors:</strong> Retry with exponential backoff
-									(1s, 2s, 4s, max 30s)
+									<strong>500–599 errors:</strong> Retry with exponential backoff (1s, 2s, 4s, max
+									30s)
 								</li>
 								<li>
-									<strong>Network errors:</strong> Retry up to 3 times with 2s
-									delay
+									<strong>Network errors:</strong> Retry up to 3 times with 2s delay
 								</li>
 							</ul>
 						</div>
@@ -1316,15 +1337,17 @@ done`}
 				<div className="pt-32 border-t border-[#30363d]">
 					<div className="flex items-center justify-between">
 						<div>
-							<p className="body-2 text-muted-subtle">
-								Ledger Agent Payments API Documentation
-							</p>
+							<p className="body-2 text-muted-subtle">Ledger Agent Payments API Documentation</p>
 							<p className="body-3 text-muted-subtle mt-4">
 								Machine-readable spec:{" "}
-								<a href="/openapi.json" className="text-accent hover:underline">/openapi.json</a>
+								<a href="/openapi.json" className="text-accent hover:underline">
+									/openapi.json
+								</a>
 								{" | "}
 								Static HTML docs:{" "}
-								<a href="/docs" className="text-accent hover:underline">/docs</a>
+								<a href="/docs" className="text-accent hover:underline">
+									/docs
+								</a>
 							</p>
 						</div>
 						<Link

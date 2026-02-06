@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 /**
  * Issue a personal_sign authentication challenge for a wallet.
  * POST /api/auth/challenge
@@ -6,10 +7,9 @@
  * Returns: { success: true, nonce: string, message: string }
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { randomUUID } from "node:crypto";
-import { methodRouter, jsonError, jsonSuccess, parseBodyWithSchema } from "../_lib/http.js";
 import { buildWelcomeMessage, normalizeWalletAddress } from "../_lib/auth.js";
 import { sql } from "../_lib/db.js";
+import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
 import { challengeBodySchema } from "../_lib/validation.js";
 
 const CHALLENGE_VALIDITY_SECONDS = 300; // 5 minutes

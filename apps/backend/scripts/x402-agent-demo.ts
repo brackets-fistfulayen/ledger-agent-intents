@@ -18,9 +18,9 @@ import {
 	type X402AcceptedExactEvm,
 	type X402Resource,
 	type X402SettlementReceipt,
-	parseEip155ChainId,
-	formatAtomicAmount,
 	extractDomain,
+	formatAtomicAmount,
+	parseEip155ChainId,
 } from "@agent-intents/shared";
 
 // =============================================================================
@@ -92,7 +92,7 @@ function encodePaymentSignature(payload: unknown): string {
  */
 async function createX402Intent(
 	resource: X402Resource,
-	accepted: X402AcceptedExactEvm
+	accepted: X402AcceptedExactEvm,
 ): Promise<Intent | null> {
 	const intentRequest: CreateIntentRequest & { userId: string } = {
 		userId: USER_WALLET,
@@ -141,7 +141,7 @@ async function getIntent(intentId: string): Promise<Intent | null> {
  */
 async function updateIntentWithReceipt(
 	intentId: string,
-	receipt: X402SettlementReceipt
+	receipt: X402SettlementReceipt,
 ): Promise<Intent | null> {
 	const response = await fetch(`${API_BASE}/api/intents/${intentId}/status`, {
 		method: "PATCH",
@@ -162,7 +162,7 @@ async function updateIntentWithReceipt(
 async function pollForAuthorization(
 	intentId: string,
 	maxWaitMs = 300000, // 5 minutes
-	pollIntervalMs = 2000
+	pollIntervalMs = 2000,
 ): Promise<Intent | null> {
 	const startTime = Date.now();
 
@@ -259,9 +259,9 @@ function simulateSettlement(paymentSignature: string): {
 // =============================================================================
 
 async function runDemo() {
-	console.log("\n" + "=".repeat(60));
+	console.log(`\n${"=".repeat(60)}`);
 	console.log("🚀 x402 Agent Demo - End-to-End Flow");
-	console.log("=".repeat(60) + "\n");
+	console.log(`${"=".repeat(60)}\n`);
 
 	// Step 1: Agent hits a paywall
 	log("📡", "Step 1: Agent makes request to API endpoint...");
@@ -270,9 +270,7 @@ async function runDemo() {
 
 	// Step 2: Decode the PAYMENT-REQUIRED header
 	log("🔍", "Step 2: Decoding PAYMENT-REQUIRED header...");
-	const paymentRequired = decodePaymentRequired(
-		paywallResponse.headers["PAYMENT-REQUIRED"]
-	);
+	const paymentRequired = decodePaymentRequired(paywallResponse.headers["PAYMENT-REQUIRED"]);
 	log("📋", "Payment requirements:", paymentRequired);
 
 	// Step 3: Create intent with x402 context
@@ -291,9 +289,9 @@ async function runDemo() {
 
 	log("✅", "Intent created successfully!");
 	log("🆔", `Intent ID: ${intent.id}`);
-	console.log("\n" + "-".repeat(40));
+	console.log(`\n${"-".repeat(40)}`);
 	console.log("👆 User should now review and authorize in the UI");
-	console.log("-".repeat(40) + "\n");
+	console.log(`${"-".repeat(40)}\n`);
 
 	// Step 4: Poll for authorization
 	log("⏳", "Step 4: Polling for human authorization...");
@@ -307,8 +305,7 @@ async function runDemo() {
 	log("✅", "Intent authorized by user!");
 
 	// Extract the payment signature
-	const paymentSignatureHeader =
-		authorizedIntent.details.x402?.paymentSignatureHeader;
+	const paymentSignatureHeader = authorizedIntent.details.x402?.paymentSignatureHeader;
 
 	if (!paymentSignatureHeader) {
 		log("❌", "No payment signature header found on authorized intent");
@@ -316,7 +313,7 @@ async function runDemo() {
 	}
 
 	log("🔐", "Payment signature ready:", {
-		header: paymentSignatureHeader.slice(0, 50) + "...",
+		header: `${paymentSignatureHeader.slice(0, 50)}...`,
 	});
 
 	// Step 5: Retry with PAYMENT-SIGNATURE header
@@ -328,19 +325,13 @@ async function runDemo() {
 	// Step 6: Parse PAYMENT-RESPONSE and update intent
 	log("📝", "Step 6: Parsing PAYMENT-RESPONSE header...");
 	const settlementReceipt: X402SettlementReceipt = JSON.parse(
-		Buffer.from(
-			settlementResponse.headers["PAYMENT-RESPONSE"],
-			"base64"
-		).toString("utf-8")
+		Buffer.from(settlementResponse.headers["PAYMENT-RESPONSE"], "base64").toString("utf-8"),
 	);
 	log("🧾", "Settlement receipt:", settlementReceipt);
 
 	// Update intent with receipt
 	log("💾", "Updating intent with settlement receipt...");
-	const confirmedIntent = await updateIntentWithReceipt(
-		intent.id,
-		settlementReceipt
-	);
+	const confirmedIntent = await updateIntentWithReceipt(intent.id, settlementReceipt);
 
 	if (confirmedIntent) {
 		log("✅", "Intent confirmed with settlement receipt!");
@@ -351,9 +342,9 @@ async function runDemo() {
 		});
 	}
 
-	console.log("\n" + "=".repeat(60));
+	console.log(`\n${"=".repeat(60)}`);
 	console.log("🎉 Demo completed successfully!");
-	console.log("=".repeat(60) + "\n");
+	console.log(`${"=".repeat(60)}\n`);
 }
 
 // Run the demo

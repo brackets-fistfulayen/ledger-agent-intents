@@ -23,8 +23,7 @@ const USDC_LOGO = "https://assets.coingecko.com/coins/images/6319/large/usdc.png
 const USER_WALLET = process.env.USER_WALLET || "0x55862D0711Fe9CE125dCe1b46973Be99E5Fd2592";
 
 // Recipient (defaults to self transfer)
-const RECIPIENT =
-	process.env.RECIPIENT || process.env.RECIPIENT_WALLET || USER_WALLET;
+const RECIPIENT = process.env.RECIPIENT || process.env.RECIPIENT_WALLET || USER_WALLET;
 
 const intentRequest: CreateIntentRequest & { userId: string } = {
 	userId: USER_WALLET,

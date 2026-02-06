@@ -80,12 +80,11 @@ async function createIntent(amount: string, index: number) {
 			console.log(`   ✅ Created! ID: ${data.intent?.id}`);
 			console.log(`   📋 Agent: ${agent.name}, Amount: ${amount} USDC`);
 			return data.intent;
-		} else {
-			console.error(`   ❌ Failed: ${data.error || response.status}`);
-			return null;
 		}
+		console.error(`   ❌ Failed: ${data.error || response.status}`);
+		return null;
 	} catch (error) {
-		console.error(`   ❌ Error:`, error);
+		console.error("   ❌ Error:", error);
 		return null;
 	}
 }
@@ -96,7 +95,7 @@ async function main() {
 	console.log("╠═══════════════════════════════════════════════════════════╣");
 	console.log(`║  Wallet:      ${USER_WALLET.slice(0, 20)}...       ║`);
 	console.log(`║  Recipient:   ${RECIPIENT.slice(0, 20)}...       ║`);
-	console.log(`║  Token:       USDC (ETH Mainnet)                          ║`);
+	console.log("║  Token:       USDC (ETH Mainnet)                          ║");
 	console.log(`║  Amounts:     ${AMOUNTS.join(", ")} USDC                 ║`);
 	console.log("╚═══════════════════════════════════════════════════════════╝");
 

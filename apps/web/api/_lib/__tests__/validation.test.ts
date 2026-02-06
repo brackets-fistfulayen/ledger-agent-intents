@@ -1,14 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-	createIntentRequestSchema,
-	updateStatusBodySchema,
-	updateStatusBodyLegacySchema,
-	registerAgentRequestSchema,
 	challengeBodySchema,
-	verifyBodySchema,
-	revokeAgentBodySchema,
+	createIntentRequestSchema,
 	isValidIntentId,
 	isValidUserId,
+	registerAgentRequestSchema,
+	revokeAgentBodySchema,
+	updateStatusBodyLegacySchema,
+	updateStatusBodySchema,
+	verifyBodySchema,
 } from "../validation.js";
 
 // =============================================================================
@@ -144,8 +144,15 @@ describe("updateStatusBodySchema", () => {
 
 	it("accepts all valid status values", () => {
 		const validStatuses = [
-			"pending", "approved", "rejected", "broadcasting",
-			"authorized", "executing", "confirmed", "failed", "expired",
+			"pending",
+			"approved",
+			"rejected",
+			"broadcasting",
+			"authorized",
+			"executing",
+			"confirmed",
+			"failed",
+			"expired",
 		];
 		for (const status of validStatuses) {
 			const result = updateStatusBodySchema.safeParse({ id: "x", status });

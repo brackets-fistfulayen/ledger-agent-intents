@@ -154,7 +154,9 @@ export const colors = {
 // Each number equals its pixel value: p-16 = 16px, gap-24 = 24px
 
 export const spacing = {
-	values: [0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 256],
+	values: [
+		0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 256,
+	],
 	// Use: p-{value}, px-{value}, py-{value}, m-{value}, gap-{value}, etc.
 } as const;
 
@@ -164,7 +166,10 @@ export const spacing = {
 // For width, height, and size utilities: w-64 = 64px, h-160 = 160px
 
 export const size = {
-	values: [0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48, 56, 64, 72, 80, 96, 112, 128, 144, 176, 192, 208, 224, 256, 288, 320, 400, 480, 560],
+	values: [
+		0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 28, 32, 36, 40, 44, 48, 56, 64, 72, 80, 96, 112, 128,
+		144, 176, 192, 208, 224, 256, 288, 320, 400, 480, 560,
+	],
 	// Use: w-{value}, h-{value}, size-{value}, min-w-{value}, max-h-{value}, etc.
 } as const;
 
@@ -240,13 +245,15 @@ export const iconSizes = {
 export const patterns = {
 	// Card pattern
 	card: "bg-surface border border-muted rounded-lg p-16",
-	cardHover: "bg-surface hover:bg-surface-hover border border-muted rounded-lg p-16 transition-colors",
+	cardHover:
+		"bg-surface hover:bg-surface-hover border border-muted rounded-lg p-16 transition-colors",
 
 	// Interactive button base
 	buttonBase: "inline-flex items-center justify-center rounded-lg transition-all duration-200",
 
 	// Input field
-	input: "bg-base border border-muted rounded-md px-12 py-8 body-2 text-base placeholder:text-muted-subtle focus:border-focus focus:outline-none",
+	input:
+		"bg-base border border-muted rounded-md px-12 py-8 body-2 text-base placeholder:text-muted-subtle focus:border-focus focus:outline-none",
 
 	// List item
 	listItem: "flex items-center gap-12 p-12 rounded-md hover:bg-muted-transparent transition-colors",

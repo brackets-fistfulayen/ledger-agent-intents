@@ -5,8 +5,8 @@
  * Verifies DB connectivity. Returns 503 if DB is down.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { methodRouter, jsonSuccess } from "./_lib/http.js";
 import { sql } from "./_lib/db.js";
+import { jsonSuccess, methodRouter } from "./_lib/http.js";
 
 export default methodRouter({
 	GET: async (_req: VercelRequest, res: VercelResponse) => {

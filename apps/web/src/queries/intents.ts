@@ -3,7 +3,7 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 
 // Use same-origin API in production (Vercel); allow override in development only.
 // This avoids accidentally pointing prod to a host that serves HTML for `/api/*`.
-const API_BASE = import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_URL || "") : "";
+const API_BASE = import.meta.env.DEV ? import.meta.env.VITE_BACKEND_URL || "" : "";
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 	const res = await fetch(url, { credentials: "include", ...init });
@@ -13,9 +13,10 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 	// If the backend (or Vercel rewrite) returns HTML (often index.html), fail fast with a clear error.
 	if (!res.ok) {
 		if (isJson) {
-			const maybeJson = (await res.json().catch(() => null)) as
-				| { error?: string; message?: string }
-				| null;
+			const maybeJson = (await res.json().catch(() => null)) as {
+				error?: string;
+				message?: string;
+			} | null;
 			const message = maybeJson?.error || maybeJson?.message;
 			throw new Error(message || `Request failed: ${res.status} ${res.statusText}`);
 		}
@@ -23,9 +24,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 		const text = await res.text().catch(() => "");
 		const snippet = text.trim().slice(0, 140);
 		throw new Error(
-			`Request failed: ${res.status} ${res.statusText}${
-				snippet ? ` — ${snippet}` : ""
-			}`
+			`Request failed: ${res.status} ${res.statusText}${snippet ? ` — ${snippet}` : ""}`,
 		);
 	}
 
@@ -35,7 +34,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 		throw new Error(
 			`Expected JSON but got ${contentType || "unknown content-type"}${
 				snippet ? ` — ${snippet}` : ""
-			}`
+			}`,
 		);
 	}
 
@@ -79,7 +78,7 @@ export function intentQueryOptions(id: string) {
 		queryKey: ["intent", id] as const,
 		queryFn: async (): Promise<Intent> => {
 			const data = await fetchJson<{ success: boolean; intent: Intent }>(
-				`${API_BASE}/api/intents/${id}`
+				`${API_BASE}/api/intents/${id}`,
 			);
 			return data.intent;
 		},
@@ -125,7 +124,15 @@ export function useUpdateIntentStatus() {
 				method: "POST",
 				credentials: "include",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ id, status, txHash, note, paymentSignatureHeader, paymentPayload, expiresAt }),
+				body: JSON.stringify({
+					id,
+					status,
+					txHash,
+					note,
+					paymentSignatureHeader,
+					paymentPayload,
+					expiresAt,
+				}),
 			});
 
 			if (!res.ok) {
@@ -133,7 +140,9 @@ export function useUpdateIntentStatus() {
 				const isJson = contentType.includes("application/json");
 				if (isJson) {
 					const body = (await res.json().catch(() => ({}))) as { error?: string };
-					const err = new Error(body.error || `Failed to update intent: ${res.statusText}`) as Error & { status?: number };
+					const err = new Error(
+						body.error || `Failed to update intent: ${res.statusText}`,
+					) as Error & { status?: number };
 					err.status = res.status;
 					throw err;
 				}
@@ -142,7 +151,7 @@ export function useUpdateIntentStatus() {
 				const err = new Error(
 					`Failed to update intent: ${res.status} ${res.statusText}${
 						snippet ? ` — ${snippet}` : ""
-					}`
+					}`,
 				) as Error & { status?: number };
 				err.status = res.status;
 				throw err;

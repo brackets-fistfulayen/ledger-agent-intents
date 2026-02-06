@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 /**
  * Verify personal_sign signature and establish a session cookie.
  * POST /api/auth/verify
@@ -6,9 +7,6 @@
  * Returns: { success: true, walletAddress: string }
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { randomUUID } from "node:crypto";
-import { methodRouter, jsonError, jsonSuccess, parseBodyWithSchema } from "../_lib/http.js";
-import { verifyBodySchema } from "../_lib/validation.js";
 import {
 	buildWelcomeMessage,
 	normalizeWalletAddress,
@@ -16,6 +14,8 @@ import {
 	verifyPersonalSignature,
 } from "../_lib/auth.js";
 import { sql } from "../_lib/db.js";
+import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
+import { verifyBodySchema } from "../_lib/validation.js";
 
 const SESSION_VALIDITY_DAYS = 7;
 

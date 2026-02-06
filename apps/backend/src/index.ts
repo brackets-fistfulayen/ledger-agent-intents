@@ -11,8 +11,8 @@ import {
 	type CreateIntentRequest,
 	type Intent,
 	type IntentStatus,
-	getExplorerTxUrl,
 	type X402PaymentPayload,
+	getExplorerTxUrl,
 } from "@agent-intents/shared";
 import cors from "cors";
 import express from "express";
@@ -130,9 +130,7 @@ app.get("/api/intents", (req, res) => {
 	const status = req.query.status as IntentStatus | undefined;
 	const limitParam = req.query.limit as string | undefined;
 	const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : 50;
-	const limit = Number.isFinite(parsedLimit)
-		? Math.min(100, Math.max(1, parsedLimit))
-		: 50;
+	const limit = Number.isFinite(parsedLimit) ? Math.min(100, Math.max(1, parsedLimit)) : 50;
 
 	const userIntents = Array.from(intents.values())
 		.filter((i) => i.userId === userId)
@@ -201,10 +199,9 @@ app.post("/api/intents/status", (req, res) => {
 
 	if (paymentSignatureHeader || paymentPayload) {
 		const existing = intent.details.x402;
-		const base =
-			paymentPayload
-				? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }
-				: existing;
+		const base = paymentPayload
+			? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }
+			: existing;
 
 		if (base) {
 			intent.details = {
@@ -212,8 +209,7 @@ app.post("/api/intents/status", (req, res) => {
 				x402: {
 					...base,
 					...(existing ?? {}),
-					paymentSignatureHeader:
-						paymentSignatureHeader ?? existing?.paymentSignatureHeader,
+					paymentSignatureHeader: paymentSignatureHeader ?? existing?.paymentSignatureHeader,
 					paymentPayload: paymentPayload ?? existing?.paymentPayload,
 				},
 			};
@@ -265,10 +261,9 @@ app.patch("/api/intents/:id/status", (req, res) => {
 	// Persist x402 proof data inside the details blob if provided
 	if (paymentSignatureHeader || paymentPayload) {
 		const existing = intent.details.x402;
-		const base =
-			paymentPayload
-				? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }
-				: existing;
+		const base = paymentPayload
+			? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }
+			: existing;
 
 		if (base) {
 			intent.details = {
@@ -276,8 +271,7 @@ app.patch("/api/intents/:id/status", (req, res) => {
 				x402: {
 					...base,
 					...(existing ?? {}),
-					paymentSignatureHeader:
-						paymentSignatureHeader ?? existing?.paymentSignatureHeader,
+					paymentSignatureHeader: paymentSignatureHeader ?? existing?.paymentSignatureHeader,
 					paymentPayload: paymentPayload ?? existing?.paymentPayload,
 				},
 			};
@@ -302,7 +296,10 @@ app.post("/api/agents/register", async (req, res) => {
 		};
 
 		if (!trustChainId || !agentPublicKey || !authorizationSignature) {
-			res.status(400).json({ success: false, error: "Missing required fields: trustChainId, agentPublicKey, authorizationSignature" });
+			res.status(400).json({
+				success: false,
+				error: "Missing required fields: trustChainId, agentPublicKey, authorizationSignature",
+			});
 			return;
 		}
 
@@ -325,7 +322,10 @@ app.post("/api/agents/register", async (req, res) => {
 			});
 
 			if (recovered.toLowerCase() !== trustChainId.toLowerCase()) {
-				res.status(403).json({ success: false, error: "Authorization signature does not match the connected wallet" });
+				res.status(403).json({
+					success: false,
+					error: "Authorization signature does not match the connected wallet",
+				});
 				return;
 			}
 		} catch (err) {
@@ -338,7 +338,9 @@ app.post("/api/agents/register", async (req, res) => {
 			(a) => a.memberPubkey === pubkey && !a.revokedAt,
 		);
 		if (existing) {
-			res.status(409).json({ success: false, error: "This agent public key is already registered" });
+			res
+				.status(409)
+				.json({ success: false, error: "This agent public key is already registered" });
 			return;
 		}
 
@@ -353,7 +355,9 @@ app.post("/api/agents/register", async (req, res) => {
 		};
 		agents.set(member.id, member);
 
-		console.log(`[Agent Registered] ${member.id} "${member.label}" for trustchain ${member.trustchainId} (device-authorized)`);
+		console.log(
+			`[Agent Registered] ${member.id} "${member.label}" for trustchain ${member.trustchainId} (device-authorized)`,
+		);
 		res.status(201).json({ success: true, member });
 	} catch (error) {
 		console.error("Error registering agent:", error);
@@ -363,15 +367,15 @@ app.post("/api/agents/register", async (req, res) => {
 
 // List agents for a trustchain
 app.get("/api/agents", (req, res) => {
-	const trustchainId = (req.query.trustchainId as string || "").toLowerCase();
+	const trustchainId = ((req.query.trustchainId as string) || "").toLowerCase();
 	if (!trustchainId) {
-		res.status(400).json({ success: false, error: "Missing required query parameter: trustchainId" });
+		res
+			.status(400)
+			.json({ success: false, error: "Missing required query parameter: trustchainId" });
 		return;
 	}
 
-	const members = Array.from(agents.values()).filter(
-		(a) => a.trustchainId === trustchainId,
-	);
+	const members = Array.from(agents.values()).filter((a) => a.trustchainId === trustchainId);
 	res.json({ success: true, members });
 });
 

@@ -1,21 +1,21 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Button, Tag } from "@ledgerhq/lumen-ui-react";
-import { useEffect, useState, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useLedger } from "@/lib/ledger-provider";
+import { Spinner } from "@/components/ui/Spinner";
 import {
-	generateAgentKeyPair,
+	type AgentKeyMaterial,
 	buildAgentCredentialFile,
-	downloadAgentCredential,
 	buildAuthorizationMessage,
 	buildRevocationMessage,
-	type AgentKeyMaterial,
+	downloadAgentCredential,
+	generateAgentKeyPair,
 } from "@/lib/agent-keys";
-import { privateKeyToAccount } from "viem/accounts";
-import { agentsQueryOptions, useRegisterAgent, useRevokeAgent } from "@/queries/agents";
+import { useLedger } from "@/lib/ledger-provider";
 import { cn, formatAddress, formatTimeAgo } from "@/lib/utils";
-import { Spinner } from "@/components/ui/Spinner";
+import { agentsQueryOptions, useRegisterAgent, useRevokeAgent } from "@/queries/agents";
 import type { TrustchainMember } from "@agent-intents/shared";
+import { Button, Tag } from "@ledgerhq/lumen-ui-react";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { useCallback, useEffect, useState } from "react";
+import { privateKeyToAccount } from "viem/accounts";
 
 export const Route = createFileRoute("/settings")({
 	component: SettingsPage,
@@ -140,14 +140,10 @@ function AgentManagementSection() {
 				<div className="flex flex-col gap-16">
 					<div className="flex flex-col gap-4">
 						<h2 className="heading-5-semi-bold text-base">Agent Keys</h2>
-						<p className="body-2 text-muted">
-							Connect your Ledger to manage agent credentials
-						</p>
+						<p className="body-2 text-muted">Connect your Ledger to manage agent credentials</p>
 					</div>
 					<div className="flex items-center justify-center rounded-md bg-canvas-muted p-32">
-						<p className="body-2 text-muted">
-							Connect your wallet to view and manage agent keys
-						</p>
+						<p className="body-2 text-muted">Connect your wallet to view and manage agent keys</p>
 					</div>
 				</div>
 			</div>
@@ -166,11 +162,7 @@ function AgentManagementSection() {
 							</p>
 						</div>
 						{!showProvision && (
-							<Button
-								appearance="accent"
-								size="md"
-								onClick={() => setShowProvision(true)}
-							>
+							<Button appearance="accent" size="md" onClick={() => setShowProvision(true)}>
 								New Agent Key
 							</Button>
 						)}
@@ -291,8 +283,8 @@ function ProvisionAgentForm(props: {
 					<div className="flex flex-col gap-4">
 						<h3 className="body-1-semi-bold text-base">Provision New Agent</h3>
 						<p className="body-2 text-muted">
-							Give your agent a name. A new LKRP keypair will be generated and
-							registered under your identity.
+							Give your agent a name. A new LKRP keypair will be generated and registered under your
+							identity.
 						</p>
 					</div>
 
@@ -333,9 +325,7 @@ function ProvisionAgentForm(props: {
 					<Spinner size="lg" />
 					<div className="flex flex-col items-center gap-4">
 						<p className="body-1-semi-bold text-base">Generating agent key</p>
-						<p className="body-2 text-muted">
-							Creating LKRP keypair...
-						</p>
+						<p className="body-2 text-muted">Creating LKRP keypair...</p>
 					</div>
 				</div>
 			)}
@@ -359,9 +349,7 @@ function ProvisionAgentForm(props: {
 					<Spinner size="lg" />
 					<div className="flex flex-col items-center gap-4">
 						<p className="body-1-semi-bold text-base">Registering agent</p>
-						<p className="body-2 text-muted">
-							Saving agent key to the backend...
-						</p>
+						<p className="body-2 text-muted">Saving agent key to the backend...</p>
 					</div>
 				</div>
 			)}
@@ -372,8 +360,8 @@ function ProvisionAgentForm(props: {
 					<div className="flex flex-col gap-4">
 						<h3 className="body-1-semi-bold text-success">Agent Registered</h3>
 						<p className="body-2 text-muted">
-							Download the agent credential file below. It contains the private key
-							needed for your agent to authenticate.
+							Download the agent credential file below. It contains the private key needed for your
+							agent to authenticate.
 						</p>
 					</div>
 
@@ -381,18 +369,16 @@ function ProvisionAgentForm(props: {
 						<div className="flex flex-col gap-12">
 							<div className="flex flex-col gap-4">
 								<span className="body-3 text-muted">Agent Public Key</span>
-								<code className="body-2 text-base break-all">
-									{keyMaterial.publicKeyHex}
-								</code>
+								<code className="body-2 text-base break-all">{keyMaterial.publicKeyHex}</code>
 							</div>
 						</div>
 					</div>
 
 					<div className="rounded-sm border border-warning bg-warning-strong/10 p-12">
 						<p className="body-3 text-warning">
-							Download the credential file and store it securely in your agent's
-							configuration. The private key will not be recoverable after you close
-							this dialog. If lost, revoke this key and create a new one.
+							Download the credential file and store it securely in your agent's configuration. The
+							private key will not be recoverable after you close this dialog. If lost, revoke this
+							key and create a new one.
 						</p>
 					</div>
 
@@ -487,9 +473,7 @@ function AgentRow({ agent }: { agent: TrustchainMember }) {
 							? `${agent.memberPubkey.slice(0, 10)}...${agent.memberPubkey.slice(-8)}`
 							: agent.memberPubkey}
 					</code>
-					<span className="body-3 text-muted-subtle">
-						Created {formatTimeAgo(agent.createdAt)}
-					</span>
+					<span className="body-3 text-muted-subtle">Created {formatTimeAgo(agent.createdAt)}</span>
 				</div>
 			</div>
 

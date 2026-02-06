@@ -10,9 +10,9 @@
  */
 
 import {
-	NobleCryptoService,
 	Curve,
 	type KeyPair,
+	NobleCryptoService,
 } from "@ledgerhq/device-trusted-app-kit-ledger-keyring-protocol";
 
 // Re-export KeyPair so callers don't need the LKRP import directly

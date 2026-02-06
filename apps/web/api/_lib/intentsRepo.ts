@@ -248,7 +248,7 @@ export async function getIntentsByUser(params: {
 }): Promise<Intent[]> {
 	const { userId, status, limit = 50 } = params;
 
-	let result;
+	let result: Awaited<ReturnType<typeof sql>>;
 	if (status) {
 		result = await sql`
       SELECT * FROM intents

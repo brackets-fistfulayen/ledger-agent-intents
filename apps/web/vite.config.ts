@@ -4,10 +4,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig(({ command }) => ({
-	plugins: [
-		TanStackRouterVite(),
-		react(),
-	],
+	plugins: [TanStackRouterVite(), react()],
 	build: {
 		sourcemap: command === "build" ? "hidden" : true,
 	},

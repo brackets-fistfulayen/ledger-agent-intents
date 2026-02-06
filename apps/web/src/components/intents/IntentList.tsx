@@ -1,6 +1,6 @@
+import { Spinner } from "@/components/ui/Spinner";
 import { useLedger } from "@/lib/ledger-provider";
 import { useWalletAuth } from "@/lib/wallet-auth";
-import { Spinner } from "@/components/ui/Spinner";
 import { intentsQueryOptions } from "@/queries/intents";
 import type { Intent } from "@agent-intents/shared";
 import { AmountDisplay, type FormattedValue } from "@ledgerhq/lumen-ui-react";
@@ -101,29 +101,33 @@ export function IntentList() {
 						</span>
 					)}
 				</div>
-			{intents && intents.length > 0 && (
-				<span className="body-2 text-muted">{intents.length} total intents</span>
-			)}
+				{intents && intents.length > 0 && (
+					<span className="body-2 text-muted">{intents.length} total intents</span>
+				)}
 			</div>
 
 			{/* Auth in progress — shown when connected but authenticating */}
-			{isConnected && (authStatus === "checking" || authStatus === "authing" || authStatus === "unauthenticated" || authStatus === "error") && (
-				<div className="flex flex-col items-center gap-8 py-12">
-					<div className="flex items-center gap-8">
-						<Spinner size="sm" />
-						<span className="body-2 text-muted">
-							{authStatus === "checking"
-								? "Checking session…"
-								: authStatus === "error"
-									? "Retrying authentication…"
-									: "Authenticating…"}
-						</span>
+			{isConnected &&
+				(authStatus === "checking" ||
+					authStatus === "authing" ||
+					authStatus === "unauthenticated" ||
+					authStatus === "error") && (
+					<div className="flex flex-col items-center gap-8 py-12">
+						<div className="flex items-center gap-8">
+							<Spinner size="sm" />
+							<span className="body-2 text-muted">
+								{authStatus === "checking"
+									? "Checking session…"
+									: authStatus === "error"
+										? "Retrying authentication…"
+										: "Authenticating…"}
+							</span>
+						</div>
+						{authStatus === "error" && authError && (
+							<span className="body-3 text-muted-subtle">{authError.message}</span>
+						)}
 					</div>
-					{authStatus === "error" && authError && (
-						<span className="body-3 text-muted-subtle">{authError.message}</span>
-					)}
-				</div>
-			)}
+				)}
 
 			{/* Error display */}
 			{error && (
@@ -133,11 +137,7 @@ export function IntentList() {
 			)}
 
 			{/* Intent Table */}
-			<IntentTable
-				intents={sortedIntents}
-				isLoading={isLoading}
-				isConnected={isConnected}
-			/>
+			<IntentTable intents={sortedIntents} isLoading={isLoading} isConnected={isConnected} />
 		</div>
 	);
 }

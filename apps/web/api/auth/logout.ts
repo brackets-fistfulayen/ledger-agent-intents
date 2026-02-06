@@ -3,9 +3,9 @@
  * POST /api/auth/logout
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { methodRouter, jsonSuccess } from "../_lib/http.js";
 import { clearSessionCookie, parseCookieHeader } from "../_lib/auth.js";
 import { sql } from "../_lib/db.js";
+import { jsonSuccess, methodRouter } from "../_lib/http.js";
 
 const SESSION_COOKIE_NAME = "ai_session";
 
@@ -20,4 +20,3 @@ export default methodRouter({
 		jsonSuccess(res, { ok: true });
 	},
 });
-

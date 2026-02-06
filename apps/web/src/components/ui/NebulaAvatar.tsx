@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 interface NebulaAvatarProps {
 	/** Size in pixels */
@@ -18,7 +18,7 @@ function deriveColorsFromSeed(seed: string): { colorA: string; colorB: string } 
 	let hash = 0;
 	for (let i = 0; i < seed.length; i++) {
 		const char = seed.charCodeAt(i);
-		hash = ((hash << 5) - hash) + char;
+		hash = (hash << 5) - hash + char;
 		hash = hash & hash; // Convert to 32-bit integer
 	}
 
@@ -77,11 +77,7 @@ function lerpColor(a: string, b: string, t: number): string {
 		const r = Number.parseInt(h.slice(0, 2), 16);
 		const g = Number.parseInt(h.slice(2, 4), 16);
 		const bl = Number.parseInt(h.slice(4, 6), 16);
-		return [
-			Number.isFinite(r) ? r : 0,
-			Number.isFinite(g) ? g : 0,
-			Number.isFinite(bl) ? bl : 0,
-		];
+		return [Number.isFinite(r) ? r : 0, Number.isFinite(g) ? g : 0, Number.isFinite(bl) ? bl : 0];
 	};
 
 	const [r1, g1, b1] = parseHex(a);
@@ -99,11 +95,7 @@ function lerpColor(a: string, b: string, t: number): string {
  * Creates a unique, deterministic avatar based on a seed string
  * Colors are automatically derived from the seed (e.g. wallet address)
  */
-export function NebulaAvatar({
-	size = 32,
-	seed = "default",
-	className,
-}: NebulaAvatarProps) {
+export function NebulaAvatar({ size = 32, seed = "default", className }: NebulaAvatarProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 
 	// Derive colors from the seed (memoized)

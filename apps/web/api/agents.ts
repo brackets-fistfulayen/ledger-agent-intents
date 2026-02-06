@@ -6,8 +6,8 @@
  * is public information, and agent public keys are not secret.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { methodRouter, jsonSuccess, jsonError, getQueryParam } from "./_lib/http.js";
 import { getMembersByTrustchain } from "./_lib/agentsRepo.js";
+import { getQueryParam, jsonError, jsonSuccess, methodRouter } from "./_lib/http.js";
 
 export default methodRouter({
 	GET: async (req: VercelRequest, res: VercelResponse) => {

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { VercelRequest } from "@vercel/node";
 import { keccak256, toHex } from "viem";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock external dependencies before importing the module under test
 vi.mock("../agentsRepo.js", () => ({

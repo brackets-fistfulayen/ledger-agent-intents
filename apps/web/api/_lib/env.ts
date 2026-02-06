@@ -36,5 +36,8 @@ export const env = getEnv();
 export function getAllowedOrigins(): string[] {
 	const raw = env.ALLOWED_ORIGINS.trim();
 	if (!raw) return [];
-	return raw.split(",").map((o) => o.trim()).filter(Boolean);
+	return raw
+		.split(",")
+		.map((o) => o.trim())
+		.filter(Boolean);
 }

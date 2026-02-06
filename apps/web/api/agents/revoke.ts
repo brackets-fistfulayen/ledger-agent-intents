@@ -8,10 +8,10 @@
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { recoverMessageAddress } from "viem";
-import { methodRouter, jsonSuccess, jsonError, parseBodyWithSchema } from "../_lib/http.js";
-import { revokeAgentBodySchema } from "../_lib/validation.js";
 import { getMemberById, revokeMember } from "../_lib/agentsRepo.js";
+import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
 import { logger } from "../_lib/logger.js";
+import { revokeAgentBodySchema } from "../_lib/validation.js";
 
 /**
  * Reconstruct the revocation message.
@@ -77,7 +77,10 @@ export default methodRouter({
 			return;
 		}
 
-		logger.info({ memberId: revoked.id, label: revoked.label, trustchainId: revoked.trustchainId }, "Agent revoked");
+		logger.info(
+			{ memberId: revoked.id, label: revoked.label, trustchainId: revoked.trustchainId },
+			"Agent revoked",
+		);
 		jsonSuccess(res, { member: revoked });
 	},
 });

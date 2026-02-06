@@ -24,13 +24,13 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { privateKeyToAccount } from "viem/accounts";
-import { keccak256, toHex } from "viem";
 import type {
 	CreateIntentRequest,
 	X402AcceptedExactEvm,
 	X402Resource,
 } from "@agent-intents/shared";
+import { keccak256, toHex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 
 // =============================================================================
 // Configuration
@@ -38,14 +38,12 @@ import type {
 
 const API_BASE = (process.env.API_URL || "http://localhost:3005").replace(/\/+$/, "");
 const AMOUNT = process.env.AMOUNT || "0.01";
-const RESOURCE_URL =
-	process.env.RESOURCE_URL || "https://api.example.com/v1/ai/completion";
+const RESOURCE_URL = process.env.RESOURCE_URL || "https://api.example.com/v1/ai/completion";
 
 // Base Mainnet USDC
 const CHAIN_ID = 8453;
 const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-const USDC_LOGO =
-	"https://assets.coingecko.com/coins/images/6319/large/usdc.png";
+const USDC_LOGO = "https://assets.coingecko.com/coins/images/6319/large/usdc.png";
 const USDC_DECIMALS = 6;
 
 // =============================================================================
@@ -67,9 +65,7 @@ function loadCredential(filePath: string): AgentCredentialFile {
 	const cred = JSON.parse(raw) as AgentCredentialFile;
 
 	if (!cred.privateKey || !cred.trustchainId) {
-		throw new Error(
-			"Invalid credential file: missing privateKey or trustchainId",
-		);
+		throw new Error("Invalid credential file: missing privateKey or trustchainId");
 	}
 	return cred;
 }
@@ -78,10 +74,7 @@ function loadCredential(filePath: string): AgentCredentialFile {
 // AgentAuth header
 // =============================================================================
 
-async function buildAgentAuthHeader(
-	privateKey: `0x${string}`,
-	body: string,
-): Promise<string> {
+async function buildAgentAuthHeader(privateKey: `0x${string}`, body: string): Promise<string> {
 	const account = privateKeyToAccount(privateKey);
 	const timestamp = Math.floor(Date.now() / 1000).toString();
 	const bodyHash = keccak256(toHex(body));
@@ -199,10 +192,7 @@ async function main() {
 
 	// ---- Sign the request ----
 	log("🔏", "Signing request with agent key...");
-	const authHeader = await buildAgentAuthHeader(
-		credential.privateKey as `0x${string}`,
-		body,
-	);
+	const authHeader = await buildAgentAuthHeader(credential.privateKey as `0x${string}`, body);
 	log("✅", "AgentAuth header created");
 
 	// ---- POST the intent ----
@@ -235,10 +225,7 @@ async function main() {
 			log("✅", "Intent created successfully!");
 			log("📦", "Response:", data);
 			log("🆔", `Intent ID: ${data.intent?.id}`);
-			log(
-				"👆",
-				"Open the web app and approve this intent with your Ledger device",
-			);
+			log("👆", "Open the web app and approve this intent with your Ledger device");
 		} else {
 			console.error("\n❌ Failed to create intent");
 			console.error("Status:", response.status);

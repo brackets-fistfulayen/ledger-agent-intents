@@ -4,9 +4,9 @@ import { encodeERC20Transfer } from "@/lib/erc20";
 import { useLedger } from "@/lib/ledger-provider";
 import { cn, formatAddress } from "@/lib/utils";
 import {
+	isValidEvmAddress,
 	parseEip155ChainId,
 	validateX402ForSigning,
-	isValidEvmAddress,
 } from "@/lib/x402-validation";
 import { useUpdateIntentStatus } from "@/queries/intents";
 import {
@@ -68,6 +68,7 @@ function ChainLogo({ chainId, className }: { chainId: number; className?: string
 				title="Sepolia"
 			>
 				<svg
+					aria-hidden="true"
 					width="16"
 					height="16"
 					viewBox="0 0 256 417"
@@ -79,19 +80,13 @@ function ChainLogo({ chainId, className }: { chainId: number; className?: string
 						fill="white"
 						fillOpacity="0.6"
 					/>
-					<path
-						d="M127.962 0L0 212.32L127.962 287.959V154.158V0Z"
-						fill="white"
-					/>
+					<path d="M127.962 0L0 212.32L127.962 287.959V154.158V0Z" fill="white" />
 					<path
 						d="M127.961 312.187L126.386 314.107V412.306L127.961 416.905L255.999 236.587L127.961 312.187Z"
 						fill="white"
 						fillOpacity="0.6"
 					/>
-					<path
-						d="M127.962 416.905V312.187L0 236.587L127.962 416.905Z"
-						fill="white"
-					/>
+					<path d="M127.962 416.905V312.187L0 236.587L127.962 416.905Z" fill="white" />
 				</svg>
 			</div>
 		);
@@ -108,6 +103,7 @@ function ChainLogo({ chainId, className }: { chainId: number; className?: string
 				title="Base Sepolia"
 			>
 				<svg
+					aria-hidden="true"
 					width="16"
 					height="16"
 					viewBox="0 0 111 111"
@@ -144,6 +140,7 @@ function ChainLogo({ chainId, className }: { chainId: number; className?: string
 function UsdcLogo({ className }: { className?: string }) {
 	return (
 		<svg
+			aria-hidden="true"
 			className={cn("size-24 rounded-full", className)}
 			viewBox="0 0 2000 2000"
 			xmlns="http://www.w3.org/2000/svg"
@@ -187,27 +184,13 @@ function TableHeader() {
 	return (
 		<thead>
 			<tr className="border-b border-muted">
-				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-					Intent ID
-				</th>
-				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-					From
-				</th>
-				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-					To
-				</th>
-				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-					Amount
-				</th>
-			<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-				Created At
-			</th>
-			<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-				Status
-			</th>
-				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-					Actions
-				</th>
+				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">Intent ID</th>
+				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">From</th>
+				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">To</th>
+				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">Amount</th>
+				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">Created At</th>
+				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">Status</th>
+				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">Actions</th>
 			</tr>
 		</thead>
 	);
@@ -304,9 +287,9 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 				return;
 			}
 
-			// At this point x402, resource, and accepted are guaranteed to exist
-			const resource = x402!.resource;
-			const accepted = x402!.accepted;
+			// At this point x402, resource, and accepted are guaranteed by validateX402ForSigning
+			const resource = x402!.resource!;
+			const accepted = x402!.accepted!;
 
 			const chainId = parseEip155ChainId(accepted.network);
 			if (!chainId) {
@@ -340,8 +323,8 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 			// Build EIP-712 typed data for TransferWithAuthorization (EIP-3009)
 			// Note: extra.name and extra.version are required (validated above)
 			const domain = {
-				name: accepted.extra!.name,
-				version: accepted.extra!.version,
+				name: accepted.extra?.name,
+				version: accepted.extra?.version,
 				chainId: BigInt(chainId),
 				verifyingContract: accepted.asset as `0x${string}`,
 			};
@@ -544,78 +527,88 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 			<tr
 				className="group border-b border-muted-subtle last:border-b-0 transition-colors hover:bg-muted-transparent cursor-pointer"
 				onClick={handleRowClick}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") handleRowClick();
+				}}
+				tabIndex={0}
 			>
 				{/* Intent ID */}
 				<td className="py-20 px-24">
 					<div className="flex items-center gap-8">
-						<code className="font-mono body-2 text-muted" title={intent.id}>{shortId}</code>
+						<code className="font-mono body-2 text-muted" title={intent.id}>
+							{shortId}
+						</code>
 						<span className="body-2 text-base">{intent.agentName}</span>
 					</div>
 				</td>
 
-		{/* From */}
-		<td className="py-20 px-24">
-			{account ? (
-				<AddressWithTooltip address={account}>
-					<code className="font-mono body-2 text-base cursor-default">
-						{formatAddress(account)}
-					</code>
-				</AddressWithTooltip>
-			) : (
-				<span className="body-2 text-muted">—</span>
-			)}
-		</td>
+				{/* From */}
+				<td className="py-20 px-24">
+					{account ? (
+						<AddressWithTooltip address={account}>
+							<code className="font-mono body-2 text-base cursor-default">
+								{formatAddress(account)}
+							</code>
+						</AddressWithTooltip>
+					) : (
+						<span className="body-2 text-muted">—</span>
+					)}
+				</td>
 
-		{/* To */}
-		<td className="py-20 px-24">
-			<div className="flex flex-col gap-2">
-				<AddressWithTooltip address={details.recipient}>
-					<code className="font-mono body-2 text-base cursor-default">
-						{formatAddress(details.recipient)}
-					</code>
-				</AddressWithTooltip>
-				{details.recipientEns && (
-					<span className="body-3 text-muted">{details.recipientEns}</span>
-				)}
-			</div>
-		</td>
+				{/* To */}
+				<td className="py-20 px-24">
+					<div className="flex flex-col gap-2">
+						<AddressWithTooltip address={details.recipient}>
+							<code className="font-mono body-2 text-base cursor-default">
+								{formatAddress(details.recipient)}
+							</code>
+						</AddressWithTooltip>
+						{details.recipientEns && (
+							<span className="body-3 text-muted">{details.recipientEns}</span>
+						)}
+					</div>
+				</td>
 
-			{/* Amount */}
-			<td className="py-20 px-24">
-				<div className="flex items-center gap-8">
-					<span className="body-1-semi-bold text-base">
-						{details.amount} {details.token}
-					</span>
-					{details.token === "USDC" && <UsdcLogo />}
-				</div>
-			</td>
+				{/* Amount */}
+				<td className="py-20 px-24">
+					<div className="flex items-center gap-8">
+						<span className="body-1-semi-bold text-base">
+							{details.amount} {details.token}
+						</span>
+						{details.token === "USDC" && <UsdcLogo />}
+					</div>
+				</td>
 
-	{/* Created At */}
-		<td className="py-20 px-24">
-			<div className="flex flex-col">
-				<span className="body-2 text-base">
-					{new Date(intent.createdAt).toLocaleDateString(undefined, {
-						year: "numeric",
-						month: "short",
-						day: "numeric",
-					})}
-				</span>
-				<span className="body-3 text-muted">
-					{new Date(intent.createdAt).toLocaleTimeString(undefined, {
-						hour: "2-digit",
-						minute: "2-digit",
-					})}
-				</span>
-			</div>
-		</td>
+				{/* Created At */}
+				<td className="py-20 px-24">
+					<div className="flex flex-col">
+						<span className="body-2 text-base">
+							{new Date(intent.createdAt).toLocaleDateString(undefined, {
+								year: "numeric",
+								month: "short",
+								day: "numeric",
+							})}
+						</span>
+						<span className="body-3 text-muted">
+							{new Date(intent.createdAt).toLocaleTimeString(undefined, {
+								hour: "2-digit",
+								minute: "2-digit",
+							})}
+						</span>
+					</div>
+				</td>
 
-			{/* Status */}
+				{/* Status */}
 				<td className="py-20 px-24">
 					<StatusBadge status={intent.status} />
 				</td>
 
 				{/* Actions */}
-				<td className="py-20 px-24" onClick={(e) => e.stopPropagation()}>
+				<td
+					className="py-20 px-24"
+					onClick={(e) => e.stopPropagation()}
+					onKeyDown={(e) => e.stopPropagation()}
+				>
 					{isPending ? (
 						<div className="flex items-center gap-12">
 							<Button
@@ -635,9 +628,7 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 								{isRejecting ? <Spinner size="sm" /> : "Reject"}
 							</Button>
 							{isWrongChain && (
-								<span className="body-3 text-warning">
-									({chain?.name ?? "Wrong network"})
-								</span>
+								<span className="body-3 text-warning">({chain?.name ?? "Wrong network"})</span>
 							)}
 						</div>
 					) : intent.txUrl ? (

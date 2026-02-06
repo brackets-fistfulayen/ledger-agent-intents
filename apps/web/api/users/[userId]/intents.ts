@@ -1,3 +1,4 @@
+import type { IntentStatus } from "@agent-intents/shared";
 /**
  * Get user intents endpoint
  * GET /api/users/:userId/intents
@@ -5,9 +6,14 @@
  * Requires session auth. Caller can only list intents for their own wallet (userId).
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import type { IntentStatus } from "@agent-intents/shared";
 import { requireSession } from "../../_lib/auth.js";
-import { methodRouter, jsonSuccess, jsonError, getQueryParam, getQueryNumber } from "../../_lib/http.js";
+import {
+	getQueryNumber,
+	getQueryParam,
+	jsonError,
+	jsonSuccess,
+	methodRouter,
+} from "../../_lib/http.js";
 import { getIntentsByUser } from "../../_lib/intentsRepo.js";
 
 const VALID_STATUSES: IntentStatus[] = [
@@ -44,9 +50,10 @@ export default methodRouter({
 		}
 
 		const statusParam = getQueryParam(req, "status");
-		const status = statusParam && VALID_STATUSES.includes(statusParam as IntentStatus)
-			? (statusParam as IntentStatus)
-			: undefined;
+		const status =
+			statusParam && VALID_STATUSES.includes(statusParam as IntentStatus)
+				? (statusParam as IntentStatus)
+				: undefined;
 
 		const limit = getQueryNumber(req, "limit", 50, 1, 100);
 

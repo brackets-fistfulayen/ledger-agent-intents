@@ -1,7 +1,7 @@
 import { IntentDetailContent } from "@/components/intents/IntentDetailContent";
 import { Spinner } from "@/components/ui/Spinner";
 import { useLedger } from "@/lib/ledger-provider";
-import { useWalletAuth, type AuthStatus } from "@/lib/wallet-auth";
+import { type AuthStatus, useWalletAuth } from "@/lib/wallet-auth";
 import { intentQueryOptions } from "@/queries/intents";
 import { Button } from "@ledgerhq/lumen-ui-react";
 import { Devices } from "@ledgerhq/lumen-ui-react/symbols";
@@ -49,9 +49,7 @@ function PayPage() {
 			{/* Page header */}
 			<div className="flex flex-col items-center gap-8">
 				<h1 className="heading-2-semi-bold text-base">Review Payment</h1>
-				<p className="body-1 text-muted">
-					An agent is requesting your approval
-				</p>
+				<p className="body-1 text-muted">An agent is requesting your approval</p>
 			</div>
 
 			{/* Content area — constrained width, centered */}
@@ -115,7 +113,8 @@ function PayPage() {
 									</div>
 								) : !isOwner ? (
 									<div className="rounded-lg bg-warning-transparent px-16 py-12 body-2 text-warning text-center">
-										This payment is for a different wallet. Please connect the correct Ledger device.
+										This payment is for a different wallet. Please connect the correct Ledger
+										device.
 									</div>
 								) : authStatus !== "authed" ? (
 									<div className="flex flex-col items-center gap-8 py-12">

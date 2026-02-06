@@ -6,7 +6,7 @@
  * Run: node scripts/generate-favicon-ico.mjs
  */
 import { writeFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -21,7 +21,7 @@ function setPixel(x, y, r, g, b, a = 255) {
 	const i = (y * SIZE + x) * 4;
 	// Only overwrite if higher alpha (avoids erasing previous strokes)
 	if (a <= pixels[i + 3]) return;
-	pixels[i] = b;     // B
+	pixels[i] = b; // B
 	pixels[i + 1] = g; // G
 	pixels[i + 2] = r; // R
 	pixels[i + 3] = a; // A
@@ -33,18 +33,27 @@ function drawLine(x0, y0, x1, y1, r, g, b, a = 255) {
 	const sx = x0 < x1 ? 1 : -1;
 	const sy = y0 < y1 ? 1 : -1;
 	let err = dx - dy;
-	let cx = x0, cy = y0;
+	let cx = x0;
+	let cy = y0;
 	while (true) {
 		setPixel(cx, cy, r, g, b, a);
 		if (cx === x1 && cy === y1) break;
 		const e2 = 2 * err;
-		if (e2 > -dy) { err -= dy; cx += sx; }
-		if (e2 < dx) { err += dx; cy += sy; }
+		if (e2 > -dy) {
+			err -= dy;
+			cx += sx;
+		}
+		if (e2 < dx) {
+			err += dx;
+			cy += sy;
+		}
 	}
 }
 
 function drawCircle(cx, cy, radius, r, g, b, a = 255) {
-	let x = radius, y = 0, err = 1 - radius;
+	let x = radius;
+	let y = 0;
+	let err = 1 - radius;
 	while (x >= y) {
 		setPixel(cx + x, cy + y, r, g, b, a);
 		setPixel(cx - x, cy + y, r, g, b, a);
@@ -55,8 +64,12 @@ function drawCircle(cx, cy, radius, r, g, b, a = 255) {
 		setPixel(cx + y, cy - x, r, g, b, a);
 		setPixel(cx - y, cy - x, r, g, b, a);
 		y++;
-		if (err < 0) { err += 2 * y + 1; }
-		else { x--; err += 2 * (y - x) + 1; }
+		if (err < 0) {
+			err += 2 * y + 1;
+		} else {
+			x--;
+			err += 2 * (y - x) + 1;
+		}
 	}
 }
 
@@ -93,28 +106,41 @@ function drawRoundedRect(x, y, w, h, rad, r, g, b, a = 255) {
 	}
 	// Corner arcs (quarter circles)
 	const corners = [
-		[x + rad, y + rad],           // top-left
-		[x + w - 1 - rad, y + rad],   // top-right
-		[x + rad, y + h - 1 - rad],   // bottom-left
+		[x + rad, y + rad], // top-left
+		[x + w - 1 - rad, y + rad], // top-right
+		[x + rad, y + h - 1 - rad], // bottom-left
 		[x + w - 1 - rad, y + h - 1 - rad], // bottom-right
 	];
 	for (const [cx, cy] of corners) {
-		let px = rad, py = 0, err = 1 - rad;
+		let px = rad;
+		let py = 0;
+		let err = 1 - rad;
 		while (px >= py) {
 			// Plot only the octant quadrant that belongs to this corner
 			const offsets = [
-				[px, py], [-px, py], [px, -py], [-px, -py],
-				[py, px], [-py, px], [py, -px], [-py, -px],
+				[px, py],
+				[-px, py],
+				[px, -py],
+				[-px, -py],
+				[py, px],
+				[-py, px],
+				[py, -px],
+				[-py, -px],
 			];
 			for (const [ox, oy] of offsets) {
-				const fx = cx + ox, fy = cy + oy;
+				const fx = cx + ox;
+				const fy = cy + oy;
 				if (fx >= x && fx < x + w && fy >= y && fy < y + h) {
 					setPixel(fx, fy, r, g, b, a);
 				}
 			}
 			py++;
-			if (err < 0) { err += 2 * py + 1; }
-			else { px--; err += 2 * (py - px) + 1; }
+			if (err < 0) {
+				err += 2 * py + 1;
+			} else {
+				px--;
+				err += 2 * (py - px) + 1;
+			}
 		}
 	}
 }
@@ -147,10 +173,10 @@ fillCircle(16, 6, 2, W, W, W);
 const arcPoints = [];
 for (let t = 0; t <= 1; t += 0.05) {
 	const x = Math.round(
-		(1-t)**3 * 12.5 + 3*(1-t)**2*t * 13.5 + 3*(1-t)*t**2 * 18.5 + t**3 * 19.5
+		(1 - t) ** 3 * 12.5 + 3 * (1 - t) ** 2 * t * 13.5 + 3 * (1 - t) * t ** 2 * 18.5 + t ** 3 * 19.5,
 	);
 	const y = Math.round(
-		(1-t)**3 * 5.5 + 3*(1-t)**2*t * 3.5 + 3*(1-t)*t**2 * 3.5 + t**3 * 5.5
+		(1 - t) ** 3 * 5.5 + 3 * (1 - t) ** 2 * t * 3.5 + 3 * (1 - t) * t ** 2 * 3.5 + t ** 3 * 5.5,
 	);
 	setPixel(x, y, W, W, W);
 }

@@ -1,16 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { IntentDetailDialog } from "@/components/intents/IntentDetailDialog";
+import { StatusBadge } from "@/components/ui/Badge";
+import { ChainLogo } from "@/components/ui/ChainLogo";
+import { Spinner } from "@/components/ui/Spinner";
 import { useLedger } from "@/lib/ledger-provider";
+import { formatAddress } from "@/lib/utils";
 import { useWalletAuth } from "@/lib/wallet-auth";
 import { intentsQueryOptions } from "@/queries/intents";
-import { useQuery } from "@tanstack/react-query";
-import { StatusBadge } from "@/components/ui/Badge";
-import { Spinner } from "@/components/ui/Spinner";
-import { formatAddress } from "@/lib/utils";
-import { ChainLogo } from "@/components/ui/ChainLogo";
-import { IntentDetailDialog } from "@/components/intents/IntentDetailDialog";
 import type { Intent, SupportedChainId } from "@agent-intents/shared";
 import { SUPPORTED_CHAINS } from "@agent-intents/shared";
 import { AmountDisplay, type FormattedValue } from "@ledgerhq/lumen-ui-react";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
 export const Route = createFileRoute("/history")({
@@ -29,12 +29,7 @@ const COMPLETED_STATUSES = new Set([
 ]);
 
 /** Statuses that count as a successful transaction. */
-const SUCCESS_STATUSES = new Set([
-	"approved",
-	"broadcasting",
-	"authorized",
-	"confirmed",
-]);
+const SUCCESS_STATUSES = new Set(["approved", "broadcasting", "authorized", "confirmed"]);
 
 /**
  * Format amount for AmountDisplay component
@@ -62,10 +57,7 @@ function HistoryPage() {
 	// Filter to only completed intents, newest first
 	const completedIntents = intents
 		?.filter((i) => COMPLETED_STATUSES.has(i.status))
-		.sort(
-			(a, b) =>
-				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-		);
+		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
 	const [selectedIntent, setSelectedIntent] = useState<Intent | null>(null);
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -73,19 +65,15 @@ function HistoryPage() {
 	// Stats: only count successful transactions
 	const successfulIntents = completedIntents?.filter((i) => SUCCESS_STATUSES.has(i.status));
 	const successCount = successfulIntents?.length ?? 0;
-	const totalSpent = successfulIntents
-		?.reduce((sum, i) => sum + Number.parseFloat(i.details.amount), 0) ?? 0;
+	const totalSpent =
+		successfulIntents?.reduce((sum, i) => sum + Number.parseFloat(i.details.amount), 0) ?? 0;
 
 	return (
 		<div className="flex flex-col gap-32">
 			{/* Page header */}
 			<div className="flex flex-col gap-8 text-center">
-				<h1 className="heading-0-semi-bold text-base">
-					Transaction History
-				</h1>
-				<p className="body-1 text-muted">
-					View your signed and completed transactions
-				</p>
+				<h1 className="heading-0-semi-bold text-base">Transaction History</h1>
+				<p className="body-1 text-muted">View your signed and completed transactions</p>
 			</div>
 
 			{/* Stats Tiles */}
@@ -102,7 +90,10 @@ function HistoryPage() {
 						<span className="body-2 text-muted">Total Transactions</span>
 						<div>
 							<span className="heading-1-semi-bold text-base">{successCount}</span>
-							<span className="heading-2-semi-bold text-muted"> transaction{successCount !== 1 ? "s" : ""}</span>
+							<span className="heading-2-semi-bold text-muted">
+								{" "}
+								transaction{successCount !== 1 ? "s" : ""}
+							</span>
 						</div>
 					</div>
 				</div>
@@ -111,11 +102,12 @@ function HistoryPage() {
 			{/* Content */}
 			{!isConnected ? (
 				<div className="rounded-lg bg-surface border border-muted p-24 text-center">
-					<p className="body-1 text-muted">
-						Connect your Ledger to view transaction history
-					</p>
+					<p className="body-1 text-muted">Connect your Ledger to view transaction history</p>
 				</div>
-			) : authStatus === "checking" || authStatus === "authing" || authStatus === "unauthenticated" || authStatus === "error" ? (
+			) : authStatus === "checking" ||
+				authStatus === "authing" ||
+				authStatus === "unauthenticated" ||
+				authStatus === "error" ? (
 				<div className="flex flex-col items-center gap-8 py-48">
 					<div className="flex items-center gap-8">
 						<Spinner size="sm" />
@@ -138,9 +130,7 @@ function HistoryPage() {
 			) : !completedIntents || completedIntents.length === 0 ? (
 				<div className="rounded-lg bg-surface border border-muted p-24 text-center">
 					<p className="body-1 text-muted">No transactions yet</p>
-					<p className="body-2 text-muted-subtle mt-8">
-						Transactions you sign will appear here
-					</p>
+					<p className="body-2 text-muted-subtle mt-8">Transactions you sign will appear here</p>
 				</div>
 			) : (
 				<div className="flex flex-col gap-8">
@@ -180,7 +170,9 @@ function getBroadcastedDate(intent: Intent): Date {
 	const broadcastEntry = intent.statusHistory
 		.slice()
 		.reverse()
-		.find((e) => e.status === "broadcasting" || e.status === "confirmed" || e.status === "authorized");
+		.find(
+			(e) => e.status === "broadcasting" || e.status === "confirmed" || e.status === "authorized",
+		);
 	if (broadcastEntry) return new Date(broadcastEntry.timestamp);
 	// Fallback to createdAt
 	return new Date(intent.createdAt);
@@ -190,6 +182,7 @@ function getBroadcastedDate(intent: Intent): Date {
 function UsdcLogo() {
 	return (
 		<svg
+			aria-hidden="true"
 			className="size-20 rounded-full shrink-0"
 			viewBox="0 0 2000 2000"
 			xmlns="http://www.w3.org/2000/svg"
@@ -214,6 +207,7 @@ function UsdcLogo() {
 function ExternalLinkIcon({ className }: { className?: string }) {
 	return (
 		<svg
+			aria-hidden="true"
 			className={className}
 			xmlns="http://www.w3.org/2000/svg"
 			width="14"
@@ -274,13 +268,9 @@ function HistoryRow({
 					</span>
 				</div>
 				<div className="flex items-center gap-8">
-					<span className="body-3 text-muted">
-						{account ? formatAddress(account) : "—"}
-					</span>
+					<span className="body-3 text-muted">{account ? formatAddress(account) : "—"}</span>
 					<span className="body-3 text-muted-subtle">→</span>
-					<span className="body-3 text-muted">
-						{formatAddress(details.recipient)}
-					</span>
+					<span className="body-3 text-muted">{formatAddress(details.recipient)}</span>
 					{chain && (
 						<>
 							<span className="body-3 text-muted-subtle">·</span>
@@ -310,7 +300,11 @@ function HistoryRow({
 			</div>
 
 			{/* Tx link - Tag with external link icon */}
-			<div className="shrink-0 w-128" onClick={(e) => e.stopPropagation()}>
+			<div
+				className="shrink-0 w-128"
+				onClick={(e) => e.stopPropagation()}
+				onKeyDown={(e) => e.stopPropagation()}
+			>
 				{intent.txUrl ? (
 					<a
 						href={intent.txUrl}

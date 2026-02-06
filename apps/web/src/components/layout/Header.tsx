@@ -60,13 +60,13 @@ export function Header() {
 
 								{/* Copy button (separated by a subtle divider) */}
 								<div className="w-1 h-20 bg-muted-strong" />
-							<button
-								type="button"
-								onClick={handleCopy}
-								onPointerDown={(e) => e.stopPropagation()}
-								className="flex items-center justify-center size-36 hover:bg-muted-hover transition-colors"
-								aria-label="Copy address"
-							>
+								<button
+									type="button"
+									onClick={handleCopy}
+									onPointerDown={(e) => e.stopPropagation()}
+									className="flex items-center justify-center size-36 hover:bg-muted-hover transition-colors"
+									aria-label="Copy address"
+								>
 									{copied ? (
 										<Check size={16} className="text-success" />
 									) : (

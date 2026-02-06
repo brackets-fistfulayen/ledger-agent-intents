@@ -19,10 +19,8 @@ const CHAIN_ID = 8453;
 const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const USDC_LOGO = "https://assets.coingecko.com/coins/images/6319/large/usdc.png";
 
-const USER_WALLET =
-	process.env.USER_WALLET || "0x55862D0711Fe9CE125dCe1b46973Be99E5Fd2592";
-const RECIPIENT =
-	process.env.RECIPIENT || "0x73F3e0b80D7826F872CfF58d6FE06d87fBd13ACc";
+const USER_WALLET = process.env.USER_WALLET || "0x55862D0711Fe9CE125dCe1b46973Be99E5Fd2592";
+const RECIPIENT = process.env.RECIPIENT || "0x73F3e0b80D7826F872CfF58d6FE06d87fBd13ACc";
 
 const intentRequest: CreateIntentRequest & { userId: string } = {
 	userId: USER_WALLET,

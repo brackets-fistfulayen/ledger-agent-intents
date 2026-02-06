@@ -4,12 +4,12 @@ import { encodeERC20Transfer } from "@/lib/erc20";
 import { useLedger } from "@/lib/ledger-provider";
 import { cn, formatAddress, formatTimeAgo } from "@/lib/utils";
 import {
+	checkUsdcBalance,
+	extractDomain,
+	formatAtomicAmount,
+	isValidEvmAddress,
 	parseEip155ChainId,
 	validateX402ForSigning,
-	isValidEvmAddress,
-	formatAtomicAmount,
-	extractDomain,
-	checkUsdcBalance,
 } from "@/lib/x402-validation";
 import { useUpdateIntentStatus } from "@/queries/intents";
 import {
@@ -20,7 +20,7 @@ import {
 	type X402PaymentPayload,
 } from "@agent-intents/shared";
 import { Button, Tag } from "@ledgerhq/lumen-ui-react";
-import { Copy, Check } from "@ledgerhq/lumen-ui-react/symbols";
+import { Check, Copy } from "@ledgerhq/lumen-ui-react/symbols";
 import { useState } from "react";
 import { verifyTypedData } from "viem";
 
@@ -52,7 +52,6 @@ function randomNonce32BytesHex() {
 		.join("")}`;
 }
 
-
 // =============================================================================
 // Chain Logo Component (reused from IntentTable)
 // =============================================================================
@@ -68,6 +67,7 @@ function ChainLogo({ chainId, className }: { chainId: number; className?: string
 				title="Ethereum"
 			>
 				<svg
+					aria-hidden="true"
 					width="12"
 					height="12"
 					viewBox="0 0 256 417"
@@ -101,6 +101,7 @@ function ChainLogo({ chainId, className }: { chainId: number; className?: string
 				title="Base"
 			>
 				<svg
+					aria-hidden="true"
 					width="12"
 					height="12"
 					viewBox="0 0 111 111"
@@ -174,9 +175,7 @@ function CategoryBadge({ category }: { category: string }) {
 		other: "Other",
 	};
 
-	return (
-		<Tag appearance="gray" size="sm" label={labels[category] ?? category} />
-	);
+	return <Tag appearance="gray" size="sm" label={labels[category] ?? category} />;
 }
 
 // =============================================================================
@@ -209,12 +208,14 @@ function UrgencyBadge({ urgency }: { urgency: string }) {
 function HeroSection({ intent }: { intent: Intent }) {
 	const { details } = intent;
 	const isX402 = !!details.x402?.accepted;
-	
+
 	// For x402, derive chain from the x402 network
 	const x402ChainId = isX402 ? parseEip155ChainId(details.x402?.accepted?.network ?? "") : null;
-	const effectiveChainId = (isX402 && x402ChainId ? x402ChainId : details.chainId) as SupportedChainId;
+	const effectiveChainId = (
+		isX402 && x402ChainId ? x402ChainId : details.chainId
+	) as SupportedChainId;
 	const chain = SUPPORTED_CHAINS[effectiveChainId];
-	
+
 	// Format amount - for x402 use atomic amount conversion
 	let displayAmount = details.amount;
 	let displayToken = details.token;
@@ -229,9 +230,7 @@ function HeroSection({ intent }: { intent: Intent }) {
 		<div className="flex flex-col items-center gap-8 py-16">
 			{/* Label for x402 API payments */}
 			{isX402 && (
-				<div className="body-3-semi-bold text-interactive uppercase tracking-wide">
-					API Payment
-				</div>
+				<div className="body-3-semi-bold text-interactive uppercase tracking-wide">API Payment</div>
 			)}
 			<div className="heading-2-semi-bold text-base">
 				{displayAmount} {displayToken}
@@ -259,16 +258,14 @@ function RecipientSection({ intent }: { intent: Intent }) {
 		<div className="rounded-lg bg-muted-transparent p-16">
 			<div className="body-3 text-muted mb-6">To</div>
 			<div className="flex items-center justify-between gap-8">
-			<div className="flex flex-col gap-2 min-w-0">
-				<code className="font-mono body-2 text-base break-all">
-					{details.recipient}
-				</code>
-				{details.recipientEns && (
-					<span className="body-3 text-muted">{details.recipientEns}</span>
-				)}
+				<div className="flex flex-col gap-2 min-w-0">
+					<code className="font-mono body-2 text-base break-all">{details.recipient}</code>
+					{details.recipientEns && (
+						<span className="body-3 text-muted">{details.recipientEns}</span>
+					)}
+				</div>
+				<CopyButton text={details.recipient} />
 			</div>
-			<CopyButton text={details.recipient} />
-		</div>
 		</div>
 	);
 }
@@ -280,22 +277,22 @@ function RecipientSection({ intent }: { intent: Intent }) {
 function X402PaymentSection({ intent }: { intent: Intent }) {
 	const { details } = intent;
 	const x402 = details.x402;
-	
+
 	if (!x402?.accepted || !x402?.resource) return null;
-	
+
 	const resource = x402.resource;
 	const accepted = x402.accepted;
 	const chainId = parseEip155ChainId(accepted.network);
 	const chain = chainId ? SUPPORTED_CHAINS[chainId as SupportedChainId] : null;
 	const domain = extractDomain(resource.url);
-	
+
 	return (
 		<div className="rounded-lg bg-interactive/5 p-16 flex flex-col gap-12">
 			<div className="flex items-center gap-8">
 				<div className="size-8 rounded-full bg-interactive" />
 				<span className="body-2-semi-bold text-interactive">x402 Payment Details</span>
 			</div>
-			
+
 			{/* Resource/API Endpoint */}
 			<div className="flex flex-col gap-4">
 				<span className="body-3 text-muted">API Endpoint</span>
@@ -306,18 +303,16 @@ function X402PaymentSection({ intent }: { intent: Intent }) {
 					<CopyButton text={resource.url} />
 				</div>
 			</div>
-			
-		{/* Payment Recipient */}
-		<div className="flex flex-col gap-4">
-			<span className="body-3 text-muted">Payment Recipient</span>
-			<div className="flex items-center justify-between gap-8">
-				<code className="font-mono body-2 text-base break-all">
-					{accepted.payTo}
-				</code>
-				<CopyButton text={accepted.payTo} />
+
+			{/* Payment Recipient */}
+			<div className="flex flex-col gap-4">
+				<span className="body-3 text-muted">Payment Recipient</span>
+				<div className="flex items-center justify-between gap-8">
+					<code className="font-mono body-2 text-base break-all">{accepted.payTo}</code>
+					<CopyButton text={accepted.payTo} />
+				</div>
 			</div>
-		</div>
-			
+
 			{/* Network */}
 			<div className="flex items-center justify-between">
 				<span className="body-3 text-muted">Network</span>
@@ -326,18 +321,19 @@ function X402PaymentSection({ intent }: { intent: Intent }) {
 					<span className="body-2 text-base">{chain?.name ?? accepted.network}</span>
 				</div>
 			</div>
-			
+
 			{/* Payment Scheme */}
 			<div className="flex items-center justify-between">
 				<span className="body-3 text-muted">Scheme</span>
 				<Tag appearance="gray" size="sm" label={`EIP-3009 ${accepted.scheme}`} />
 			</div>
-			
+
 			{/* Authorization validity info */}
 			{accepted.maxTimeoutSeconds && (
 				<div className="border-t border-muted-subtle pt-12">
 					<div className="body-3 text-muted">
-						Authorization valid for {Math.floor(accepted.maxTimeoutSeconds / 60)} minute{accepted.maxTimeoutSeconds >= 120 ? 's' : ''}
+						Authorization valid for {Math.floor(accepted.maxTimeoutSeconds / 60)} minute
+						{accepted.maxTimeoutSeconds >= 120 ? "s" : ""}
 					</div>
 				</div>
 			)}
@@ -352,45 +348,39 @@ function X402PaymentSection({ intent }: { intent: Intent }) {
 function SettlementReceiptSection({ intent }: { intent: Intent }) {
 	const { details } = intent;
 	const receipt = details.x402?.settlementReceipt;
-	
+
 	if (!receipt) return null;
-	
+
 	const chainId = receipt.network ? parseEip155ChainId(receipt.network) : null;
 	const chain = chainId ? SUPPORTED_CHAINS[chainId as SupportedChainId] : null;
-	
+
 	return (
-		<div className={cn(
-			"rounded-lg p-16 flex flex-col gap-12",
-			receipt.success
-				? "border border-success/30 bg-success/5"
-				: "border border-error/30 bg-error/5"
-		)}>
+		<div
+			className={cn(
+				"rounded-lg p-16 flex flex-col gap-12",
+				receipt.success
+					? "border border-success/30 bg-success/5"
+					: "border border-error/30 bg-error/5",
+			)}
+		>
 			<div className="flex items-center gap-8">
-				<div className={cn(
-					"size-8 rounded-full",
-					receipt.success ? "bg-success" : "bg-error"
-				)} />
-				<span className={cn(
-					"body-2-semi-bold",
-					receipt.success ? "text-success" : "text-error"
-				)}>
+				<div className={cn("size-8 rounded-full", receipt.success ? "bg-success" : "bg-error")} />
+				<span className={cn("body-2-semi-bold", receipt.success ? "text-success" : "text-error")}>
 					{receipt.success ? "Payment Settled" : "Settlement Failed"}
 				</span>
 			</div>
-			
+
 			{/* Transaction hash */}
 			{receipt.txHash && (
 				<div className="flex flex-col gap-4">
 					<span className="body-3 text-muted">Transaction</span>
 					<div className="flex items-center justify-between gap-8">
-						<code className="font-mono body-2 text-base">
-							{formatAddress(receipt.txHash)}
-						</code>
+						<code className="font-mono body-2 text-base">{formatAddress(receipt.txHash)}</code>
 						<CopyButton text={receipt.txHash} />
 					</div>
 				</div>
 			)}
-			
+
 			{/* Network */}
 			{chain && (
 				<div className="flex items-center justify-between">
@@ -401,7 +391,7 @@ function SettlementReceiptSection({ intent }: { intent: Intent }) {
 					</div>
 				</div>
 			)}
-			
+
 			{/* Block number */}
 			{receipt.blockNumber && (
 				<div className="flex items-center justify-between">
@@ -409,7 +399,7 @@ function SettlementReceiptSection({ intent }: { intent: Intent }) {
 					<span className="body-2 text-base font-mono">{receipt.blockNumber}</span>
 				</div>
 			)}
-			
+
 			{/* Settled at */}
 			{receipt.settledAt && (
 				<div className="flex items-center justify-between">
@@ -417,7 +407,7 @@ function SettlementReceiptSection({ intent }: { intent: Intent }) {
 					<span className="body-2 text-base">{formatTimeAgo(receipt.settledAt)}</span>
 				</div>
 			)}
-			
+
 			{/* Error message */}
 			{receipt.error && (
 				<div className="border-t border-error/30 pt-12">
@@ -444,11 +434,7 @@ function MerchantSection({ intent }: { intent: Intent }) {
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-12">
 						{merchant.logo ? (
-							<img
-								src={merchant.logo}
-								alt={merchant.name}
-								className="size-32 rounded-full"
-							/>
+							<img src={merchant.logo} alt={merchant.name} className="size-32 rounded-full" />
 						) : (
 							<div className="size-32 rounded-full bg-muted flex items-center justify-center body-3-semi-bold text-muted">
 								{merchant.name.charAt(0)}
@@ -456,9 +442,7 @@ function MerchantSection({ intent }: { intent: Intent }) {
 						)}
 						<span className="body-1-semi-bold text-base">{merchant.name}</span>
 					</div>
-					{merchant.verified && (
-						<Tag appearance="success" size="sm" label="Verified" />
-					)}
+					{merchant.verified && <Tag appearance="success" size="sm" label="Verified" />}
 				</div>
 			)}
 
@@ -505,9 +489,7 @@ function AgentSection({ intent }: { intent: Intent }) {
 			)}
 
 			{intent.expiresAt && (
-				<div className="body-3 text-warning">
-					Expires {formatTimeAgo(intent.expiresAt)}
-				</div>
+				<div className="body-3 text-warning">Expires {formatTimeAgo(intent.expiresAt)}</div>
 			)}
 		</div>
 	);
@@ -522,8 +504,7 @@ function TechnicalDetailsSection({ intent }: { intent: Intent }) {
 	const { details } = intent;
 
 	const tokenInfo = SUPPORTED_TOKENS[details.chainId as SupportedChainId]?.[details.token];
-	const tokenAddress =
-		(details.tokenAddress as string | undefined) ?? tokenInfo?.address;
+	const tokenAddress = (details.tokenAddress as string | undefined) ?? tokenInfo?.address;
 
 	return (
 		<div className="border-t border-muted-subtle pt-16">
@@ -537,48 +518,51 @@ function TechnicalDetailsSection({ intent }: { intent: Intent }) {
 			</button>
 
 			{isExpanded && (
-			<div className="mt-12 flex flex-col gap-8 body-3 text-muted">
-				<div className="flex flex-col gap-4">
-					<span>Intent ID</span>
-					<code className="font-mono text-base break-all">{intent.id}</code>
-				</div>
-				{tokenAddress && (
+				<div className="mt-12 flex flex-col gap-8 body-3 text-muted">
 					<div className="flex flex-col gap-4">
-						<span>Token Contract</span>
-						<code className="font-mono text-base break-all">{tokenAddress}</code>
+						<span>Intent ID</span>
+						<code className="font-mono text-base break-all">{intent.id}</code>
 					</div>
-				)}
+					{tokenAddress && (
+						<div className="flex flex-col gap-4">
+							<span>Token Contract</span>
+							<code className="font-mono text-base break-all">{tokenAddress}</code>
+						</div>
+					)}
 					<div className="flex justify-between">
 						<span>Agent ID</span>
 						<code className="font-mono text-base">{intent.agentId}</code>
 					</div>
-				{intent.statusHistory.length > 0 && (
-					<div className="flex flex-col gap-4 mt-8">
-						<span className="body-3-semi-bold">Timeline</span>
-						{intent.statusHistory.map((entry, idx) => {
-							const date = new Date(entry.timestamp);
-							const formatted = `${date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })} ${date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
-							const label =
-								entry.status === "pending"
-									? "Created"
-									: entry.status === "broadcasting" || entry.status === "confirmed"
-										? "Broadcasted"
-										: entry.status === "authorized"
-											? "Authorized"
-											: entry.status === "rejected"
-												? "Rejected"
-												: entry.status === "failed"
-													? "Failed"
-													: entry.status.charAt(0).toUpperCase() + entry.status.slice(1);
-							return (
-								<div key={idx} className="flex justify-between text-muted">
-									<span>{label}</span>
-									<span className="font-mono">{formatted}</span>
-								</div>
-							);
-						})}
-					</div>
-				)}
+					{intent.statusHistory.length > 0 && (
+						<div className="flex flex-col gap-4 mt-8">
+							<span className="body-3-semi-bold">Timeline</span>
+							{intent.statusHistory.map((entry, idx) => {
+								const date = new Date(entry.timestamp);
+								const formatted = `${date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })} ${date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+								const label =
+									entry.status === "pending"
+										? "Created"
+										: entry.status === "broadcasting" || entry.status === "confirmed"
+											? "Broadcasted"
+											: entry.status === "authorized"
+												? "Authorized"
+												: entry.status === "rejected"
+													? "Rejected"
+													: entry.status === "failed"
+														? "Failed"
+														: entry.status.charAt(0).toUpperCase() + entry.status.slice(1);
+								return (
+									<div
+										key={`${entry.status}-${entry.timestamp}`}
+										className="flex justify-between text-muted"
+									>
+										<span>{label}</span>
+										<span className="font-mono">{formatted}</span>
+									</div>
+								);
+							})}
+						</div>
+					)}
 				</div>
 			)}
 		</div>
@@ -641,9 +625,9 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 				return;
 			}
 
-			// At this point x402, resource, and accepted are guaranteed to exist
-			const resource = x402!.resource;
-			const accepted = x402!.accepted;
+			// At this point x402, resource, and accepted are guaranteed by validateX402ForSigning
+			const resource = x402!.resource!;
+			const accepted = x402!.accepted!;
 
 			const chainId = parseEip155ChainId(accepted.network);
 			if (!chainId) {
@@ -690,8 +674,8 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 			// Build EIP-712 typed data for TransferWithAuthorization (EIP-3009)
 			// Note: extra.name and extra.version are required (validated above)
 			const domain = {
-				name: accepted.extra!.name,
-				version: accepted.extra!.version,
+				name: accepted.extra?.name,
+				version: accepted.extra?.version,
 				chainId: BigInt(chainId),
 				verifyingContract: accepted.asset as `0x${string}`,
 			};
@@ -762,26 +746,26 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 					console.warn("Local signature verification failed:", verifyErr);
 				}
 
-			const paymentPayload: X402PaymentPayload = {
-				x402Version: 2,
-				resource,
-				accepted,
-				payload: { signature, authorization },
-				extensions: {},
-			};
+				const paymentPayload: X402PaymentPayload = {
+					x402Version: 2,
+					resource,
+					accepted,
+					payload: { signature, authorization },
+					extensions: {},
+				};
 
-			const paymentSignatureHeader = base64EncodeUtf8(JSON.stringify(paymentPayload));
+				const paymentSignatureHeader = base64EncodeUtf8(JSON.stringify(paymentPayload));
 
-			// Compute expiry from validBefore (Unix seconds -> ISO string)
-			const expiresAt = new Date(Number(authorization.validBefore) * 1000).toISOString();
+				// Compute expiry from validBefore (Unix seconds -> ISO string)
+				const expiresAt = new Date(Number(authorization.validBefore) * 1000).toISOString();
 
-			await updateStatus.mutateAsync({
-				id: intent.id,
-				status: "authorized", // x402 payment authorized
-				paymentSignatureHeader,
-				paymentPayload,
-				expiresAt,
-			});
+				await updateStatus.mutateAsync({
+					id: intent.id,
+					status: "authorized", // x402 payment authorized
+					paymentSignatureHeader,
+					paymentPayload,
+					expiresAt,
+				});
 
 				onClose();
 			} catch (err) {
@@ -904,44 +888,37 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 	return (
 		<div className="flex flex-col gap-12 w-full">
 			{error && (
-				<div className="rounded-sm bg-error-transparent px-12 py-8 body-3 text-error">
-					{error}
+				<div className="rounded-sm bg-error-transparent px-12 py-8 body-3 text-error">{error}</div>
+			)}
+
+			{/* Chain mismatch warning - use effective chain for x402 */}
+			{isEffectiveWrongChain && (
+				<div className="rounded-sm bg-warning-transparent px-12 py-8 body-3 text-warning">
+					Switch to {effectiveChain?.name ?? "the correct network"} to{" "}
+					{isX402 ? "authorize" : "sign"}
 				</div>
 			)}
 
-		{/* Chain mismatch warning - use effective chain for x402 */}
-		{isEffectiveWrongChain && (
-			<div className="rounded-sm bg-warning-transparent px-12 py-8 body-3 text-warning">
-				Switch to {effectiveChain?.name ?? "the correct network"} to {isX402 ? "authorize" : "sign"}
+			<div className="flex gap-12 w-full">
+				<Button
+					appearance="gray"
+					onClick={handleReject}
+					disabled={isSigning || isRejecting || updateStatus.isPending}
+					isFull
+				>
+					{isRejecting ? <Spinner size="sm" /> : "Reject"}
+				</Button>
+				<Button
+					appearance="base"
+					onClick={handleSign}
+					disabled={isSigning || isRejecting || isEffectiveWrongChain || updateStatus.isPending}
+					isFull
+				>
+					{isSigning ? <Spinner size="sm" /> : isX402 ? "Authorize" : "Sign with Ledger"}
+				</Button>
 			</div>
-		)}
-
-		<div className="flex gap-12 w-full">
-			<Button
-				appearance="gray"
-				onClick={handleReject}
-				disabled={isSigning || isRejecting || updateStatus.isPending}
-				isFull
-			>
-				{isRejecting ? <Spinner size="sm" /> : "Reject"}
-			</Button>
-			<Button
-				appearance="base"
-				onClick={handleSign}
-				disabled={isSigning || isRejecting || isEffectiveWrongChain || updateStatus.isPending}
-				isFull
-			>
-				{isSigning ? (
-					<Spinner size="sm" />
-				) : isX402 ? (
-					"Authorize"
-				) : (
-					"Sign with Ledger"
-				)}
-			</Button>
 		</div>
-	</div>
-);
+	);
 }
 
 // =============================================================================
@@ -951,18 +928,14 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 export function IntentDetailContent({ intent }: IntentDetailContentProps) {
 	const isX402 = !!intent.details.x402?.accepted;
 	const hasSettlementReceipt = !!intent.details.x402?.settlementReceipt;
-	
+
 	return (
 		<div className="flex flex-col gap-16">
 			<HeroSection intent={intent} />
 			{/* Show settlement receipt if available (for confirmed x402 payments) */}
 			{hasSettlementReceipt && <SettlementReceiptSection intent={intent} />}
 			{/* Show x402 payment details for API payments, recipient for standard transfers */}
-			{isX402 ? (
-				<X402PaymentSection intent={intent} />
-			) : (
-				<RecipientSection intent={intent} />
-			)}
+			{isX402 ? <X402PaymentSection intent={intent} /> : <RecipientSection intent={intent} />}
 			<MerchantSection intent={intent} />
 			<AgentSection intent={intent} />
 			<TechnicalDetailsSection intent={intent} />

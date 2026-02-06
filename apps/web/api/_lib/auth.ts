@@ -24,8 +24,8 @@ export function parseCookieHeader(cookieHeader: string | undefined): Record<stri
 }
 
 export function setSessionCookie(res: VercelResponse, sessionId: string, expiresAt: Date) {
-	const nodeEnv = (globalThis as unknown as { process?: { env?: { NODE_ENV?: string } } })
-		.process?.env?.NODE_ENV;
+	const nodeEnv = (globalThis as unknown as { process?: { env?: { NODE_ENV?: string } } }).process
+		?.env?.NODE_ENV;
 	const isProd = nodeEnv === "production";
 	const cookie = [
 		`${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
@@ -34,13 +34,15 @@ export function setSessionCookie(res: VercelResponse, sessionId: string, expires
 		"SameSite=Lax",
 		isProd ? "Secure" : "",
 		`Expires=${expiresAt.toUTCString()}`,
-	].filter(Boolean).join("; ");
+	]
+		.filter(Boolean)
+		.join("; ");
 	res.setHeader("Set-Cookie", cookie);
 }
 
 export function clearSessionCookie(res: VercelResponse) {
-	const nodeEnv = (globalThis as unknown as { process?: { env?: { NODE_ENV?: string } } })
-		.process?.env?.NODE_ENV;
+	const nodeEnv = (globalThis as unknown as { process?: { env?: { NODE_ENV?: string } } }).process
+		?.env?.NODE_ENV;
 	const isProd = nodeEnv === "production";
 	const cookie = [
 		`${SESSION_COOKIE_NAME}=`,
@@ -49,11 +51,15 @@ export function clearSessionCookie(res: VercelResponse) {
 		"SameSite=Lax",
 		isProd ? "Secure" : "",
 		"Expires=Thu, 01 Jan 1970 00:00:00 GMT",
-	].filter(Boolean).join("; ");
+	]
+		.filter(Boolean)
+		.join("; ");
 	res.setHeader("Set-Cookie", cookie);
 }
 
-export async function requireSession(req: VercelRequest): Promise<{ sessionId: string; walletAddress: string }> {
+export async function requireSession(
+	req: VercelRequest,
+): Promise<{ sessionId: string; walletAddress: string }> {
 	const cookies = parseCookieHeader(req.headers.cookie);
 	const sessionId = cookies[SESSION_COOKIE_NAME];
 	if (!sessionId) {
@@ -97,4 +103,3 @@ export async function verifyPersonalSignature(params: {
 	});
 	return recovered.toLowerCase();
 }
-

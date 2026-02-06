@@ -1,6 +1,5 @@
 import type { IntentStatus } from "@agent-intents/shared";
 import { isSupportedChain } from "@agent-intents/shared";
-import { isAddress } from "viem";
 /**
  * Intents endpoint
  *
@@ -13,6 +12,7 @@ import { isAddress } from "viem";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sql } from "@vercel/postgres";
 import { v4 as uuidv4 } from "uuid";
+import { isAddress } from "viem";
 import { verifyAgentAuth } from "./_lib/agentAuth.js";
 import { requireSession } from "./_lib/auth.js";
 import {
@@ -23,9 +23,9 @@ import {
 	methodRouter,
 	parseBodyWithSchema,
 } from "./_lib/http.js";
-import { createIntentRequestSchema } from "./_lib/validation.js";
 import { createIntent, getIntentsByUser } from "./_lib/intentsRepo.js";
 import { logger } from "./_lib/logger.js";
+import { createIntentRequestSchema } from "./_lib/validation.js";
 
 /** Maximum intents per agent per minute */
 const RATE_LIMIT_PER_MINUTE = 10;
@@ -168,7 +168,13 @@ export default methodRouter({
 		const paymentUrl = `${proto}://${host}/pay/${intent.id}`;
 
 		logger.info(
-			{ intentId: intent.id, agentName: intent.agentName, amount: intent.details.amount, token: intent.details.token, recipient: intent.details.recipient },
+			{
+				intentId: intent.id,
+				agentName: intent.agentName,
+				amount: intent.details.amount,
+				token: intent.details.token,
+				recipient: intent.details.recipient,
+			},
 			"Intent created",
 		);
 

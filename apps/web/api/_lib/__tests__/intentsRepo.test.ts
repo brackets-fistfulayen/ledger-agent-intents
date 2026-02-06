@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { IntentStatusConflictError, sanitizeIntent } from "../intentsRepo.js";
 import type { Intent } from "@agent-intents/shared";
+import { describe, expect, it } from "vitest";
+import { IntentStatusConflictError, sanitizeIntent } from "../intentsRepo.js";
 
 // =============================================================================
 // IntentStatusConflictError

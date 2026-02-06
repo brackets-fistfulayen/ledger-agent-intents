@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
-import { codeToHtml, type BundledLanguage } from "shiki";
 import { cn } from "@/lib/utils";
+import { useCallback, useEffect, useState } from "react";
+import { type BundledLanguage, codeToHtml } from "shiki";
 
 interface CodeBlockProps {
 	children: string;
@@ -9,12 +9,7 @@ interface CodeBlockProps {
 	className?: string;
 }
 
-export function CodeBlock({
-	children,
-	language = "json",
-	title,
-	className,
-}: CodeBlockProps) {
+export function CodeBlock({ children, language = "json", title, className }: CodeBlockProps) {
 	const [html, setHtml] = useState<string>("");
 	const [copied, setCopied] = useState(false);
 
@@ -49,9 +44,7 @@ export function CodeBlock({
 	}, [children]);
 
 	return (
-		<div
-			className={cn("rounded-md overflow-hidden bg-[#0d1117] relative", className)}
-		>
+		<div className={cn("rounded-md overflow-hidden bg-[#0d1117] relative", className)}>
 			{title ? (
 				<div className="px-16 py-8 bg-[#161b22] flex items-center justify-between border-b border-[#30363d]">
 					<span className="body-3-semi-bold text-[#8b949e]">{title}</span>

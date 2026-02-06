@@ -99,8 +99,6 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
 	return (
-		<span className={cn(statusBadgeVariants({ status }), className)}>
-			{STATUS_LABELS[status]}
-		</span>
+		<span className={cn(statusBadgeVariants({ status }), className)}>{STATUS_LABELS[status]}</span>
 	);
 }

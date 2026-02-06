@@ -39,7 +39,13 @@ export async function registerAgent(params: {
 	label?: string;
 	authorizationSignature?: string;
 }): Promise<TrustchainMember> {
-	const { trustchainId, memberPubkey, role = "agent_write_only", label, authorizationSignature } = params;
+	const {
+		trustchainId,
+		memberPubkey,
+		role = "agent_write_only",
+		label,
+		authorizationSignature,
+	} = params;
 
 	const result = await sql`
     INSERT INTO trustchain_members (trustchain_id, member_pubkey, role, label, authorization_signature)
@@ -53,9 +59,7 @@ export async function registerAgent(params: {
 /**
  * Look up an active (non-revoked) member by their public key (address).
  */
-export async function getActiveMemberByPubkey(
-	pubkey: string,
-): Promise<TrustchainMember | null> {
+export async function getActiveMemberByPubkey(pubkey: string): Promise<TrustchainMember | null> {
 	const result = await sql`
     SELECT * FROM trustchain_members
     WHERE member_pubkey = ${pubkey}
@@ -83,9 +87,7 @@ export async function getMemberById(id: string): Promise<TrustchainMember | null
 /**
  * List all members for a trustchain (including revoked ones).
  */
-export async function getMembersByTrustchain(
-	trustchainId: string,
-): Promise<TrustchainMember[]> {
+export async function getMembersByTrustchain(trustchainId: string): Promise<TrustchainMember[]> {
 	const result = await sql`
     SELECT * FROM trustchain_members
     WHERE trustchain_id = ${trustchainId}

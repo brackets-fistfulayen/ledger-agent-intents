@@ -1,12 +1,12 @@
-import type { TrustchainMember, RegisterAgentRequest } from "@agent-intents/shared";
+import type { RegisterAgentRequest, TrustchainMember } from "@agent-intents/shared";
 import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
-const API_BASE = import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_URL || "") : "";
+const API_BASE = import.meta.env.DEV ? import.meta.env.VITE_BACKEND_URL || "" : "";
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 	const res = await fetch(url, { credentials: "include", ...init });
 	if (!res.ok) {
-		const body = await res.json().catch(() => ({ error: res.statusText })) as { error?: string };
+		const body = (await res.json().catch(() => ({ error: res.statusText }))) as { error?: string };
 		throw new Error(body.error || `Request failed: ${res.status}`);
 	}
 	return (await res.json()) as T;
@@ -45,9 +45,7 @@ export function useRegisterAgent() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: async (
-			params: RegisterAgentRequest,
-		): Promise<TrustchainMember> => {
+		mutationFn: async (params: RegisterAgentRequest): Promise<TrustchainMember> => {
 			const data = await fetchJson<{ success: boolean; member: TrustchainMember }>(
 				`${API_BASE}/api/agents/register`,
 				{

@@ -16,13 +16,13 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { verifyAgentAuth } from "../_lib/agentAuth.js";
 import { requireSession } from "../_lib/auth.js";
 import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
-import { updateStatusBodySchema } from "../_lib/validation.js";
 import {
+	IntentStatusConflictError,
 	getIntentById,
 	updateIntentStatus,
-	IntentStatusConflictError,
 } from "../_lib/intentsRepo.js";
 import { logger } from "../_lib/logger.js";
+import { updateStatusBodySchema } from "../_lib/validation.js";
 
 const VALID_STATUSES: IntentStatus[] = [
 	"pending",
@@ -40,7 +40,12 @@ const VALID_STATUSES: IntentStatus[] = [
 const AGENT_ALLOWED_STATUSES: IntentStatus[] = ["executing", "confirmed", "failed"];
 
 /** Statuses an authenticated user (session) is allowed to set */
-const USER_ALLOWED_STATUSES: IntentStatus[] = ["approved", "rejected", "authorized", "broadcasting"];
+const USER_ALLOWED_STATUSES: IntentStatus[] = [
+	"approved",
+	"rejected",
+	"authorized",
+	"broadcasting",
+];
 
 export default methodRouter({
 	POST: async (req: VercelRequest, res: VercelResponse) => {
@@ -107,7 +112,7 @@ export default methodRouter({
 			}
 		}
 
-		let intent;
+		let intent: Awaited<ReturnType<typeof updateIntentStatus>>;
 		try {
 			intent = await updateIntentStatus({
 				id: intentId,

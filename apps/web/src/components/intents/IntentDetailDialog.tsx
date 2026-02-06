@@ -26,11 +26,7 @@ interface IntentDetailDialogProps {
  * Dialog wrapper for displaying intent details for approval.
  * Uses Lumen Dialog components with controlled open state.
  */
-export function IntentDetailDialog({
-	intent,
-	open,
-	onOpenChange,
-}: IntentDetailDialogProps) {
+export function IntentDetailDialog({ intent, open, onOpenChange }: IntentDetailDialogProps) {
 	if (!intent) return null;
 
 	const handleClose = () => onOpenChange(false);
@@ -40,11 +36,7 @@ export function IntentDetailDialog({
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-w-[540px]">
-				<DialogHeader
-					appearance="compact"
-					title={dialogTitle}
-					onClose={handleClose}
-				/>
+				<DialogHeader appearance="compact" title={dialogTitle} onClose={handleClose} />
 				<DialogBody>
 					<IntentDetailContent intent={intent} />
 				</DialogBody>

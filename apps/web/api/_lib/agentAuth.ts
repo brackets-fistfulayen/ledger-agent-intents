@@ -1,3 +1,4 @@
+import type { TrustchainMember } from "@agent-intents/shared";
 /**
  * Agent authentication utilities for Vercel Functions.
  *
@@ -13,9 +14,8 @@
  * in the `trustchain_members` table.
  */
 import type { VercelRequest } from "@vercel/node";
-import { recoverMessageAddress, keccak256, toHex, isAddress } from "viem";
+import { isAddress, keccak256, recoverMessageAddress, toHex } from "viem";
 import { getActiveMemberByPubkey } from "./agentsRepo.js";
-import type { TrustchainMember } from "@agent-intents/shared";
 import { logger } from "./logger.js";
 
 /** Maximum clock skew tolerance for agent-signed timestamps (5 minutes). */

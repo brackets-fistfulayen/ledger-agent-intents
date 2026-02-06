@@ -184,11 +184,7 @@ export function DeviceActionDialog() {
 					<RadixDialog.Title>{config.title}</RadixDialog.Title>
 				</VisuallyHidden.Root>
 
-				<DialogHeader
-					appearance="compact"
-					title={config.title}
-					onClose={dismissDeviceAction}
-				/>
+				<DialogHeader appearance="compact" title={config.title} onClose={dismissDeviceAction} />
 				<DialogBody>
 					<div className="flex flex-col items-center gap-16 py-24">
 						{/* Lottie animation or fallback icon.

@@ -3,8 +3,8 @@
  * GET /api/me
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { methodRouter, jsonError, jsonSuccess } from "./_lib/http.js";
 import { requireSession } from "./_lib/auth.js";
+import { jsonError, jsonSuccess, methodRouter } from "./_lib/http.js";
 
 export default methodRouter({
 	GET: async (req: VercelRequest, res: VercelResponse) => {
@@ -16,4 +16,3 @@ export default methodRouter({
 		}
 	},
 });
-

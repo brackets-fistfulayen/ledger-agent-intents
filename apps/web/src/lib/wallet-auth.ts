@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useLedger } from "./ledger-provider";
 
 // Use same-origin API in production (Vercel); allow override in development only.
-const API_BASE = import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_URL || "") : "";
+const API_BASE = import.meta.env.DEV ? import.meta.env.VITE_BACKEND_URL || "" : "";
 
 /** Maximum number of automatic retry attempts before giving up. */
 const MAX_AUTO_RETRIES = 3;
@@ -17,13 +17,7 @@ const RETRY_BASE_DELAY_MS = 2000;
  * - `authing`          – personal_sign challenge-sign-verify in progress
  * - `error`            – auth attempt failed (will auto-retry)
  */
-export type AuthStatus =
-	| "idle"
-	| "checking"
-	| "authed"
-	| "unauthenticated"
-	| "authing"
-	| "error";
+export type AuthStatus = "idle" | "checking" | "authed" | "unauthenticated" | "authing" | "error";
 
 type MeResponse = {
 	success: boolean;
@@ -155,7 +149,9 @@ export function useWalletAuth(): {
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify({ walletAddress: account }),
 				});
-				const challengeJson = (await challengeRes.json().catch(() => null)) as ChallengeResponse | null;
+				const challengeJson = (await challengeRes
+					.json()
+					.catch(() => null)) as ChallengeResponse | null;
 				if (!challengeRes.ok || !challengeJson?.success) {
 					throw new Error(challengeJson?.error || "Failed to get auth challenge");
 				}

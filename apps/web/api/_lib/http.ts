@@ -73,10 +73,7 @@ export function setCorsHeaders(res: VercelResponse, req?: VercelRequest) {
 			res.setHeader("Access-Control-Allow-Origin", "*");
 		}
 	}
-	res.setHeader(
-		"Access-Control-Allow-Methods",
-		"GET, POST, PUT, PATCH, DELETE, OPTIONS"
-	);
+	res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
 	res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
@@ -87,23 +84,14 @@ export function setCorsHeaders(res: VercelResponse, req?: VercelRequest) {
  * converted to Number; larger values are serialised as strings.  This avoids
  * the "Do not know how to serialize a BigInt" TypeError thrown by JSON.stringify.
  */
-export function jsonSuccess<T extends object>(
-	res: VercelResponse,
-	data: T,
-	status = 200
-) {
+export function jsonSuccess<T extends object>(res: VercelResponse, data: T, status = 200) {
 	const json = JSON.stringify({ success: true, ...data }, (_key, value) => {
 		if (typeof value === "bigint") {
-			return Number.isSafeInteger(Number(value))
-				? Number(value)
-				: value.toString();
+			return Number.isSafeInteger(Number(value)) ? Number(value) : value.toString();
 		}
 		return value;
 	});
-	res
-		.status(status)
-		.setHeader("Content-Type", "application/json; charset=utf-8")
-		.end(json);
+	res.status(status).setHeader("Content-Type", "application/json; charset=utf-8").end(json);
 }
 
 /**
@@ -127,7 +115,10 @@ export function parseBodyWithSchema<T>(
 		return result.data;
 	}
 	const flattened = result.error.flatten();
-	const message = flattened.formErrors[0] ?? Object.values(flattened.fieldErrors).flat()[0] ?? "Validation failed";
+	const message =
+		flattened.formErrors[0] ??
+		Object.values(flattened.fieldErrors).flat()[0] ??
+		"Validation failed";
 	jsonError(res, message, 400);
 	return null;
 }
@@ -135,10 +126,7 @@ export function parseBodyWithSchema<T>(
 /**
  * Get query parameter as string
  */
-export function getQueryParam(
-	req: VercelRequest,
-	key: string
-): string | undefined {
+export function getQueryParam(req: VercelRequest, key: string): string | undefined {
 	const value = req.query[key];
 	return Array.isArray(value) ? value[0] : value;
 }
@@ -151,16 +139,16 @@ export function getQueryNumber(
 	key: string,
 	defaultValue: number,
 	min?: number,
-	max?: number
+	max?: number,
 ): number {
 	const raw = getQueryParam(req, key);
 	if (!raw) return defaultValue;
-	
-	let num = parseInt(raw, 10);
-	if (isNaN(num)) return defaultValue;
-	
+
+	let num = Number.parseInt(raw, 10);
+	if (Number.isNaN(num)) return defaultValue;
+
 	if (min !== undefined && num < min) num = min;
 	if (max !== undefined && num > max) num = max;
-	
+
 	return num;
 }

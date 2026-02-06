@@ -24,32 +24,38 @@ const x402ResourceSchema = z.object({
 });
 
 /** X402 accepted EVM (minimal for validation) */
-const x402AcceptedEvmSchema = z.object({
-	network: z.string(),
-	asset: z.string(),
-	amount: z.string(),
-	payTo: z.string(),
-}).passthrough();
+const x402AcceptedEvmSchema = z
+	.object({
+		network: z.string(),
+		asset: z.string(),
+		amount: z.string(),
+		payTo: z.string(),
+	})
+	.passthrough();
 
 /** X402 context (optional nested) */
-const x402ContextSchema = z.object({
-	resource: x402ResourceSchema.optional(),
-	accepted: x402AcceptedEvmSchema.optional(),
-}).passthrough();
+const x402ContextSchema = z
+	.object({
+		resource: x402ResourceSchema.optional(),
+		accepted: x402AcceptedEvmSchema.optional(),
+	})
+	.passthrough();
 
 /** Transfer intent details */
-const transferIntentSchema = z.object({
-	type: z.literal("transfer"),
-	token: z.string().min(1),
-	tokenAddress: z.string().optional(),
-	amount: z.string().min(1),
-	recipient: z.string().min(1),
-	chainId: z.number().int().positive(),
-	memo: z.string().optional(),
-	resource: z.string().optional(),
-	category: z.string().optional(),
-	x402: x402ContextSchema.optional(),
-}).passthrough();
+const transferIntentSchema = z
+	.object({
+		type: z.literal("transfer"),
+		token: z.string().min(1),
+		tokenAddress: z.string().optional(),
+		amount: z.string().min(1),
+		recipient: z.string().min(1),
+		chainId: z.number().int().positive(),
+		memo: z.string().optional(),
+		resource: z.string().optional(),
+		category: z.string().optional(),
+		x402: x402ContextSchema.optional(),
+	})
+	.passthrough();
 
 const urgencySchema = z.enum(["low", "normal", "high", "critical"]).optional();
 
@@ -119,5 +125,10 @@ export function isValidIntentId(id: string): boolean {
 
 /** Validate userId (wallet address format - basic) */
 export function isValidUserId(userId: string): boolean {
-	return typeof userId === "string" && userId.length >= 40 && userId.length <= 44 && /^0x[a-fA-F0-9]+$/.test(userId);
+	return (
+		typeof userId === "string" &&
+		userId.length >= 40 &&
+		userId.length <= 44 &&
+		/^0x[a-fA-F0-9]+$/.test(userId)
+	);
 }

@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { IntentList } from "@/components/intents";
+import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
 	component: HomePage,
@@ -11,9 +11,7 @@ function HomePage() {
 			{/* Page header */}
 			<div className="flex flex-col gap-8">
 				<h1 className="heading-1-semi-bold text-base">Ledger Agent Payments</h1>
-				<p className="body-1 text-muted">
-					Agents propose, humans sign with hardware
-				</p>
+				<p className="body-1 text-muted">Agents propose, humans sign with hardware</p>
 			</div>
 
 			{/* Intent List (handles all states internally) */}

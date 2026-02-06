@@ -4,9 +4,9 @@
  * DELETE /api/agents/:id   – Revoke an agent (requires session, ownership)
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { requireSession } from "../_lib/auth.js";
-import { methodRouter, jsonSuccess, jsonError } from "../_lib/http.js";
 import { getMemberById, revokeMember } from "../_lib/agentsRepo.js";
+import { requireSession } from "../_lib/auth.js";
+import { jsonError, jsonSuccess, methodRouter } from "../_lib/http.js";
 import { logger } from "../_lib/logger.js";
 
 export default methodRouter({
@@ -71,7 +71,10 @@ export default methodRouter({
 			return;
 		}
 
-		logger.info({ memberId: revoked.id, label: revoked.label, trustchainId: revoked.trustchainId }, "Agent revoked");
+		logger.info(
+			{ memberId: revoked.id, label: revoked.label, trustchainId: revoked.trustchainId },
+			"Agent revoked",
+		);
 		jsonSuccess(res, { member: revoked });
 	},
 });

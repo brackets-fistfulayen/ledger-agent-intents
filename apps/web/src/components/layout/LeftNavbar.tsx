@@ -1,5 +1,5 @@
-import { useLocation, useNavigate } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 
 // =============================================================================
 // ICONS - Matching Figma design
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 function HomeIcon({ className }: { className?: string }) {
 	return (
 		<svg
+			aria-hidden="true"
 			width="20"
 			height="20"
 			viewBox="0 0 20 20"
@@ -36,6 +37,7 @@ function HomeIcon({ className }: { className?: string }) {
 function HistoryIcon({ className }: { className?: string }) {
 	return (
 		<svg
+			aria-hidden="true"
 			width="20"
 			height="20"
 			viewBox="0 0 20 20"
@@ -71,6 +73,7 @@ function HistoryIcon({ className }: { className?: string }) {
 function DocsIcon({ className }: { className?: string }) {
 	return (
 		<svg
+			aria-hidden="true"
 			width="20"
 			height="20"
 			viewBox="0 0 20 20"
@@ -120,6 +123,7 @@ function DocsIcon({ className }: { className?: string }) {
 function SettingsIcon({ className }: { className?: string }) {
 	return (
 		<svg
+			aria-hidden="true"
 			width="20"
 			height="20"
 			viewBox="0 0 20 20"

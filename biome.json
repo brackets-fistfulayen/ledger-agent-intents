@@ -33,10 +33,12 @@
 			"dist",
 			".vinxi",
 			".output",
+			".turbo",
 			"packages/ledger-button",
 			"packages/ledger-button-core",
 			"**/routeTree.gen.ts",
-			"**/*.timestamp_*.js"
+			"**/*.timestamp_*.js",
+			"pnpm-lock.yaml"
 		]
 	}
 }

@@ -58,15 +58,12 @@ export function ChainLogo({ chainId, className, size = 24 }: ChainLogoProps) {
 	}
 
 	const iconFilename = CHAIN_ID_TO_ICON[chainId];
-	
+
 	// Use Ledger crypto icons CDN
 	if (iconFilename) {
 		return (
 			<div
-				className={cn(
-					"flex items-center justify-center overflow-hidden rounded-full",
-					className,
-				)}
+				className={cn("flex items-center justify-center overflow-hidden rounded-full", className)}
 				style={{ width: size, height: size }}
 			>
 				<img
