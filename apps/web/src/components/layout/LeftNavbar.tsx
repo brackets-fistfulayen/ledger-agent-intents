@@ -120,6 +120,58 @@ function DocsIcon({ className }: { className?: string }) {
 	);
 }
 
+function AgentContextIcon({ className }: { className?: string }) {
+	return (
+		<svg
+			aria-hidden="true"
+			width="20"
+			height="20"
+			viewBox="0 0 20 20"
+			fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			className={className}
+		>
+			<rect
+				x="4"
+				y="3"
+				width="12"
+				height="10"
+				rx="2"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+				strokeLinejoin="round"
+			/>
+			<circle cx="7.5" cy="8" r="1" fill="currentColor" />
+			<circle cx="12.5" cy="8" r="1" fill="currentColor" />
+			<path
+				d="M10 13V15"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+			/>
+			<path
+				d="M6 17H14"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+			/>
+			<path
+				d="M10 3V1.5"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+			/>
+			<path
+				d="M7 1.5H13"
+				stroke="currentColor"
+				strokeWidth="1.5"
+				strokeLinecap="round"
+			/>
+		</svg>
+	);
+}
+
 function SettingsIcon({ className }: { className?: string }) {
 	return (
 		<svg
@@ -163,6 +215,7 @@ type NavItem = {
 const mainNavItems: NavItem[] = [
 	{ id: "home", label: "Review Intents", icon: HomeIcon, path: "/" },
 	{ id: "history", label: "Transaction History", icon: HistoryIcon, path: "/history" },
+	{ id: "agent-context", label: "Context for Agents", icon: AgentContextIcon, path: "/agent-context" },
 ];
 
 const bottomNavItems: NavItem[] = [
@@ -209,6 +262,7 @@ function NavButton({ item, isActive, onClick }: NavButtonProps) {
 function getActiveItemFromPath(pathname: string): string {
 	if (pathname === "/") return "home";
 	if (pathname.startsWith("/history")) return "history";
+	if (pathname.startsWith("/agent-context")) return "agent-context";
 	if (pathname.startsWith("/docs")) return "api-docs";
 	if (pathname.startsWith("/settings")) return "settings";
 	return "home";
