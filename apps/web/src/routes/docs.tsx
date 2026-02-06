@@ -7,7 +7,7 @@ export const Route = createFileRoute("/docs")({
 	component: DocsPage,
 	head: () => ({
 		meta: [
-			{ title: "API Documentation | Ledger Agent Payments" },
+			{ title: "API Documentation | Agent Payments with Ledger" },
 			{
 				name: "description",
 				content:
@@ -186,7 +186,7 @@ function DocsPage() {
 						</Link>
 					</div>
 					<div>
-						<h1 className="heading-2-semi-bold text-base">Ledger Agent Payments API</h1>
+						<h1 className="heading-2-semi-bold text-base">Agent Payments with Ledger API</h1>
 						<p className="body-1 text-muted mt-8">
 							Documentation for AI agents to submit transaction intents for Ledger hardware signing.
 						</p>
@@ -206,7 +206,7 @@ function DocsPage() {
 				{/* Overview */}
 				<Section id="overview" title="Overview">
 					<p className="body-1 text-base">
-						The Ledger Agent Payments API allows AI agents to submit transaction intents that will
+						The Agent Payments with Ledger API allows AI agents to submit transaction intents that will
 						be queued for human review and hardware signing. This creates a secure bridge where
 						agents can propose transactions but never access private keys.
 					</p>
@@ -1337,7 +1337,7 @@ done`}
 				<div className="pt-32 border-t border-[#30363d]">
 					<div className="flex items-center justify-between">
 						<div>
-							<p className="body-2 text-muted-subtle">Ledger Agent Payments API Documentation</p>
+							<p className="body-2 text-muted-subtle">Agent Payments with Ledger API Documentation</p>
 							<p className="body-3 text-muted-subtle mt-4">
 								Machine-readable spec:{" "}
 								<a href="/openapi.json" className="text-accent hover:underline">

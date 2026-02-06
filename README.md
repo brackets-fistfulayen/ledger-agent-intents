@@ -1,4 +1,4 @@
-# Ledger Agent Payments
+# Agent Payments with Ledger
 
 > **"Agents propose, humans sign with hardware."**
 

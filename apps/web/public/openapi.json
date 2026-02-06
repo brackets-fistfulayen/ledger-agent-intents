@@ -1,7 +1,7 @@
 {
 	"openapi": "3.1.0",
 	"info": {
-		"title": "Ledger Agent Payments API",
+		"title": "Agent Payments with Ledger API",
 		"version": "0.2.0",
 		"description": "Agent-first API for submitting transaction intents. AI agents propose transactions; humans review and sign on Ledger hardware. Agents never touch private keys.\n\n## Quick Start\n1. Register your agent key (human signs authorization on Ledger)\n2. `POST /api/intents` with AgentAuth header to propose a transaction\n3. Share the returned `paymentUrl` with the human\n4. Poll `GET /api/intents/{id}` until status is `confirmed`, `rejected`, `failed`, or `expired`\n\n## Authentication\nAgents authenticate via the `Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>` header.\n- `timestamp`: Unix epoch seconds (within 5 min of server time)\n- `bodyHash`: keccak256 of raw JSON body as hex (use `0x` for GET)\n- `signature`: EIP-191 personal_sign of `<timestamp>.<bodyHash>` with agent's secp256k1 key"
 	},

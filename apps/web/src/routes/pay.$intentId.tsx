@@ -11,7 +11,7 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/pay/$intentId")({
 	component: PayPage,
 	head: () => ({
-		meta: [{ title: "Review Payment — Ledger Agent Payments" }],
+		meta: [{ title: "Review Payment — Agent Payments with Ledger" }],
 	}),
 });
 

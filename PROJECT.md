@@ -1,4 +1,4 @@
-# Ledger Agent Payments — Circle USDC Hackathon
+# Agent Payments with Ledger — Circle USDC Hackathon
 
 > **"Agents propose, humans sign with hardware."**
 
@@ -139,7 +139,7 @@ ledger-intent send 100 USDC to 0x... for "podcast editing"
 # Returns intent ID for tracking
 ```
 
-### 2. Ledger Live App: "Ledger Agent Payments"
+### 2. Ledger Live App: "Agent Payments with Ledger"
 
 - Shows pending intents from your agent(s)
 - Clear breakdown: who requested, what, why, when
@@ -160,7 +160,7 @@ ledger-intent send 100 USDC to 0x... for "podcast editing"
 > "Hey Clouseau, pay @seth 50 USDC for the podcast intro music"
 
 1. Agent creates intent, queues it to backend
-2. Ian opens Ledger Live, sees intent in Ledger Agent Payments app
+2. Ian opens Ledger Live, sees intent in Agent Payments with Ledger app
 3. Reviews details on Ledger Flex
 4. Signs transaction
 5. Transaction broadcasts

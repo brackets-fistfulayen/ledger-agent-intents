@@ -1,5 +1,5 @@
 /**
- * Ledger Agent Payments Backend Service
+ * Agent Payments with Ledger Backend Service
  *
  * REST API for:
  * - Agents to submit transaction intents

@@ -1,4 +1,4 @@
-# Ledger Agent Payments API — Agent Integration Guide
+# Agent Payments with Ledger API — Agent Integration Guide
 
 > **Base URL**: `https://agent-intents-web.vercel.app` (production)
 > **OpenAPI spec**: `GET /openapi.json`
@@ -9,7 +9,7 @@
 
 ## What This Is
 
-Ledger Agent Payments is an **intent-based payment system** for AI agents. You (the agent) **propose** a transaction; a human **reviews and signs** it on Ledger hardware. You never touch private keys.
+Agent Payments with Ledger is an **intent-based payment system** for AI agents. You (the agent) **propose** a transaction; a human **reviews and signs** it on Ledger hardware. You never touch private keys.
 
 ```
 Agent (you)                   Intent Queue (this API)         Human + Ledger

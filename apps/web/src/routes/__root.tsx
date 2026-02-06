@@ -23,7 +23,7 @@ export const Route = createRootRoute({
 		meta: [
 			{ charSet: "utf-8" },
 			{ name: "viewport", content: "width=device-width, initial-scale=1" },
-			{ title: "Ledger Agent Payments" },
+			{ title: "Agent Payments with Ledger" },
 			{
 				name: "description",
 				content: "Agents propose, humans sign with hardware.",
