@@ -127,6 +127,12 @@ export function DeviceActionDialog() {
 	// "Open Ethereum app" layout — matches the Ledger reference design
 	// -------------------------------------------------------------------------
 	if (isOpenApp) {
+		// "confirm-open-app" is an actual device interaction (user must approve
+		// on-screen); all other isOpenApp statuses are preparation/loading states
+		// (authenticating, preparing to sign, etc.).
+		const isDeviceInteraction = deviceActionState.status === "confirm-open-app";
+		const displayTitle = deviceActionState.message || config.title;
+
 		return (
 			<Dialog
 				open
@@ -137,7 +143,7 @@ export function DeviceActionDialog() {
 				<DialogContent aria-describedby={undefined}>
 					{/* Visually-hidden Radix title — satisfies accessibility requirement */}
 					<VisuallyHidden.Root asChild>
-						<RadixDialog.Title>{config.title}</RadixDialog.Title>
+						<RadixDialog.Title>{displayTitle}</RadixDialog.Title>
 					</VisuallyHidden.Root>
 
 					{/* Minimal header with just the Ledger logo */}
@@ -146,13 +152,15 @@ export function DeviceActionDialog() {
 					</div>
 					<DialogBody>
 						<div className="flex flex-col items-center gap-16 py-24">
-							{deviceActionState.status === "installing-app" ? (
-								<Spot appearance="loader" size={56} />
-							) : (
+							{isDeviceInteraction ? (
 								<Spot appearance="icon" icon={Usb} size={56} />
+							) : (
+								<Spot appearance="loader" size={56} />
 							)}
-							<p className="heading-4 text-center text-base">{config.title}</p>
-							<p className="body-2 text-muted text-center">{config.subtitle}</p>
+							<p className="heading-4 text-center text-base">{displayTitle}</p>
+							{isDeviceInteraction && config.subtitle && (
+								<p className="body-2 text-muted text-center">{config.subtitle}</p>
+							)}
 						</div>
 					</DialogBody>
 				</DialogContent>

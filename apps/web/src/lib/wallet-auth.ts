@@ -68,7 +68,7 @@ export function useWalletAuth(): {
 	/** Trigger the full personal_sign challenge → Ledger-sign → verify flow. */
 	authenticate: () => void;
 } {
-	const { account, isConnected, personalSign } = useLedger();
+	const { account, isConnected, personalSign, dismissDeviceAction } = useLedger();
 	const [status, setStatus] = useState<AuthStatus>("idle");
 	const [error, setError] = useState<Error | null>(null);
 	const checkingRef = useRef(false);
@@ -120,14 +120,21 @@ export function useWalletAuth(): {
 		(async () => {
 			try {
 				const valid = await checkExistingSession(walletLower);
-				setStatus(valid ? "authed" : "unauthenticated");
+				if (valid) {
+					setStatus("authed");
+					// Session already exists — dismiss the "Authenticating…" dialog
+					// that selectAddress left open (no signing needed).
+					dismissDeviceAction();
+				} else {
+					setStatus("unauthenticated");
+				}
 			} catch {
 				setStatus("unauthenticated");
 			} finally {
 				checkingRef.current = false;
 			}
 		})();
-	}, [isConnected, account, status]);
+	}, [isConnected, account, status, dismissDeviceAction]);
 
 	// ── Active phase: full challenge → sign → verify ────────────────────
 	const authenticate = useCallback(() => {
@@ -139,6 +146,7 @@ export function useWalletAuth(): {
 		setError(null);
 
 		(async () => {
+			let signingStarted = false;
 			try {
 				// 1. Request a challenge nonce from the backend
 				const challengeRes = await fetch(`${API_BASE}/api/auth/challenge`, {
@@ -153,6 +161,7 @@ export function useWalletAuth(): {
 				}
 
 				// 2. Sign the welcome message with EIP-191 personal_sign on the Ledger
+				signingStarted = true;
 				const signature = await personalSign(challengeJson.message);
 
 				// 3. Verify signature with the backend to establish a session
@@ -177,11 +186,21 @@ export function useWalletAuth(): {
 				const err = e instanceof Error ? e : new Error("Authentication failed");
 				setError(err);
 				setStatus("error");
+
+				if (!signingStarted) {
+					// Pre-signing error (e.g. challenge API failure) — dismiss
+					// the transitional "Authenticating…" dialog left open by
+					// selectAddress, since no device interaction happened.
+					dismissDeviceAction();
+				}
+				// If signing started and threw, personalSign already set its own
+				// error state in the DeviceActionDialog (with a Retry button).
+				// We leave the dialog open so the user can retry from it.
 			} finally {
 				authingRef.current = false;
 			}
 		})();
-	}, [isConnected, account, personalSign]);
+	}, [isConnected, account, personalSign, dismissDeviceAction]);
 
 	// ── Auto-trigger: sign automatically when unauthenticated ───────────
 	useEffect(() => {

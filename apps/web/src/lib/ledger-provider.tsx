@@ -908,7 +908,14 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			setAccount(derived.address);
 			setShowAddressPicker(false);
 			setDerivedAddresses([]);
-			setDeviceActionState(null);
+			// Keep the DeviceActionDialog open with a transitional state so
+			// authentication (personal_sign) can proceed without the modal
+			// closing and reopening. useWalletAuth will dismiss it once the
+			// session is established (or already valid).
+			setDeviceActionState({
+				status: "open-app",
+				message: "Authenticating…",
+			});
 		},
 		[setAccount, persistDerivationPath],
 	);

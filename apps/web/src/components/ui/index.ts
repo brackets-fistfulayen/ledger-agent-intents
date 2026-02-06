@@ -1,3 +1,4 @@
+export { AgentIntentsLogo } from "./AgentIntentsLogo";
 export { Badge, StatusBadge } from "./Badge";
 export { ChainLogo } from "./ChainLogo";
 export { CodeBlock } from "./CodeBlock";

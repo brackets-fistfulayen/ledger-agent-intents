@@ -1,9 +1,9 @@
 import { Button, Menu, MenuContent, MenuItem, MenuTrigger } from "@ledgerhq/lumen-ui-react";
-import { Check, Copy, Devices, ExitLogout, LedgerLogo } from "@ledgerhq/lumen-ui-react/symbols";
+import { Check, Copy, Devices, ExitLogout } from "@ledgerhq/lumen-ui-react/symbols";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useRef, useState } from "react";
 
-import { ChainLogo } from "@/components/ui";
+import { AgentIntentsLogo, ChainLogo } from "@/components/ui";
 import { useLedger } from "@/lib/ledger-provider";
 
 export function Header() {
@@ -32,9 +32,10 @@ export function Header() {
 
 	return (
 		<header className="flex h-80 items-center justify-between px-40">
-			{/* Left: Logo */}
-			<Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
-				<LedgerLogo size={32} className="text-base" />
+			{/* Left: Logo + brand */}
+			<Link to="/" className="flex items-center gap-10 hover:opacity-80 transition-opacity">
+				<AgentIntentsLogo size={28} className="text-base" />
+				<span className="body-1-semi-bold text-base">Agent Intents</span>
 			</Link>
 
 			{/* Right: Actions */}
@@ -59,12 +60,13 @@ export function Header() {
 
 								{/* Copy button (separated by a subtle divider) */}
 								<div className="w-1 h-20 bg-muted-strong" />
-								<button
-									type="button"
-									onClick={handleCopy}
-									className="flex items-center justify-center size-36 hover:bg-muted-hover transition-colors"
-									aria-label="Copy address"
-								>
+							<button
+								type="button"
+								onClick={handleCopy}
+								onPointerDown={(e) => e.stopPropagation()}
+								className="flex items-center justify-center size-36 hover:bg-muted-hover transition-colors"
+								aria-label="Copy address"
+							>
 									{copied ? (
 										<Check size={16} className="text-success" />
 									) : (
