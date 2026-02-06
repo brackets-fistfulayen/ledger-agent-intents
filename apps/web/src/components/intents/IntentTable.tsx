@@ -157,12 +157,15 @@ function TableHeader() {
 				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
 					Amount
 				</th>
-				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-					Chain
-				</th>
-				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
-					Status
-				</th>
+			<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
+				Chain
+			</th>
+			<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
+				Created At
+			</th>
+			<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
+				Status
+			</th>
 				<th className="py-12 px-24 text-left body-3-semi-bold text-muted">
 					Actions
 				</th>
@@ -178,7 +181,7 @@ function TableHeader() {
 function EmptyRow({ message }: { message: string }) {
 	return (
 		<tr>
-			<td colSpan={7} className="py-64 px-24 text-center">
+			<td colSpan={8} className="py-64 px-24 text-center">
 				<span className="body-1 text-muted">{message}</span>
 			</td>
 		</tr>
@@ -192,7 +195,7 @@ function EmptyRow({ message }: { message: string }) {
 function LoadingRow() {
 	return (
 		<tr>
-			<td colSpan={7} className="py-64 px-24 text-center">
+			<td colSpan={8} className="py-64 px-24 text-center">
 				<div className="flex items-center justify-center gap-12">
 					<Spinner size="lg" className="text-muted" />
 					<span className="body-1 text-muted">Loading intents...</span>
@@ -230,8 +233,8 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 	const tokenDecimals = tokenInfo?.decimals ?? 6;
 	const isX402 = !!details.x402?.accepted;
 
-	// Format intent ID (first 8 chars)
-	const shortId = intent.id.slice(0, 8);
+	// Full intent ID
+	const fullId = intent.id;
 
 	// ==========================================================================
 	// Handlers
@@ -506,7 +509,7 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 				{/* Intent ID */}
 				<td className="py-20 px-24">
 					<div className="flex items-center gap-8">
-						<code className="font-mono body-2 text-muted">{shortId}...</code>
+						<code className="font-mono body-2 text-muted">{fullId}</code>
 						<span className="body-2 text-base">{intent.agentName}</span>
 					</div>
 				</td>
@@ -537,12 +540,27 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 					</span>
 				</td>
 
-				{/* Chain */}
-				<td className="py-20 px-24">
-					<ChainLogo chainId={intentChainId} />
-				</td>
+			{/* Chain */}
+			<td className="py-20 px-24">
+				<ChainLogo chainId={intentChainId} />
+			</td>
 
-				{/* Status */}
+			{/* Created At */}
+			<td className="py-20 px-24">
+				<span className="body-2 text-muted">
+					{new Date(intent.createdAt).toLocaleDateString(undefined, {
+						year: "numeric",
+						month: "short",
+						day: "numeric",
+					})}{" "}
+					{new Date(intent.createdAt).toLocaleTimeString(undefined, {
+						hour: "2-digit",
+						minute: "2-digit",
+					})}
+				</span>
+			</td>
+
+			{/* Status */}
 				<td className="py-20 px-24">
 					<StatusBadge status={intent.status} />
 				</td>
@@ -591,7 +609,7 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 			{/* Error row */}
 			{error && (
 				<tr>
-					<td colSpan={7} className="px-24 pb-16">
+					<td colSpan={8} className="px-24 pb-16">
 						<div className="rounded-sm bg-error-transparent px-16 py-10 body-2 text-error">
 							{error}
 						</div>

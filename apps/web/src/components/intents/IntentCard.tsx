@@ -90,7 +90,7 @@ export function IntentCard({ intent }: IntentCardProps) {
 			// 5. Update intent status with txHash
 			await updateStatus.mutateAsync({
 				id: intent.id,
-				status: "signed",
+				status: "broadcasting",
 				txHash,
 			});
 		} catch (err) {

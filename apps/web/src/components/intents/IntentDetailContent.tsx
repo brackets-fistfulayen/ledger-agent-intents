@@ -290,7 +290,7 @@ function X402PaymentSection({ intent }: { intent: Intent }) {
 	const domain = extractDomain(resource.url);
 	
 	return (
-		<div className="rounded-lg border border-interactive/30 bg-interactive/5 p-16 flex flex-col gap-12">
+		<div className="rounded-lg bg-interactive/5 p-16 flex flex-col gap-12">
 			<div className="flex items-center gap-8">
 				<div className="size-8 rounded-full bg-interactive" />
 				<span className="body-2-semi-bold text-interactive">x402 Payment Details</span>

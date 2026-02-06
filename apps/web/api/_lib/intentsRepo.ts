@@ -25,7 +25,7 @@ interface IntentRow {
 	created_at: Date;
 	expires_at: Date | null;
 	reviewed_at: Date | null;
-	signed_at: Date | null;
+	broadcast_at: Date | null;
 	confirmed_at: Date | null;
 	tx_hash: string | null;
 	tx_url: string | null;
@@ -72,7 +72,7 @@ function rowToIntent(row: IntentRow, history: StatusHistoryRow[]): Intent {
 		createdAt: row.created_at.toISOString(),
 		expiresAt: row.expires_at?.toISOString(),
 		reviewedAt: row.reviewed_at?.toISOString(),
-		signedAt: row.signed_at?.toISOString(),
+		broadcastAt: row.broadcast_at?.toISOString(),
 		confirmedAt: row.confirmed_at?.toISOString(),
 		txHash: row.tx_hash ?? undefined,
 		txUrl: row.tx_url ?? undefined,
@@ -409,7 +409,7 @@ export async function updateIntentStatus(params: {
 
 	// Build update based on status
 	let txUrl: string | null = null;
-	if (status === "signed" && txHash) {
+	if (status === "broadcasting" && txHash) {
 		txUrl = getExplorerTxUrl(intentRow.details.chainId, txHash);
 	}
 
@@ -420,17 +420,17 @@ export async function updateIntentStatus(params: {
       SET status = ${status}, reviewed_at = ${nowIso}
       WHERE id = ${id}
     `;
-	} else if (status === "signed" && txHash) {
+	} else if (status === "broadcasting" && txHash) {
 		await sql`
       UPDATE intents
-      SET status = ${status}, signed_at = ${nowIso}, tx_hash = ${txHash}, tx_url = ${txUrl}
+      SET status = ${status}, broadcast_at = ${nowIso}, tx_hash = ${txHash}, tx_url = ${txUrl}
       WHERE id = ${id}
     `;
-	} else if (status === "signed") {
-		// Signed may mean an x402 authorization signature (no onchain tx hash yet)
+	} else if (status === "broadcasting") {
+		// Broadcasting without a tx hash (edge case)
 		await sql`
       UPDATE intents
-      SET status = ${status}, signed_at = ${nowIso}
+      SET status = ${status}, broadcast_at = ${nowIso}
       WHERE id = ${id}
     `;
 	} else if (status === "confirmed") {

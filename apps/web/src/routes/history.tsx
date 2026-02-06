@@ -19,7 +19,7 @@ export const Route = createFileRoute("/history")({
 /** Statuses that represent a "completed" intent (not pending). */
 const COMPLETED_STATUSES = new Set([
 	"approved",
-	"signed",
+	"broadcasting",
 	"authorized",
 	"confirmed",
 	"rejected",

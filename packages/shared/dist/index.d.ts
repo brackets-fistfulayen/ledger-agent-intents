@@ -1,7 +1,7 @@
 /**
  * Shared types for Ledger Agent Payments system
  */
-export type IntentStatus = "pending" | "approved" | "rejected" | "signed" | "authorized" | "executing" | "confirmed" | "failed" | "expired";
+export type IntentStatus = "pending" | "approved" | "rejected" | "broadcasting" | "authorized" | "executing" | "confirmed" | "failed" | "expired";
 /**
  * Valid status transitions for intents.
  * Terminal states (rejected, confirmed, failed, expired) have no outgoing transitions.
@@ -138,7 +138,7 @@ export interface Intent {
     createdAt: string;
     expiresAt?: string;
     reviewedAt?: string;
-    signedAt?: string;
+    broadcastAt?: string;
     confirmedAt?: string;
     txHash?: string;
     txUrl?: string;
@@ -186,7 +186,7 @@ export interface CreateIntentResponse {
     error?: string;
 }
 export interface IntentWebhook {
-    event: "intent.created" | "intent.approved" | "intent.rejected" | "intent.signed" | "intent.confirmed" | "intent.failed" | "intent.expired";
+    event: "intent.created" | "intent.approved" | "intent.rejected" | "intent.broadcasting" | "intent.confirmed" | "intent.failed" | "intent.expired";
     intent: Intent;
     timestamp: string;
 }

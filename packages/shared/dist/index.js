@@ -6,10 +6,10 @@
  * Terminal states (rejected, confirmed, failed, expired) have no outgoing transitions.
  */
 export const INTENT_TRANSITIONS = {
-    pending: ["approved", "rejected", "failed", "expired"],
-    approved: ["signed", "authorized", "failed", "expired"],
+    pending: ["approved", "rejected", "broadcasting", "authorized", "failed", "expired"],
+    approved: ["broadcasting", "authorized", "failed", "expired"],
     rejected: [],
-    signed: ["confirmed", "failed", "expired"],
+    broadcasting: ["confirmed", "failed", "expired"],
     authorized: ["executing", "confirmed", "failed", "expired"],
     executing: ["confirmed", "failed"],
     confirmed: [],

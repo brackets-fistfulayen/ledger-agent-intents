@@ -7,7 +7,7 @@ export type IntentStatus =
 	| "pending" // Created by agent, awaiting human review
 	| "approved" // Human approved, ready to sign
 	| "rejected" // Human rejected
-	| "signed" // Signed on device, broadcasting (for on-chain transactions)
+	| "broadcasting" // Signed on device, transaction broadcasting (for on-chain transactions)
 	| "authorized" // x402 payment authorized (signature ready for agent to use)
 	| "executing" // x402: agent is retrying with PAYMENT-SIGNATURE (transient)
 	| "confirmed" // Transaction confirmed on-chain / x402 payment settled
@@ -19,10 +19,10 @@ export type IntentStatus =
  * Terminal states (rejected, confirmed, failed, expired) have no outgoing transitions.
  */
 export const INTENT_TRANSITIONS: Record<IntentStatus, IntentStatus[]> = {
-	pending: ["approved", "rejected", "failed", "expired"],
-	approved: ["signed", "authorized", "failed", "expired"],
+	pending: ["approved", "rejected", "broadcasting", "authorized", "failed", "expired"],
+	approved: ["broadcasting", "authorized", "failed", "expired"],
 	rejected: [],
-	signed: ["confirmed", "failed", "expired"],
+	broadcasting: ["confirmed", "failed", "expired"],
 	authorized: ["executing", "confirmed", "failed", "expired"],
 	executing: ["confirmed", "failed"],
 	confirmed: [],
@@ -211,7 +211,7 @@ export interface Intent {
 	createdAt: string; // ISO timestamp
 	expiresAt?: string; // Optional expiration
 	reviewedAt?: string; // When human reviewed
-	signedAt?: string; // When signed on device
+	broadcastAt?: string; // When signed on device and broadcast started
 	confirmedAt?: string; // When confirmed on-chain
 
 	// Transaction data (populated after signing)
@@ -281,7 +281,7 @@ export interface IntentWebhook {
 		| "intent.created"
 		| "intent.approved"
 		| "intent.rejected"
-		| "intent.signed"
+		| "intent.broadcasting"
 		| "intent.confirmed"
 		| "intent.failed"
 		| "intent.expired";

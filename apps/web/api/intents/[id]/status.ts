@@ -31,7 +31,7 @@ const VALID_STATUSES: IntentStatus[] = [
 	"pending",
 	"approved",
 	"rejected",
-	"signed",
+	"broadcasting",
 	"authorized",
 	"executing",
 	"confirmed",
@@ -43,7 +43,7 @@ const VALID_STATUSES: IntentStatus[] = [
 const AGENT_ALLOWED_STATUSES: IntentStatus[] = ["executing", "confirmed", "failed"];
 
 /** Statuses an authenticated user (session) is allowed to set */
-const USER_ALLOWED_STATUSES: IntentStatus[] = ["approved", "rejected", "authorized", "signed"];
+const USER_ALLOWED_STATUSES: IntentStatus[] = ["approved", "rejected", "authorized", "broadcasting"];
 
 export default methodRouter({
 	PATCH: async (req: VercelRequest, res: VercelResponse) => {

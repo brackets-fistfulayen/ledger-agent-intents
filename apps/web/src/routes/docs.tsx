@@ -473,7 +473,7 @@ function DocsPage() {
 										desc: "Human approved, ready to sign",
 									},
 								{
-									status: "signed",
+									status: "broadcasting",
 									appearance: "accent",
 									desc: "Signed, broadcasting tx",
 								},
@@ -787,7 +787,7 @@ done`}
   createdAt: string;
   expiresAt?: string;
   reviewedAt?: string;
-  signedAt?: string;
+  broadcastAt?: string;
   confirmedAt?: string;
   
   // Transaction result
@@ -826,7 +826,7 @@ done`}
   | "pending"     // Created by agent, awaiting human review
   | "approved"    // Human approved, ready to sign
   | "rejected"    // Human rejected
-  | "signed"      // Signed on device, broadcasting
+  | "broadcasting" // Signed on device, broadcasting tx
   | "authorized"  // x402 payment authorized (optional)
   | "confirmed"   // Transaction confirmed on-chain
   | "failed"      // Transaction failed
