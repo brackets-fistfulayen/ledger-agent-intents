@@ -20,7 +20,7 @@ One prompt injection, one compromised skill, one bad actor — and your funds ar
 
 ## The Solution
 
-**Intent Queue + Ledger Hardware Signing**
+**Intent Queue + Ledger Hardware Signing + x402 Pay-Per-Call**
 
 ```
 ┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
@@ -34,10 +34,11 @@ One prompt injection, one compromised skill, one bad actor — and your funds ar
                                                  └─────────────────┘
 ```
 
-- Agents can propose any transaction
+- Agents can propose any transaction (transfers or x402 API payments)
 - Humans review full details before signing
-- Hardware wallet security (Ledger)
-- Complete audit trail
+- Hardware wallet security (Ledger) via direct DMK integration
+- EIP-3009 `TransferWithAuthorization` for pay-per-call APIs (x402 protocol)
+- Complete audit trail with status history
 - Sleep well at night
 
 ---
@@ -67,6 +68,10 @@ pnpm build --filter @agent-intents/shared
 ### Running Locally
 
 ```bash
+# Start all dev servers
+pnpm dev
+
+# Or individually:
 # Start the backend (Terminal 1)
 pnpm dev --filter @agent-intents/backend
 
@@ -96,12 +101,19 @@ node packages/skill/bin/ledger-intent.js status <intent-id>
 ```
 ledger-agent-intents/
 ├── apps/
-│   ├── backend/          # Express API (intent queue + audit)
-│   └── web/              # React web app (review + sign)
+│   ├── backend/          # Express API (standalone, in-memory store for dev)
+│   │   ├── src/          # Server source + x402 client library
+│   │   └── scripts/      # Test scripts (x402 demos, intent creation)
+│   └── web/              # Full-stack web app (React + Vercel serverless API)
+│       ├── api/          # Vercel serverless API routes (PostgreSQL-backed)
+│       ├── db/           # Database migrations
+│       ├── public/       # OpenAPI spec + API docs
+│       └── src/          # React app (TanStack Router)
 ├── packages/
-│   ├── shared/           # TypeScript types & constants
+│   ├── shared/           # TypeScript types, constants, status lifecycle
 │   └── skill/            # OpenClaw skill (ledger-intent CLI)
-├── PROJECT.md            # Living project documentation
+├── docs/
+│   └── api.md            # API reference documentation
 └── README.md             # You are here
 ```
 
@@ -109,10 +121,88 @@ ledger-agent-intents/
 
 | Component | Description |
 |-----------|-------------|
-| **Backend** | REST API for creating, listing, and updating intents |
-| **Web App** | React UI with Ledger integration for reviewing and signing |
+| **Web App** | React UI with Ledger DMK integration for reviewing and signing intents |
+| **Web API** | Vercel serverless functions — production API (PostgreSQL, agent auth, sessions) |
+| **Backend** | Express.js standalone backend (in-memory store, for local dev / hackathon) |
+| **Shared** | TypeScript types for Intent, Status, x402, supported chains & tokens |
 | **Skill** | CLI for agents to create intents (`ledger-intent send ...`) |
-| **Shared** | TypeScript types for Intent, Status, supported chains & tokens |
+
+---
+
+## x402 Pay-Per-Call Protocol
+
+x402 enables agents to pay for API access on-the-fly. When an agent hits a protected endpoint, the server responds with **HTTP 402 Payment Required**. The agent creates a payment intent, the user authorizes it via Ledger, and the agent retries with a payment signature.
+
+### Flow
+
+```
+1. Agent calls protected API → receives 402 Payment Required
+2. Agent decodes PAYMENT-REQUIRED header (resource, amount, recipient)
+3. Agent creates intent via POST /api/intents (includes x402 context)
+4. User opens payment page → reviews amount, recipient, network
+5. User signs EIP-712 TransferWithAuthorization (EIP-3009) on Ledger
+6. Agent polls for "authorized" status → extracts payment signature
+7. Agent retries API call with PAYMENT-SIGNATURE header
+8. Server settles payment → agent updates intent to "confirmed"
+```
+
+### Status Lifecycle
+
+```
+pending → approved → authorized → executing → confirmed
+              │                       │
+              └→ rejected             └→ failed
+                                      └→ expired (via cron)
+```
+
+| Status | Meaning |
+|--------|---------|
+| `pending` | Intent created, awaiting user review |
+| `approved` | User approved the intent |
+| `rejected` | User rejected the intent |
+| `authorized` | User signed EIP-3009 authorization (x402) |
+| `broadcasting` | Transaction submitted to network (standard transfers) |
+| `executing` | Agent retrying HTTP request with payment signature (x402) |
+| `confirmed` | Payment settled / transaction confirmed |
+| `failed` | Payment or transaction failed |
+| `expired` | Authorization expired (cron-driven) |
+
+### Security
+
+- **Nonce replay protection** — unique 32-byte nonce per authorization, enforced by DB unique index
+- **Authorization expiry** — `validBefore` timestamp limits authorization validity; cron auto-expires
+- **Sensitive data sanitization** — `paymentSignatureHeader` only returned to the owning agent
+- **Chain validation** — frontend validates wallet is on the correct chain before signing
+- **USDC balance checks** — pre-sign balance verification prevents wasted device interactions
+
+---
+
+## Device Connection (Ledger DMK)
+
+The web app connects to Ledger devices directly via the **Device Management Kit** (DMK), replacing the older Ledger Button SDK.
+
+### Supported Transports
+
+- **USB** (WebHID)
+- **Bluetooth** (Web BLE)
+
+### Connection Flow
+
+1. **Transport selection** — user picks USB or Bluetooth
+2. **Device discovery** — browser shows native device picker
+3. **Session monitoring** — detects lock/unlock/disconnect in real-time
+4. **Ethereum app** — auto-opens (or installs) the Ethereum app
+5. **Address derivation** — derives addresses from multiple paths; user selects one
+6. **Persistence** — selected address and derivation path persist across page refreshes
+
+### Supported Devices
+
+Device-specific Lottie animations for:
+- Ledger Nano S / S Plus
+- Ledger Nano X
+- Ledger Stax
+- Ledger Flex
+- Ledger Apex
 
 ---
 
@@ -130,7 +220,7 @@ ledger-intent send <amount> <token> to <address> [for "reason"] [--chain <id>] [
 ledger-intent status <intent-id>
 
 # List recent intents
-ledger-intent list [--status pending|signed|confirmed|rejected]
+ledger-intent list [--status pending|confirmed|rejected]
 ```
 
 ### Examples
@@ -142,11 +232,11 @@ ledger-intent send 50 USDC to 0x1234...5678 for "podcast intro music"
 # Send ETH on mainnet
 ledger-intent send 0.5 ETH to vitalik.eth
 
-# Urgent payment on Polygon
-ledger-intent send 100 USDC to 0xabc...def for "time-sensitive invoice" --chain 137 --urgency high
+# Urgent payment on Base
+ledger-intent send 100 USDC to 0xabc...def for "time-sensitive invoice" --chain 8453 --urgency high
 ```
 
-### Environment Variables
+### CLI Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -240,13 +330,93 @@ console.log("Intent created:", data.intent.id);
 
 When using `AgentAuth`, the `userId` field is **ignored** — the backend derives the identity from the verified agent key.
 
-### 3. Revoke an Agent Key
+### 3. x402 Intent (Agent-Side)
+
+For x402 pay-per-call payments, include the x402 context in the intent details:
+
+```typescript
+const body = JSON.stringify({
+  agentId: "my-trading-bot",
+  agentName: "My Trading Bot",
+  details: {
+    type: "transfer",
+    token: "USDC",
+    tokenAddress: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    amount: "0.01",
+    recipient: "0xPaymentRecipient...",
+    chainId: 8453,
+    resource: "https://api.example.com/expensive-endpoint",
+    category: "api_payment",
+    x402: {
+      resource: { url: "https://api.example.com/expensive-endpoint", method: "GET" },
+      accepted: {
+        scheme: "exact",
+        network: "eip155:8453",
+        maxAmountRequired: "10000",
+        asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        payTo: "0xPaymentRecipient...",
+        extra: { decimals: 6 }
+      }
+    }
+  }
+});
+```
+
+### 4. Revoke an Agent Key
 
 Go to **Settings > Agent Keys** in the web app and click **Revoke** on the agent. The agent will receive `401 Unauthorized` on subsequent requests.
 
 ---
 
 ## API Reference
+
+### Authentication
+
+Two authentication schemes:
+
+| Scheme | Used By | Description |
+|--------|---------|-------------|
+| **AgentAuth** | AI agents | Header-based: `Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>` |
+| **SessionCookie** | Web UI | Cookie-based: `ai_session` (7-day expiry, HttpOnly) |
+
+### Health
+
+```http
+GET /api/health
+```
+
+Response: `{ "status": "ok", "db": "ok", "timestamp": "..." }`
+
+### Auth
+
+#### Request Challenge
+
+```http
+POST /api/auth/challenge
+Content-Type: application/json
+
+{ "walletAddress": "0x...", "chainId": 8453 }
+```
+
+Returns an EIP-712 typed data challenge for the user to sign on their Ledger.
+
+#### Verify Signature
+
+```http
+POST /api/auth/verify
+Content-Type: application/json
+
+{ "challengeId": "uuid", "signature": "0x..." }
+```
+
+Verifies the signature, establishes a session, and sets the `ai_session` cookie.
+
+#### Get Authenticated Wallet
+
+```http
+GET /api/me
+Cookie: ai_session=<session-id>
+```
 
 ### Intents
 
@@ -279,6 +449,8 @@ The `Authorization` header is optional. Without it, the legacy demo mode is used
 GET /api/intents/:id
 ```
 
+Sensitive x402 fields (payment signature) are only returned to the owning agent via AgentAuth.
+
 #### List User Intents
 
 ```http
@@ -297,8 +469,9 @@ Content-Type: application/json
 
 {
   "id": "int_...",
-  "status": "signed",
-  "txHash": "0x..."
+  "status": "confirmed",
+  "txHash": "0x...",
+  "settlementReceipt": { ... }
 }
 ```
 
@@ -307,7 +480,7 @@ PATCH /api/intents/:id/status
 Content-Type: application/json
 
 {
-  "status": "signed",
+  "status": "confirmed",
   "txHash": "0x..."
 }
 ```
@@ -340,14 +513,23 @@ GET /api/agents?trustchainId=0xabc...def
 POST /api/agents/revoke
 Content-Type: application/json
 
-{
-  "id": "uuid"
-}
+{ "id": "uuid" }
 ```
 
 ```http
 DELETE /api/agents/:id
 ```
+
+### Cron
+
+#### Expire Intents
+
+```http
+POST /api/cron/expire-intents
+Authorization: Bearer <CRON_SECRET>
+```
+
+Runs every minute via Vercel Cron. Transitions expired x402 authorizations to `expired` status.
 
 ---
 
@@ -355,9 +537,9 @@ DELETE /api/agents/:id
 
 | Chain ID | Name | Tokens |
 |----------|------|--------|
-| 1 | Ethereum | ETH, USDC, USDT, DAI |
-| 137 | Polygon | MATIC, USDC, USDT |
 | 8453 | Base | ETH, USDC |
+| 84532 | Base Sepolia | ETH, USDC |
+| 11155111 | Sepolia | ETH |
 
 ---
 
@@ -377,16 +559,18 @@ DELETE /api/agents/:id
    - **Pooled connection** (`POSTGRES_URL`) — used by the serverless functions at runtime
    - **Direct connection** (`POSTGRES_URL_NON_POOLING`) — used for migrations
 
-### Step 2: Run the Schema
+### Step 2: Run Migrations
 
-Apply the schema to your Neon database:
+Apply the database schema:
 
 ```bash
 # Set the direct (non-pooling) connection string
 export POSTGRES_URL_NON_POOLING="postgresql://user:pass@ep-xxx.us-east-1.aws.neon.tech/dbname?sslmode=require"
 
-# Create all tables
+# Run all migrations in order
 psql "$POSTGRES_URL_NON_POOLING" -f apps/web/db/migrations/001_initial_schema.sql
+psql "$POSTGRES_URL_NON_POOLING" -f apps/web/db/migrations/002_x402_hardening.sql
+psql "$POSTGRES_URL_NON_POOLING" -f apps/web/db/migrations/003_rename_signed_to_broadcasting.sql
 ```
 
 ### Step 3: Deploy to Vercel
@@ -408,6 +592,7 @@ Go to your project **Settings > Environment Variables** and add:
 | `POSTGRES_URL` | Neon pooled connection string | Yes |
 | `POSTGRES_URL_NON_POOLING` | Neon direct connection string | Yes |
 | `VITE_LEDGER_API_KEY` | Your Ledger Developer Portal API key | Yes |
+| `CRON_SECRET` | Secret for cron job auth | Yes |
 | `VITE_BASE_MAINNET_RPC_URL` | Base mainnet RPC URL (e.g., Alchemy) | Optional |
 | `VITE_LEDGER_STUB_DAPP_CONFIG` | `false` (or omit) | No |
 
@@ -415,7 +600,7 @@ Go to your project **Settings > Environment Variables** and add:
 
 ### Step 5: Verify
 
-1. Visit `https://your-app.vercel.app/api/health` — should return `{ "success": true, "status": "ok" }`
+1. Visit `https://your-app.vercel.app/api/health` — should return `{ "status": "ok", "db": "ok" }`
 2. Open the web app, connect your Ledger, and go to Settings to provision an agent key
 3. Use the downloaded credential file to POST an authenticated intent (see [Agent Provisioning](#agent-provisioning-lkrp) above)
 
@@ -433,6 +618,9 @@ Go to your project **Settings > Environment Variables** and add:
 | `VITE_LEDGER_STUB_DAPP_CONFIG` | Use stub dApp config | `false` |
 | `POSTGRES_URL` | Neon/Vercel Postgres pooled URL | (required for API) |
 | `POSTGRES_URL_NON_POOLING` | Neon/Vercel Postgres direct URL | (required for migrations) |
+| `CRON_SECRET` | Secret for cron job authentication | (required for prod) |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins | (request origin for dev) |
+| `LOG_LEVEL` | Pino log level | `info` |
 
 ---
 
@@ -453,29 +641,75 @@ pnpm typecheck
 # Lint and format
 pnpm lint
 pnpm format
+
+# Run tests
+pnpm turbo run test
+
+# Full CI pipeline
+pnpm ci
 ```
 
 ### Tech Stack
 
 - **Monorepo**: pnpm workspaces + Turborepo
-- **Backend**: Express.js, TypeScript
+- **Backend**: Express.js, TypeScript (standalone dev server)
+- **Web API**: Vercel serverless functions, PostgreSQL (Neon)
 - **Frontend**: React 19, TanStack Router, TanStack Query, Tailwind CSS
-- **Tooling**: Biome (lint/format), Vite
+- **Device**: Ledger DMK (Device Management Kit) — USB & Bluetooth
+- **Signing**: EIP-712 typed data, EIP-3009 TransferWithAuthorization, personal_sign
+- **Auth**: EIP-712 challenge/verify (sessions), AgentAuth (agents)
+- **Tooling**: Biome (lint/format), Vite, Vitest
+- **CI/CD**: GitHub Actions, Vercel
+
+### Database Migrations
+
+Three migration files in `apps/web/db/migrations/`:
+
+1. `001_initial_schema.sql` — Base tables: intents, agents, auth challenges/sessions, status history
+2. `002_x402_hardening.sql` — x402 nonce replay protection, executing status, rate-limit indexes
+3. `003_rename_signed_to_broadcasting.sql` — Renames `signed` → `broadcasting` status
+
+### Testing
+
+```bash
+# Run all tests
+pnpm turbo run test
+
+# Run web API tests
+pnpm test --filter @agent-intents/web
+
+# Run backend tests
+pnpm test --filter @agent-intents/backend
+```
+
+Test coverage includes:
+- **Validation** — Zod schema tests for all API endpoints
+- **Agent Auth** — Header parsing, timestamp verification, body hash integrity
+- **Intent Repo** — Status conflicts, x402 field sanitization
+- **x402 Client** — Client library, fetch wrapper integration
 
 ---
 
 ## Roadmap
 
 - [x] Core intent queue system
-- [x] Backend API
+- [x] Backend API (Express + Vercel serverless)
 - [x] Web app with Ledger integration
 - [x] OpenClaw skill CLI
-- [ ] Vercel deployment
-- [ ] Real ERC-20 transfer encoding
-- [ ] Multi-chain support (Polygon, Base)
-- [ ] Intent expiration
+- [x] Vercel deployment with Neon PostgreSQL
+- [x] EIP-712 wallet authentication (challenge/verify)
+- [x] Agent key provisioning (LKRP)
+- [x] x402 pay-per-call protocol (EIP-3009)
+- [x] Direct DMK integration (replaced Ledger Button SDK)
+- [x] Device-specific Lottie animations
+- [x] Multi-chain support (Base, Base Sepolia, Sepolia)
+- [x] Intent expiration (cron-driven)
+- [x] CI/CD pipeline (GitHub Actions)
+- [x] OpenAPI documentation + interactive docs page
 - [ ] Batch signing
 - [ ] Spending limits & rules
+- [ ] ENS name resolution
+- [ ] More ERC-20 tokens
 
 ---
 
@@ -485,8 +719,9 @@ pnpm format
 |----------|----------------|
 | **Security** | Agents never touch keys. Hardware signs everything. |
 | **USDC Native** | Built for stable, predictable agent commerce |
+| **x402 Protocol** | Pay-per-call API payments with hardware authorization |
 | **Practical** | Solves a real problem agents will face |
-| **Ledger Showcase** | Perfect demo of hardware wallet value prop |
+| **Ledger Showcase** | Direct DMK integration — full device control |
 | **Agent-Friendly** | Other agents voting will appreciate the security model |
 
 ---
@@ -497,6 +732,11 @@ pnpm format
 - Agent hiring agent for research tasks
 - Moltbook bounties with escrow
 - Agent tip jars for valuable contributions
+
+### Pay-Per-Call APIs (x402)
+- Agent pays for premium API access on demand
+- User authorizes each payment via Ledger
+- Settlement via EIP-3009 TransferWithAuthorization (USDC)
 
 ### Creator & Content Payments
 - Podcast guest payments

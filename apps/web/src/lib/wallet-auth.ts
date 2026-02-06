@@ -26,13 +26,19 @@ export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
 	const [error, setError] = useState<Error | null>(null);
 	const inFlightRef = useRef(false);
 	const lastWalletRef = useRef<string | null>(null);
+	// Read current status inside the effect without making it a dependency,
+	// which previously caused an infinite retry loop (error → re-trigger → error …).
+	const statusRef = useRef<AuthStatus>(status);
+	statusRef.current = status;
 
 	useEffect(() => {
 		if (!isConnected || !account || !chainId) return;
 		const walletLower = account.toLowerCase();
 
-		// If we already authenticated this wallet and we're still connected, don't redo.
-		if (status === "authed" && lastWalletRef.current === walletLower) return;
+		// Already authenticated this wallet — nothing to do.
+		if (statusRef.current === "authed" && lastWalletRef.current === walletLower) return;
+		// Already failed for this wallet — don't auto-retry (user can disconnect/reconnect).
+		if (statusRef.current === "error" && lastWalletRef.current === walletLower) return;
 		if (inFlightRef.current) return;
 
 		inFlightRef.current = true;
@@ -78,7 +84,7 @@ export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
 				inFlightRef.current = false;
 			}
 		})();
-	}, [isConnected, account, chainId, signTypedDataV4, status]);
+	}, [isConnected, account, chainId, signTypedDataV4]);
 
 	return { status, error };
 }
