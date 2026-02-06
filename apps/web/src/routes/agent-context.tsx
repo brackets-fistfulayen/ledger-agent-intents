@@ -490,9 +490,9 @@ echo "Final status: $STATUS"`}
 									/docs
 								</Link>
 								{" | "}
-								Machine-readable spec:{" "}
-								<a href="/openapi.json" className="text-accent hover:underline">
-									/openapi.json
+								This page as JSON:{" "}
+								<a href="/agent-context.json" className="text-accent hover:underline">
+									/agent-context.json
 								</a>
 							</p>
 						</div>

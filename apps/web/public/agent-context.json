@@ -1,0 +1,116 @@
+{
+	"title": "Agent Quickstart — Create a Payment Intent",
+	"description": "Minimal instructions for an AI agent to create a payment intent using a JSON credential file.",
+	"baseUrl": "https://www.agentintents.io",
+	"prerequisites": ["Foundry (cast)", "curl", "jq"],
+	"credentialFile": {
+		"description": "JSON credential file generated when the human owner registers your agent from the web UI.",
+		"schema": {
+			"version": 1,
+			"label": "My Agent",
+			"trustchainId": "0x<owner-wallet-address>",
+			"privateKey": "0x<hex-encoded-secp256k1-private-key>",
+			"publicKey": "0x<hex-encoded-compressed-public-key>",
+			"createdAt": "2026-01-01T00:00:00.000Z"
+		},
+		"security": "Never commit this file. The privateKey field is a secret."
+	},
+	"authentication": {
+		"headerFormat": "Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>",
+		"parts": {
+			"timestamp": "Current Unix epoch in seconds as a string. Must be within 5 minutes of server time.",
+			"bodyHash": "keccak256 of the raw JSON body as 0x-prefixed hex string. For GET requests use the literal string '0x'.",
+			"signature": "EIP-191 personal_sign of '<timestamp>.<bodyHash>' using the agent's privateKey. Must be 0x-prefixed."
+		},
+		"bodyHashing": "The bodyHash is computed over the exact bytes sent in the request body. Use compact JSON (no extra whitespace) to ensure a deterministic hash."
+	},
+	"createIntent": {
+		"method": "POST",
+		"url": "https://www.agentintents.io/api/intents",
+		"headers": {
+			"Content-Type": "application/json",
+			"Authorization": "AgentAuth <timestamp>.<bodyHash>.<signature>"
+		},
+		"body": {
+			"agentId": "my-agent",
+			"agentName": "My Agent",
+			"details": {
+				"type": "transfer",
+				"token": "USDC",
+				"amount": "1.00",
+				"recipient": "0xRecipientAddress",
+				"chainId": 8453,
+				"memo": "Reason for payment"
+			},
+			"urgency": "normal",
+			"expiresInMinutes": 60
+		},
+		"exampleResponse": {
+			"success": true,
+			"intent": {
+				"id": "int_1770399036079_804497de",
+				"userId": "0x20bfb083c5adacc91c46ac4d37905d0447968166",
+				"agentId": "my-agent",
+				"agentName": "My Agent",
+				"details": {
+					"type": "transfer",
+					"token": "USDC",
+					"amount": "1.00",
+					"recipient": "0xRecipientAddress",
+					"chainId": 8453,
+					"memo": "Reason for payment"
+				},
+				"urgency": "normal",
+				"status": "pending",
+				"trustChainId": "0x20bfb083c5adacc91c46ac4d37905d0447968166",
+				"createdAt": "2026-02-06T17:30:36.127Z",
+				"expiresAt": "2026-02-06T18:30:36.080Z",
+				"statusHistory": [{ "status": "pending", "timestamp": "2026-02-06T17:30:36.222Z" }]
+			},
+			"paymentUrl": "https://www.agentintents.io/pay/int_1770399036079_804497de"
+		},
+		"nextStep": "Share the paymentUrl with the human so they can review and sign the transaction."
+	},
+	"pollForCompletion": {
+		"method": "GET",
+		"url": "https://www.agentintents.io/api/intents/<intent-id>",
+		"headers": {
+			"Authorization": "AgentAuth <timestamp>.0x.<signature>"
+		},
+		"terminalStatuses": ["confirmed", "rejected", "failed", "expired"],
+		"description": "Poll until status is one of the terminal states."
+	},
+	"completeExample": {
+		"language": "bash",
+		"script": "#!/usr/bin/env bash\nset -euo pipefail\n\nCREDENTIAL_FILE=\"agent-credential.json\"\nPRIVATE_KEY=$(jq -r '.privateKey' \"$CREDENTIAL_FILE\")\nAGENT_LABEL=$(jq -r '.label' \"$CREDENTIAL_FILE\")\n\nBODY=$(jq -cn \\\n  --arg agentName \"$AGENT_LABEL\" \\\n  '{\n    agentId: \"my-agent\",\n    agentName: $agentName,\n    details: {\n      type: \"transfer\",\n      token: \"USDC\",\n      amount: \"1.00\",\n      recipient: \"0xRecipientAddress\",\n      chainId: 8453,\n      memo: \"Reason for payment\"\n    },\n    urgency: \"normal\",\n    expiresInMinutes: 60\n  }')\n\nTIMESTAMP=$(date +%s)\nBODY_HASH=$(cast keccak \"$BODY\")\nSIGNATURE=$(cast wallet sign --private-key \"$PRIVATE_KEY\" \"${TIMESTAMP}.${BODY_HASH}\")\n\nRESPONSE=$(curl -s -X POST \"https://www.agentintents.io/api/intents\" \\\n  -H \"Content-Type: application/json\" \\\n  -H \"Authorization: AgentAuth ${TIMESTAMP}.${BODY_HASH}.${SIGNATURE}\" \\\n  -d \"$BODY\")\n\necho \"$RESPONSE\" | jq .\n\nPAYMENT_URL=$(echo \"$RESPONSE\" | jq -r '.paymentUrl')\necho \"\"\necho \"Share this link with the human: $PAYMENT_URL\"\n\nINTENT_ID=$(echo \"$RESPONSE\" | jq -r '.intent.id')\nSTATUS=\"pending\"\n\nfor i in $(seq 1 120); do\n  case \"$STATUS\" in confirmed|rejected|failed|expired) break ;; esac\n  sleep 30\n  POLL_TS=$(date +%s)\n  POLL_SIG=$(cast wallet sign --private-key \"$PRIVATE_KEY\" \"${POLL_TS}.0x\")\n  STATUS=$(curl -s \"https://www.agentintents.io/api/intents/${INTENT_ID}\" \\\n    -H \"Authorization: AgentAuth ${POLL_TS}.0x.${POLL_SIG}\" \\\n    | jq -r '.intent.status')\n  echo \"Poll $i: status=$STATUS\"\ndone\n\necho \"Final status: $STATUS\""
+	},
+	"supportedChains": [
+		{ "chainId": 8453, "name": "Base", "token": "USDC", "notes": "Mainnet" },
+		{ "chainId": 84532, "name": "Base Sepolia", "token": "USDC", "notes": "Testnet" },
+		{ "chainId": 11155111, "name": "Sepolia", "token": "USDC", "notes": "Testnet" }
+	],
+	"troubleshooting": [
+		{
+			"error": "401 Authentication failed",
+			"cause": "Signature or body hash is malformed",
+			"fix": "Ensure bodyHash and signature are 0x-prefixed hex strings"
+		},
+		{
+			"error": "401 Authentication failed",
+			"cause": "Timestamp drift",
+			"fix": "Ensure your system clock is accurate (within 5 minutes of server time)"
+		},
+		{
+			"error": "401 Authentication failed",
+			"cause": "Body hash mismatch",
+			"fix": "Ensure you hash the exact bytes sent as the request body (compact JSON, no trailing newline)"
+		}
+	],
+	"links": {
+		"webUI": "https://www.agentintents.io",
+		"apiDocs": "https://www.agentintents.io/docs",
+		"openAPISpec": "https://www.agentintents.io/openapi.json",
+		"agentContextPage": "https://www.agentintents.io/agent-context",
+		"agentContextJSON": "https://www.agentintents.io/agent-context.json"
+	}
+}
