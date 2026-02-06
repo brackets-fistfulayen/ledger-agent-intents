@@ -827,7 +827,9 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	// -----------------------------------------------------------------------
-	// Ensure we have a connected session for signing operations
+	// Ensure we have a connected session for signing operations.
+	// If the session is missing (e.g. after a page refresh), open the
+	// connect dialog so the user can re-pair the device.
 	// -----------------------------------------------------------------------
 	const ensureSession = useCallback((): {
 		dmk: DeviceManagementKit;
@@ -835,7 +837,10 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	} => {
 		const sessionId = sessionIdRef.current;
 		if (!sessionId) {
-			throw new Error("No device connected. Please connect your Ledger first.");
+			// Open the connect dialog so the user can reconnect,
+			// then retry the operation.
+			setShowConnectDialog(true);
+			throw new Error("Please connect your Ledger device to continue.");
 		}
 		return { dmk: getDmk(), sessionId };
 	}, []);
