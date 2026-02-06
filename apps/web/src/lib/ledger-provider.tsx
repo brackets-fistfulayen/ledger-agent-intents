@@ -108,6 +108,8 @@ interface LedgerContextType {
 	deriveCustomAddress: (path: string) => Promise<void>;
 	/** Whether addresses are currently being derived. */
 	isDerivingAddresses: boolean;
+	/** Retry opening the Ethereum app on the already-connected device. */
+	retryOpenApp: () => Promise<void>;
 }
 
 const LedgerContext = createContext<LedgerContextType | null>(null);
@@ -484,6 +486,122 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	// -----------------------------------------------------------------------
+	// Open Ethereum app + derive addresses (reusable helper)
+	// -----------------------------------------------------------------------
+	const openAppAndDeriveAddresses = useCallback(async () => {
+		const sessionId = sessionIdRef.current;
+		if (!sessionId) {
+			throw new Error("No device connected.");
+		}
+		const dmk = getDmk();
+		const ethSigner = buildEthSigner(dmk, sessionId);
+		const addresses: DerivedAddress[] = [];
+
+		// Try deriving the first address silently (skipOpenApp = true).
+		// If the Ethereum app is open this succeeds immediately.
+		let ethAppReady = false;
+		const firstPath = DERIVATION_PATHS[0];
+
+		if (firstPath) {
+			try {
+				const { observable } = ethSigner.getAddress(firstPath, {
+					checkOnDevice: false,
+					skipOpenApp: true,
+				});
+				const result = await lastValueFrom(observable);
+				if (result.status === DeviceActionStatus.Completed) {
+					addresses.push({
+						address: result.output.address,
+						derivationPath: firstPath,
+					});
+					ethAppReady = true;
+				}
+			} catch {
+				// Ethereum app is not open — we'll open it below
+			}
+		}
+
+		if (!ethAppReady) {
+			const openAppAction = new OpenAppWithDependenciesDeviceAction({
+				input: {
+					application: { name: "Ethereum" },
+					dependencies: [],
+				},
+			});
+
+			const { observable: openAppObservable } = dmk.executeDeviceAction({
+				sessionId,
+				deviceAction: openAppAction,
+			});
+
+			await observeDeviceAction(openAppObservable, "Ethereum app setup");
+		}
+
+		// Ethereum app is open — derive addresses
+		setConnectingTransport(null);
+		setDeviceActionState(null);
+		setIsDerivingAddresses(true);
+
+		const remainingPaths = ethAppReady ? DERIVATION_PATHS.slice(1) : DERIVATION_PATHS;
+
+		for (const derivPath of remainingPaths) {
+			if (!derivPath) continue;
+			try {
+				const { observable } = ethSigner.getAddress(derivPath, {
+					checkOnDevice: false,
+					skipOpenApp: true,
+				});
+				const result = await lastValueFrom(observable);
+				if (result.status === DeviceActionStatus.Completed) {
+					addresses.push({
+						address: result.output.address,
+						derivationPath: derivPath,
+					});
+				}
+			} catch {
+				// Skip addresses that fail to derive
+			}
+		}
+
+		// All addresses derived — open the address picker
+		setIsDerivingAddresses(false);
+		setShowConnectDialog(false);
+		setDerivedAddresses(addresses);
+		setShowAddressPicker(true);
+	}, []);
+
+	// -----------------------------------------------------------------------
+	// Retry opening the Ethereum app on the already-connected device
+	// -----------------------------------------------------------------------
+	const retryOpenApp = useCallback(async () => {
+		setDeviceActionState(null);
+		setShowConnectDialog(true);
+		setConnectingTransport("usb"); // show "waiting" view
+
+		try {
+			await openAppAndDeriveAddresses();
+			monitorSession(sessionIdRef.current!);
+		} catch (err) {
+			setConnectingTransport(null);
+			setIsDerivingAddresses(false);
+			setShowConnectDialog(false);
+
+			const recoverable = classifyRecoverableError(err);
+			if (recoverable) {
+				setDeviceActionState({
+					...recoverable,
+					canRetry: recoverable.canRetry === true || recoverable.status === "open-app",
+				});
+			} else {
+				const message = humanizeError(err);
+				const errorObj = new Error(message);
+				setError(errorObj);
+				setDeviceActionState({ status: "error", message, error: errorObj });
+			}
+		}
+	}, [openAppAndDeriveAddresses, monitorSession]);
+
+	// -----------------------------------------------------------------------
 	// Connect
 	// -----------------------------------------------------------------------
 	const connect = useCallback(
@@ -590,100 +708,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 					setShowConnectDialog(true);
 				}
 
-				// ---------------------------------------------------------------
-				// Ensure the Ethereum app is open, then derive addresses.
-				//
-				// Strategy: try to derive the first address with skipOpenApp.
-				// If it succeeds, the Ethereum app is already running and we
-				// avoid the unnecessary dashboard round-trip.
-				// If it fails, we use OpenAppWithDependenciesDeviceAction to
-				// open (or install) the app, then derive again.
-				//
-				// Keep connectingTransport set until this completes so the
-				// ConnectDeviceDialog stays on the "Waiting for device" view
-				// rather than flashing back to the transport selector.
-				// ---------------------------------------------------------------
-				const ethSigner = buildEthSigner(dmk, sessionId);
-				const addresses: DerivedAddress[] = [];
-
-				// Try deriving the first address silently (skipOpenApp = true).
-				// If the Ethereum app is open this succeeds immediately.
-				let ethAppReady = false;
-				const firstPath = DERIVATION_PATHS[0];
-
-				if (firstPath) {
-					try {
-						const { observable } = ethSigner.getAddress(firstPath, {
-							checkOnDevice: false,
-							skipOpenApp: true,
-						});
-						const result = await lastValueFrom(observable);
-						if (result.status === DeviceActionStatus.Completed) {
-							addresses.push({
-								address: result.output.address,
-								derivationPath: firstPath,
-							});
-							ethAppReady = true;
-						}
-					} catch {
-						// Ethereum app is not open — we'll open it below
-					}
-				}
-
-				if (!ethAppReady) {
-					// Ethereum app is not open. Use the full device action
-					// which handles close → install → open and properly waits
-					// for user confirmation on the device.
-					const openAppAction = new OpenAppWithDependenciesDeviceAction({
-						input: {
-							application: { name: "Ethereum" },
-							dependencies: [],
-						},
-					});
-
-					const { observable: openAppObservable } = dmk.executeDeviceAction({
-						sessionId,
-						deviceAction: openAppAction,
-					});
-
-					await observeDeviceAction(openAppObservable, "Ethereum app setup");
-				}
-
-				// Ethereum app is open — transition from the "waiting" view
-				// straight to the "deriving addresses" view without any gap
-				// that would flash the transport selector.
-				setConnectingTransport(null);
-				setDeviceActionState(null);
-				setIsDerivingAddresses(true);
-
-				// Derive remaining addresses (first one may already be done)
-				const remainingPaths = ethAppReady ? DERIVATION_PATHS.slice(1) : DERIVATION_PATHS;
-
-				for (const derivPath of remainingPaths) {
-					if (!derivPath) continue;
-					try {
-						const { observable } = ethSigner.getAddress(derivPath, {
-							checkOnDevice: false,
-							skipOpenApp: true,
-						});
-						const result = await lastValueFrom(observable);
-						if (result.status === DeviceActionStatus.Completed) {
-							addresses.push({
-								address: result.output.address,
-								derivationPath: derivPath,
-							});
-						}
-					} catch {
-						// Skip addresses that fail to derive
-					}
-				}
-
-				// All addresses derived — close the connect dialog and open
-				// the address picker in one batch
-				setIsDerivingAddresses(false);
-				setShowConnectDialog(false);
-				setDerivedAddresses(addresses);
-				setShowAddressPicker(true);
+				// Open the Ethereum app (if needed) and derive addresses
+				await openAppAndDeriveAddresses();
 
 				// Start monitoring the session for disconnects
 				monitorSession(sessionId);
@@ -721,7 +747,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 				}
 			}
 		},
-		[monitorSession],
+		[monitorSession, openAppAndDeriveAddresses],
 	);
 
 	// -----------------------------------------------------------------------
@@ -1195,6 +1221,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			selectAddress,
 			deriveCustomAddress,
 			isDerivingAddresses,
+			retryOpenApp,
 		}),
 		[
 			account,
@@ -1217,6 +1244,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			selectAddress,
 			deriveCustomAddress,
 			isDerivingAddresses,
+			retryOpenApp,
 		],
 	);
 
