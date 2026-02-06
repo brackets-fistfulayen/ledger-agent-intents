@@ -1,3 +1,4 @@
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AddressPickerDialog } from "@/components/device/AddressPickerDialog";
 import { ConnectDeviceDialog } from "@/components/device/ConnectDeviceDialog";
 import { DeviceActionDialog } from "@/components/device/DeviceActionDialog";
@@ -36,7 +37,9 @@ function RootComponent() {
 		<QueryClientProvider client={queryClient}>
 			<LedgerProvider>
 				<Shell>
-					<Outlet />
+					<ErrorBoundary>
+						<Outlet />
+					</ErrorBoundary>
 				</Shell>
 				<DeviceActionDialog />
 				<ConnectDeviceDialog />

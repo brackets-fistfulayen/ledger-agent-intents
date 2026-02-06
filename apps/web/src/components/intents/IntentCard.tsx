@@ -200,7 +200,7 @@ export function IntentCard({ intent }: IntentCardProps) {
 						appearance="base"
 						size="md"
 						onClick={handleSign}
-						disabled={isSigning || isRejecting || isWrongChain}
+						disabled={isSigning || isRejecting || isWrongChain || updateStatus.isPending}
 						className={cn("flex-1", isWrongChain && "cursor-not-allowed opacity-50")}
 						title={
 							isWrongChain ? `Switch to ${chain?.name ?? "the correct network"} to sign` : undefined
@@ -222,7 +222,7 @@ export function IntentCard({ intent }: IntentCardProps) {
 						appearance="gray"
 						size="md"
 						onClick={handleReject}
-						disabled={isSigning || isRejecting}
+						disabled={isSigning || isRejecting || updateStatus.isPending}
 					>
 						{isRejecting ? (
 							<span className="flex items-center gap-8">

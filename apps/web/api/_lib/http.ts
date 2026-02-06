@@ -2,6 +2,9 @@
  * HTTP helpers for Vercel Functions
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { z } from "zod";
+import { getAllowedOrigins } from "./env.js";
+import { logger } from "./logger.js";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
 
@@ -37,29 +40,38 @@ export function methodRouter(handlers: RouteHandlers) {
 			setCorsHeaders(res, req);
 			await handler(req, res);
 		} catch (error) {
-			console.error(`[API Error] ${method} ${req.url}:`, error);
-			const message =
-				error instanceof Error ? error.message : "Internal server error";
+			logger.error({ err: error, method, url: req.url }, "API error");
 			res.status(500).json({
 				success: false,
-				error: message,
+				error: "Internal server error",
 			});
 		}
 	};
 }
 
 /**
- * Set CORS headers for responses
+ * Set CORS headers for responses.
+ * Uses ALLOWED_ORIGINS env (comma-separated). Empty = allow request origin (dev).
  */
 export function setCorsHeaders(res: VercelResponse, req?: VercelRequest) {
-	// If the request provides an Origin, reflect it so cookies can be used.
-	// (Access-Control-Allow-Origin cannot be '*' when credentials are included.)
+	const allowed = getAllowedOrigins();
 	const origin = req?.headers?.origin;
-	if (origin) {
-		res.setHeader("Access-Control-Allow-Origin", origin);
-		res.setHeader("Access-Control-Allow-Credentials", "true");
+
+	if (allowed.length > 0) {
+		if (origin && allowed.includes(origin)) {
+			res.setHeader("Access-Control-Allow-Origin", origin);
+			res.setHeader("Access-Control-Allow-Credentials", "true");
+		} else {
+			res.setHeader("Access-Control-Allow-Origin", allowed[0] ?? "*");
+		}
 	} else {
-		res.setHeader("Access-Control-Allow-Origin", "*");
+		// Dev fallback: reflect request origin so cookies work
+		if (origin) {
+			res.setHeader("Access-Control-Allow-Origin", origin);
+			res.setHeader("Access-Control-Allow-Credentials", "true");
+		} else {
+			res.setHeader("Access-Control-Allow-Origin", "*");
+		}
 	}
 	res.setHeader(
 		"Access-Control-Allow-Methods",
@@ -87,10 +99,22 @@ export function jsonError(res: VercelResponse, error: string, status = 400) {
 }
 
 /**
- * Parse and validate request body
+ * Parse and validate request body with a Zod schema.
+ * On failure sends 400 and returns null; on success returns the parsed data.
  */
-export function parseBody<T>(req: VercelRequest): T {
-	return req.body as T;
+export function parseBodyWithSchema<T>(
+	req: VercelRequest,
+	res: VercelResponse,
+	schema: z.ZodType<T>,
+): T | null {
+	const result = schema.safeParse(req.body);
+	if (result.success) {
+		return result.data;
+	}
+	const flattened = result.error.flatten();
+	const message = flattened.formErrors[0] ?? Object.values(flattened.fieldErrors).flat()[0] ?? "Validation failed";
+	jsonError(res, message, 400);
+	return null;
 }
 
 /**

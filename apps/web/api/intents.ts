@@ -1,15 +1,14 @@
-import type { CreateIntentRequest, IntentStatus } from "@agent-intents/shared";
+import type { IntentStatus } from "@agent-intents/shared";
+import { isSupportedChain } from "@agent-intents/shared";
+import { isAddress } from "viem";
 /**
  * Intents endpoint
  *
  * GET  /api/intents?userId=...&status=...&limit=...  – List intents for a user
  * POST /api/intents                                    – Create a new intent
  *
- * POST supports two authentication modes:
- * 1. **Agent auth** (preferred) – Authorization: AgentAuth header signed by a
- *    registered agent key. The trustchain_id and member_id are derived from
- *    the verified signature.
- * 2. **Legacy/demo** – No auth, accepts userId in body or defaults to 'demo-user'.
+ * POST requires AgentAuth header signed by a registered agent key.
+ * The trustchain_id and member_id are derived from the verified signature.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sql } from "@vercel/postgres";
@@ -21,9 +20,11 @@ import {
 	jsonError,
 	jsonSuccess,
 	methodRouter,
-	parseBody,
+	parseBodyWithSchema,
 } from "./_lib/http.js";
+import { createIntentRequestSchema } from "./_lib/validation.js";
 import { createIntent, getIntentsByUser } from "./_lib/intentsRepo.js";
+import { logger } from "./_lib/logger.js";
 
 /** Maximum intents per agent per minute */
 const RATE_LIMIT_PER_MINUTE = 10;
@@ -61,39 +62,47 @@ export default methodRouter({
 	},
 
 	POST: async (req: VercelRequest, res: VercelResponse) => {
-		const body = parseBody<CreateIntentRequest & { userId?: string }>(req);
-
-		// Validate required fields
-		if (!body.agentId || !body.details) {
-			jsonError(res, "Missing required fields", 400);
+		const authHeader = req.headers.authorization;
+		if (!authHeader?.startsWith("AgentAuth ")) {
+			jsonError(res, "Missing or invalid Authorization header", 401);
 			return;
 		}
 
-		// --- Determine identity: agent auth vs legacy ---
 		let userId: string;
 		let trustChainId: string | undefined;
 		let createdByMemberId: string | undefined;
-
-		const authHeader = req.headers.authorization;
-		if (authHeader?.startsWith("AgentAuth ")) {
-			// Authenticated agent flow
-			try {
-				const { member } = await verifyAgentAuth(req);
-				userId = member.trustchainId;
-				trustChainId = member.trustchainId;
-				createdByMemberId = member.id;
-			} catch (err) {
-				const message = err instanceof Error ? err.message : "Authentication failed";
-				jsonError(res, message, 401);
-				return;
-			}
-		} else {
-			// Legacy/demo flow – accept userId in body or default
-			userId = body.userId || "demo-user";
+		try {
+			const { member } = await verifyAgentAuth(req);
+			userId = member.trustchainId;
+			trustChainId = member.trustchainId;
+			createdByMemberId = member.id;
+		} catch (err) {
+			jsonError(res, "Authentication failed", 401);
+			return;
 		}
 
-		// Rate limiting: max N intents per agent per minute
-		// Uses idx_intents_agent_created index for efficient lookup
+		const body = parseBodyWithSchema(req, res, createIntentRequestSchema);
+		if (body === null) return;
+
+		// Semantic validation of intent details
+		if (!isSupportedChain(body.details.chainId)) {
+			jsonError(res, "Unsupported chain ID", 400);
+			return;
+		}
+		if (!isAddress(body.details.recipient)) {
+			jsonError(res, "Invalid recipient address", 400);
+			return;
+		}
+		if (
+			typeof body.details.amount !== "string" ||
+			body.details.amount.length === 0 ||
+			Number.isNaN(Number(body.details.amount))
+		) {
+			jsonError(res, "Invalid amount", 400);
+			return;
+		}
+
+		// Rate limiting: max N intents per agent per minute (fail closed)
 		try {
 			const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
 			const countResult = await sql`
@@ -112,8 +121,9 @@ export default methodRouter({
 				return;
 			}
 		} catch (err) {
-			// Fail open on rate limit check errors -- don't block intent creation
-			console.warn("[rate-limit] Check failed, proceeding:", err);
+			logger.error({ err }, "rate-limit check failed");
+			jsonError(res, "Service temporarily unavailable", 503);
+			return;
 		}
 
 		// Generate ID
@@ -128,18 +138,24 @@ export default methodRouter({
 			id,
 			userId,
 			agentId: body.agentId,
-			agentName: body.agentName || body.agentId,
+			agentName: body.agentName ?? body.agentId,
 			details: body.details,
-			urgency: body.urgency || "normal",
+			urgency: body.urgency ?? "normal",
 			expiresAt,
 			trustChainId,
 			createdByMemberId,
 		});
 
-		console.log(
-			`[Intent Created] ${intent.id} by ${intent.agentName}: ${intent.details.amount} ${intent.details.token} to ${intent.details.recipient}`,
+		// Build payment URL from request headers
+		const proto = req.headers["x-forwarded-proto"] ?? "https";
+		const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost:3000";
+		const paymentUrl = `${proto}://${host}/pay/${intent.id}`;
+
+		logger.info(
+			{ intentId: intent.id, agentName: intent.agentName, amount: intent.details.amount, token: intent.details.token, recipient: intent.details.recipient },
+			"Intent created",
 		);
 
-		jsonSuccess(res, { intent }, 201);
+		jsonSuccess(res, { intent, paymentUrl }, 201);
 	},
 });

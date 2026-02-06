@@ -838,7 +838,7 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 
 			await updateStatus.mutateAsync({
 				id: intent.id,
-				status: "signed",
+				status: "broadcasting",
 				txHash,
 			});
 
@@ -920,7 +920,7 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 			<Button
 				appearance="gray"
 				onClick={handleReject}
-				disabled={isSigning || isRejecting}
+				disabled={isSigning || isRejecting || updateStatus.isPending}
 				isFull
 			>
 				{isRejecting ? <Spinner size="sm" /> : "Reject"}
@@ -928,7 +928,7 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 			<Button
 				appearance="base"
 				onClick={handleSign}
-				disabled={isSigning || isRejecting || isEffectiveWrongChain}
+				disabled={isSigning || isRejecting || isEffectiveWrongChain || updateStatus.isPending}
 				isFull
 			>
 				{isSigning ? (

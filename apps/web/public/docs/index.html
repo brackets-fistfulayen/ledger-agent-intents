@@ -3,10 +3,10 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>Ledger Agent Payments API Docs</title>
+		<title>Ledger Agent Payments API — Agent Integration Guide</title>
 		<meta
 			name="description"
-			content="Agent-first documentation for the Ledger Agent Payments API."
+			content="Agent-first API documentation. AI agents propose transactions; humans review and sign on Ledger hardware."
 		/>
 		<style>
 			:root {
@@ -25,306 +25,349 @@
 				--sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial,
 					"Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
 			}
-			body {
-				margin: 0;
-				font-family: var(--sans);
-				background: var(--bg);
-				color: var(--text);
-				line-height: 1.5;
-			}
-			a {
-				color: var(--accent);
-				text-decoration: none;
-			}
-			a:hover {
-				text-decoration: underline;
-			}
-			.container {
-				max-width: 980px;
-				margin: 0 auto;
-				padding: 32px 16px 80px;
-			}
-			.header {
-				padding: 20px;
-				border: 1px solid var(--border);
-				background: linear-gradient(180deg, rgba(124, 92, 255, 0.12), transparent);
-				border-radius: 12px;
-			}
-			h1 {
-				margin: 0 0 8px;
-				font-size: 28px;
-				letter-spacing: -0.01em;
-			}
-			p {
-				margin: 0;
-			}
-			.meta {
-				margin-top: 10px;
-				color: var(--muted);
-				font-size: 14px;
-			}
-			.grid {
-				display: grid;
-				grid-template-columns: 1fr;
-				gap: 16px;
-				margin-top: 16px;
-			}
-			.card {
-				border: 1px solid var(--border);
-				background: var(--panel);
-				border-radius: 12px;
-				padding: 16px;
-			}
-			hr {
-				border: none;
-				border-top: 1px solid var(--border);
-				margin: 24px 0;
-			}
-			.k {
-				font-family: var(--mono);
-				padding: 2px 6px;
-				border: 1px solid var(--border);
-				border-radius: 8px;
-				background: rgba(255, 255, 255, 0.03);
-				font-size: 12px;
-				white-space: nowrap;
-			}
-			.endpoint {
-				display: flex;
-				gap: 12px;
-				align-items: flex-start;
-			}
-			.method {
-				font-family: var(--mono);
-				font-size: 12px;
-				padding: 3px 8px;
-				border-radius: 999px;
-				border: 1px solid var(--border);
-				background: rgba(255, 255, 255, 0.03);
-				min-width: 64px;
-				text-align: center;
-			}
-			.m-get {
-				color: var(--good);
-			}
-			.m-post {
-				color: var(--accent);
-			}
-			.m-patch {
-				color: var(--warn);
-			}
-			.m-delete {
-				color: var(--bad);
-			}
-			pre {
-				margin: 12px 0 0;
-				padding: 12px;
-				border: 1px solid var(--border);
-				background: rgba(0, 0, 0, 0.25);
-				border-radius: 12px;
-				overflow: auto;
-				font-family: var(--mono);
-				font-size: 12px;
-			}
-			.small {
-				font-size: 13px;
-				color: var(--muted);
-				margin-top: 8px;
-			}
-			ul {
-				margin: 8px 0 0;
-				padding-left: 18px;
-			}
-			.footer {
-				margin-top: 28px;
-				color: var(--muted);
-				font-size: 13px;
-			}
+			body { margin: 0; font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.6; }
+			a { color: var(--accent); text-decoration: none; }
+			a:hover { text-decoration: underline; }
+			.container { max-width: 900px; margin: 0 auto; padding: 32px 16px 80px; }
+			h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -0.01em; }
+			h2 { font-size: 22px; margin: 32px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+			h3 { font-size: 17px; margin: 24px 0 8px; color: var(--accent); }
+			p, li { margin: 6px 0; }
+			ul { padding-left: 20px; }
+			.header { padding: 20px; border: 1px solid var(--border); background: linear-gradient(180deg, rgba(124,92,255,0.12), transparent); border-radius: 12px; margin-bottom: 24px; }
+			.meta { margin-top: 10px; color: var(--muted); font-size: 14px; }
+			.card { border: 1px solid var(--border); background: var(--panel); border-radius: 12px; padding: 16px; margin: 12px 0; }
+			pre { margin: 8px 0; padding: 12px; border: 1px solid var(--border); background: rgba(0,0,0,0.25); border-radius: 8px; overflow: auto; font-family: var(--mono); font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; }
+			code { font-family: var(--mono); font-size: 13px; }
+			.k { font-family: var(--mono); padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: rgba(255,255,255,0.03); font-size: 12px; white-space: nowrap; }
+			.endpoint { display: flex; gap: 10px; align-items: flex-start; margin: 8px 0; }
+			.method { font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); min-width: 52px; text-align: center; font-weight: 600; }
+			.m-get { color: var(--good); }
+			.m-post { color: var(--accent); }
+			.m-patch { color: var(--warn); }
+			.m-delete { color: var(--bad); }
+			table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 13px; }
+			th { text-align: left; padding: 8px; background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--border); color: var(--muted); font-weight: 600; }
+			td { padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+			td code { font-size: 12px; }
+			.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+			.tag-req { background: rgba(248,81,73,0.15); color: var(--bad); }
+			.tag-opt { background: rgba(155,155,155,0.1); color: var(--muted); }
+			.note { padding: 12px; border-radius: 8px; border-left: 3px solid var(--accent); background: rgba(124,92,255,0.08); margin: 12px 0; font-size: 13px; }
+			.warn { border-left-color: var(--warn); background: rgba(210,153,34,0.08); }
+			hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
 		</style>
 	</head>
 	<body>
 		<div class="container">
 			<div class="header">
 				<h1>Ledger Agent Payments API</h1>
-				<p>
-					Agent-first docs for submitting transaction intents. Humans review and sign
-					on Ledger hardware.
-				</p>
+				<p>Agent-first API for submitting payment intents. AI agents propose transactions; humans review and sign on Ledger hardware. Agents never touch private keys.</p>
 				<div class="meta">
-					OpenAPI: <a href="/openapi.json"><span class="k">/openapi.json</span></a>
-					&nbsp;•&nbsp; Health:
-					<a href="/api/health"><span class="k">/api/health</span></a>
+					OpenAPI spec: <a href="/openapi.json"><span class="k">/openapi.json</span></a>
+					&nbsp;•&nbsp; Health: <a href="/api/health"><span class="k">/api/health</span></a>
+					&nbsp;•&nbsp; In-app docs: <a href="/docs"><span class="k">/docs</span></a>
 				</div>
 			</div>
 
-			<div class="grid">
-				<div class="card">
-					<h2 style="margin: 0 0 6px; font-size: 18px">Quick start</h2>
-					<p class="small">
-						Use same-origin URLs on Vercel (recommended). For local dev, point to your
-						dev server domain.
-					</p>
-					<pre><code>curl -sS -X POST /api/intents \
+			<!-- ============================================================ -->
+			<h2 id="how-it-works">How It Works</h2>
+			<!-- ============================================================ -->
+
+			<pre>Agent (you)                    Intent Queue (this API)          Human + Ledger
+─────────────                  ──────────────────────           ──────────────
+POST /api/intents ────────────► stores intent (pending) ──────► reviews in web UI
+                                                                approves / rejects
+GET /api/intents/:id ◄────────── status: confirmed ◄──────────── signs on device
+                                  + txHash                       broadcasts to chain</pre>
+
+			<ol>
+				<li><strong>Register</strong> — Human registers your agent key from the web UI (signs on Ledger)</li>
+				<li><strong>Create intent</strong> — <code>POST /api/intents</code> with AgentAuth header</li>
+				<li><strong>Share link</strong> — Give the <code>paymentUrl</code> from the response to the human</li>
+				<li><strong>Poll</strong> — <code>GET /api/intents/:id</code> until terminal status (<code>confirmed</code>, <code>rejected</code>, <code>failed</code>, <code>expired</code>)</li>
+			</ol>
+
+			<!-- ============================================================ -->
+			<h2 id="authentication">Authentication</h2>
+			<!-- ============================================================ -->
+
+			<h3>AgentAuth (for agents)</h3>
+			<pre>Authorization: AgentAuth &lt;timestamp&gt;.&lt;bodyHash&gt;.&lt;signature&gt;</pre>
+			<table>
+				<tr><th>Part</th><th>Description</th></tr>
+				<tr><td><code>timestamp</code></td><td>Unix epoch seconds. Must be within <strong>5 minutes</strong> of server time.</td></tr>
+				<tr><td><code>bodyHash</code></td><td><code>keccak256</code> of the raw JSON body as hex string. Use <code>"0x"</code> for GET requests.</td></tr>
+				<tr><td><code>signature</code></td><td>EIP-191 <code>personal_sign</code> of the string <code>"&lt;timestamp&gt;.&lt;bodyHash&gt;"</code> using the agent's secp256k1 private key.</td></tr>
+			</table>
+			<p>The server recovers the signer address from the signature and matches it against registered agent public keys.</p>
+
+			<h3>Session Cookie (for web UI humans)</h3>
+			<p>The web app uses <code>POST /api/auth/challenge</code> + <code>POST /api/auth/verify</code> (EIP-712) to establish an <code>ai_session</code> cookie (valid 7 days). Used for approve/reject/authorize actions.</p>
+
+			<!-- ============================================================ -->
+			<h2 id="quick-start">Quick Start</h2>
+			<!-- ============================================================ -->
+
+			<h3>Create an Intent</h3>
+			<pre>curl -X POST https://agent-intents-web.vercel.app/api/intents \
   -H "Content-Type: application/json" \
+  -H "Authorization: AgentAuth &lt;timestamp&gt;.&lt;bodyHash&gt;.&lt;signature&gt;" \
   -d '{
-    "agentId": "podcast-agent",
-    "agentName": "Podcast Payment Bot",
-    "userId": "demo-user",
+    "agentId": "my-research-bot",
+    "agentName": "Research Assistant",
     "details": {
       "type": "transfer",
       "token": "USDC",
-      "amount": "50",
-      "recipient": "0x1234567890abcdef1234567890abcdef12345678",
-      "chainId": 11155111,
-      "memo": "Payment for services"
-    }
-  }'</code></pre>
-				</div>
+      "amount": "5.00",
+      "recipient": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      "chainId": 8453,
+      "memo": "API access fee"
+    },
+    "urgency": "normal",
+    "expiresInMinutes": 60
+  }'</pre>
 
-				<div class="card">
-					<h2 style="margin: 0 0 6px; font-size: 18px">Endpoints</h2>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-get">GET</div>
-						<div>
-							<div><span class="k">/api/health</span></div>
-							<div class="small">Health check.</div>
-						</div>
-					</div>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-post">POST</div>
-						<div>
-							<div><span class="k">/api/intents</span></div>
-							<div class="small">Create an intent.</div>
-						</div>
-					</div>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-get">GET</div>
-						<div>
-							<div><span class="k">/api/intents?userId=...</span></div>
-							<div class="small">
-								List intents for a user. Optional query: <span class="k">status</span>,
-								<span class="k">limit</span>.
-							</div>
-						</div>
-					</div>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-get">GET</div>
-						<div>
-							<div><span class="k">/api/intents/:id</span></div>
-							<div class="small">Get an intent by ID.</div>
-						</div>
-					</div>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-patch">PATCH</div>
-						<div>
-							<div><span class="k">/api/intents/:id/status</span></div>
-							<div class="small">Update intent status (signing app).</div>
-						</div>
-					</div>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-post">POST</div>
-						<div>
-							<div><span class="k">/api/intents/status</span></div>
-							<div class="small">
-								Update intent status (preferred static route; signing app).
-							</div>
-						</div>
-					</div>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-get">GET</div>
-						<div>
-							<div><span class="k">/api/users/:userId/intents</span></div>
-							<div class="small">
-								List intents for a user. Optional query: <span class="k">status</span>,
-								<span class="k">limit</span>.
-							</div>
-						</div>
-					</div>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-post">POST</div>
-						<div>
-							<div><span class="k">/api/agents/register</span></div>
-							<div class="small">Register a new agent public key under a trustchain identity.</div>
-						</div>
-					</div>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-get">GET</div>
-						<div>
-							<div><span class="k">/api/agents?trustchainId=...</span></div>
-							<div class="small">List agents for a trustchain.</div>
-						</div>
-					</div>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-get">GET</div>
-						<div>
-							<div><span class="k">/api/agents/:id</span></div>
-							<div class="small">Get agent by ID.</div>
-						</div>
-					</div>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-post">POST</div>
-						<div>
-							<div><span class="k">/api/agents/revoke</span></div>
-							<div class="small">
-								Revoke an agent (preferred static route).
-							</div>
-						</div>
-					</div>
-
-					<div class="endpoint" style="margin-top: 10px">
-						<div class="method m-delete">DELETE</div>
-						<div>
-							<div><span class="k">/api/agents/:id</span></div>
-							<div class="small">Legacy alternative: revoke an agent via DELETE.</div>
-						</div>
-					</div>
-
-					<hr />
-					<div class="small">
-						Supported statuses:
-						<span class="k">pending</span> <span class="k">approved</span>
-						<span class="k">rejected</span> <span class="k">signed</span>
-						<span class="k">authorized</span> <span class="k">confirmed</span>
-						<span class="k">failed</span> <span class="k">expired</span>
-					</div>
-				</div>
-
-				<div class="card">
-					<h2 style="margin: 0 0 6px; font-size: 18px">For agents/tools</h2>
-					<ul>
-						<li>
-							Prefer <span class="k">/openapi.json</span> for machine-readable docs.
-						</li>
-						<li>
-							Agents can authenticate with <span class="k">Authorization: AgentAuth ...</span>
-							(see <span class="k">/openapi.json</span> for the exact format).
-						</li>
-						<li>
-							This <span class="k">/docs</span> page is static HTML (no JavaScript
-							required), so “fetch-only” tools can read it.
-						</li>
-						<li>
-							If you see HTML where JSON is expected, your deployment rewrote
-							<span class="k">/api/*</span> to <span class="k">/index.html</span>.
-						</li>
-					</ul>
-				</div>
+			<h3>Response (201)</h3>
+			<pre>{
+  "success": true,
+  "intent": {
+    "id": "int_1707048000_abc12345",
+    "userId": "0xabcdef1234567890abcdef1234567890abcdef12",
+    "agentId": "my-research-bot",
+    "agentName": "Research Assistant",
+    "status": "pending",
+    "details": {
+      "type": "transfer",
+      "token": "USDC",
+      "amount": "5.00",
+      "recipient": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      "chainId": 8453,
+      "memo": "API access fee"
+    },
+    "urgency": "normal",
+    "createdAt": "2026-02-06T10:00:00.000Z",
+    "expiresAt": "2026-02-06T11:00:00.000Z",
+    "statusHistory": [
+      { "status": "pending", "timestamp": "2026-02-06T10:00:00.000Z" }
+    ]
+  },
+  "paymentUrl": "https://agent-intents-web.vercel.app/pay/int_1707048000_abc12345"
+}</pre>
+			<div class="note">
+				<strong>Important:</strong> Share the <code>paymentUrl</code> with the human. They open it to review and sign the payment on their Ledger.
 			</div>
 
-			<div class="footer">
-				If you’re looking for the web UI app, go to <a href="/"><span class="k">/</span></a
-				>.
+			<h3>Poll for Status</h3>
+			<pre>curl https://agent-intents-web.vercel.app/api/intents/int_1707048000_abc12345 \
+  -H "Authorization: AgentAuth &lt;timestamp&gt;.&lt;bodyHash&gt;.&lt;signature&gt;"</pre>
+			<p>Poll until <code>status</code> is one of: <code>confirmed</code>, <code>rejected</code>, <code>failed</code>, <code>expired</code>.</p>
+
+			<!-- ============================================================ -->
+			<h2 id="status-lifecycle">Intent Status Lifecycle</h2>
+			<!-- ============================================================ -->
+
+			<pre>pending → approved → broadcasting → confirmed
+pending → approved → authorized → executing → confirmed   (x402 path)
+pending → rejected
+any non-terminal → expired   (cron, every minute)
+any non-terminal → failed</pre>
+
+			<table>
+				<tr><th>Status</th><th>Set By</th><th>Description</th></tr>
+				<tr><td><code>pending</code></td><td>System</td><td>Intent created, awaiting human review</td></tr>
+				<tr><td><code>approved</code></td><td>Human</td><td>Human approved, ready to sign</td></tr>
+				<tr><td><code>rejected</code></td><td>Human</td><td>Human rejected the intent</td></tr>
+				<tr><td><code>broadcasting</code></td><td>Human</td><td>Signed on Ledger, transaction broadcasting to chain</td></tr>
+				<tr><td><code>authorized</code></td><td>Human</td><td>x402: payment signature created, ready for agent to use</td></tr>
+				<tr><td><code>executing</code></td><td>Agent</td><td>x402: agent retrying HTTP request with payment signature</td></tr>
+				<tr><td><code>confirmed</code></td><td>Agent/System</td><td>Transaction confirmed on-chain or x402 settled</td></tr>
+				<tr><td><code>failed</code></td><td>Agent/System</td><td>Transaction or payment failed</td></tr>
+				<tr><td><code>expired</code></td><td>Cron</td><td>Intent expired without action</td></tr>
+			</table>
+			<p><strong>Terminal states</strong> (no further transitions): <code>rejected</code>, <code>confirmed</code>, <code>failed</code>, <code>expired</code></p>
+
+			<!-- ============================================================ -->
+			<h2 id="endpoints">API Endpoints</h2>
+			<!-- ============================================================ -->
+
+			<!-- POST /api/intents -->
+			<h3 id="create-intent">POST /api/intents — Create Intent</h3>
+			<p>Submit a payment intent for human review. <strong>Requires AgentAuth.</strong></p>
+			<table>
+				<tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr>
+				<tr><td><code>agentId</code></td><td>string</td><td><span class="tag tag-req">required</span></td><td>Your agent's unique ID</td></tr>
+				<tr><td><code>agentName</code></td><td>string</td><td><span class="tag tag-opt">optional</span></td><td>Display name (defaults to agentId)</td></tr>
+				<tr><td><code>details.type</code></td><td>string</td><td><span class="tag tag-req">required</span></td><td>Must be <code>"transfer"</code></td></tr>
+				<tr><td><code>details.token</code></td><td>string</td><td><span class="tag tag-req">required</span></td><td>Token symbol: <code>"USDC"</code>, <code>"ETH"</code></td></tr>
+				<tr><td><code>details.amount</code></td><td>string</td><td><span class="tag tag-req">required</span></td><td>Human-readable amount (e.g., <code>"50"</code>, <code>"0.01"</code>)</td></tr>
+				<tr><td><code>details.recipient</code></td><td>string</td><td><span class="tag tag-req">required</span></td><td>Destination address (<code>0x...</code>)</td></tr>
+				<tr><td><code>details.chainId</code></td><td>number</td><td><span class="tag tag-req">required</span></td><td>Chain ID (see Supported Chains below)</td></tr>
+				<tr><td><code>details.memo</code></td><td>string</td><td><span class="tag tag-opt">optional</span></td><td>Human-readable reason</td></tr>
+				<tr><td><code>details.tokenAddress</code></td><td>string</td><td><span class="tag tag-opt">optional</span></td><td>ERC-20 contract address (auto-filled for known tokens)</td></tr>
+				<tr><td><code>details.resource</code></td><td>string</td><td><span class="tag tag-opt">optional</span></td><td>x402: URL of resource being paid for</td></tr>
+				<tr><td><code>details.category</code></td><td>string</td><td><span class="tag tag-opt">optional</span></td><td>Payment category: <code>api_payment</code>, <code>subscription</code>, <code>purchase</code>, <code>p2p_transfer</code>, <code>defi</code>, <code>bill_payment</code>, <code>donation</code>, <code>other</code></td></tr>
+				<tr><td><code>details.x402</code></td><td>object</td><td><span class="tag tag-opt">optional</span></td><td>Full x402 payment context (resource + accepted)</td></tr>
+				<tr><td><code>urgency</code></td><td>string</td><td><span class="tag tag-opt">optional</span></td><td><code>"low"</code> | <code>"normal"</code> | <code>"high"</code> | <code>"critical"</code> (default: <code>"normal"</code>)</td></tr>
+				<tr><td><code>expiresInMinutes</code></td><td>number</td><td><span class="tag tag-opt">optional</span></td><td>Minutes until expiry (default: 1440 = 24h)</td></tr>
+			</table>
+			<p><strong>Response (201):</strong> <code>{ "success": true, "intent": Intent, "paymentUrl": "https://..." }</code></p>
+			<p><strong>Errors:</strong> <code>400</code> validation, <code>401</code> auth failed, <code>429</code> rate limit (max 10/min/agent), <code>503</code> service unavailable</p>
+
+			<hr>
+
+			<!-- GET /api/intents/:id -->
+			<h3 id="get-intent">GET /api/intents/:id — Get Intent</h3>
+			<p>Retrieve intent details. No auth required (returns sanitized response). <strong>With AgentAuth from owning agent, returns full x402 secrets</strong> (<code>paymentSignatureHeader</code>, <code>paymentPayload</code>, <code>signature</code>).</p>
+			<p><strong>Response (200):</strong> <code>{ "success": true, "intent": Intent }</code></p>
+			<p><strong>Errors:</strong> <code>400</code> missing ID, <code>404</code> not found</p>
+
+			<hr>
+
+			<!-- GET /api/intents -->
+			<h3 id="list-intents">GET /api/intents — List Intents</h3>
+			<p>List intents for a user. No auth required.</p>
+			<table>
+				<tr><th>Query Param</th><th></th><th>Description</th></tr>
+				<tr><td><code>userId</code></td><td><span class="tag tag-req">required</span></td><td>Wallet address</td></tr>
+				<tr><td><code>status</code></td><td><span class="tag tag-opt">optional</span></td><td>Filter by status</td></tr>
+				<tr><td><code>limit</code></td><td><span class="tag tag-opt">optional</span></td><td>1–100 (default: 50)</td></tr>
+			</table>
+			<p><strong>Response (200):</strong> <code>{ "success": true, "intents": Intent[] }</code></p>
+
+			<hr>
+
+			<!-- POST /api/intents/status -->
+			<h3 id="update-status">POST /api/intents/status — Update Status</h3>
+			<p>Update intent status. <strong>Requires AgentAuth or Session Cookie.</strong></p>
+			<table>
+				<tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr>
+				<tr><td><code>id</code></td><td>string</td><td><span class="tag tag-req">required</span></td><td>Intent ID</td></tr>
+				<tr><td><code>status</code></td><td>string</td><td><span class="tag tag-req">required</span></td><td>New status</td></tr>
+				<tr><td><code>txHash</code></td><td>string</td><td><span class="tag tag-opt">optional</span></td><td>Transaction hash</td></tr>
+				<tr><td><code>note</code></td><td>string</td><td><span class="tag tag-opt">optional</span></td><td>Audit note</td></tr>
+				<tr><td><code>settlementReceipt</code></td><td>object</td><td><span class="tag tag-opt">optional</span></td><td>x402 settlement receipt</td></tr>
+			</table>
+			<p><strong>Agent allowed statuses:</strong> <code>executing</code>, <code>confirmed</code>, <code>failed</code></p>
+			<p><strong>Human allowed statuses:</strong> <code>approved</code>, <code>rejected</code>, <code>authorized</code>, <code>broadcasting</code></p>
+			<p><strong>Errors:</strong> <code>400</code>, <code>401</code> auth failed, <code>403</code> wrong owner or disallowed status, <code>404</code> not found, <code>409</code> invalid state transition</p>
+
+			<div class="note warn">
+				<strong>Legacy alternative:</strong> <code>PATCH /api/intents/:id/status</code> — same behavior, intent ID in path instead of body. Prefer the POST route.
+			</div>
+
+			<hr>
+
+			<!-- Agent endpoints -->
+			<h3 id="agents">Agent Management (Session Cookie required)</h3>
+			<div class="endpoint"><div class="method m-post">POST</div><div><code>/api/agents/register</code> — Register agent. No auth header (signature in body). <a href="#register-agent">Details below.</a></div></div>
+			<div class="endpoint"><div class="method m-get">GET</div><div><code>/api/agents?trustchainId=...</code> — List agents for a trustchain.</div></div>
+			<div class="endpoint"><div class="method m-get">GET</div><div><code>/api/agents/:id</code> — Get agent by UUID.</div></div>
+			<div class="endpoint"><div class="method m-post">POST</div><div><code>/api/agents/revoke</code> — Revoke agent. Body: <code>{ "id": "&lt;uuid&gt;" }</code></div></div>
+			<div class="endpoint"><div class="method m-delete">DELETE</div><div><code>/api/agents/:id</code> — Legacy alternative to revoke.</div></div>
+
+			<h3 id="register-agent">POST /api/agents/register</h3>
+			<table>
+				<tr><th>Field</th><th>Type</th><th></th><th>Description</th></tr>
+				<tr><td><code>trustChainId</code></td><td>string</td><td><span class="tag tag-req">required</span></td><td>Owner's wallet address</td></tr>
+				<tr><td><code>agentPublicKey</code></td><td>string</td><td><span class="tag tag-req">required</span></td><td>0x-prefixed hex secp256k1 compressed public key</td></tr>
+				<tr><td><code>agentLabel</code></td><td>string</td><td><span class="tag tag-opt">optional</span></td><td>Display name (default: "Unnamed Agent")</td></tr>
+				<tr><td><code>authorizationSignature</code></td><td>string</td><td><span class="tag tag-req">required</span></td><td>EIP-191 personal_sign of the authorization message</td></tr>
+			</table>
+			<p><strong>Authorization message format:</strong></p>
+			<pre>Authorize agent key for Ledger Agent Payments
+Key: &lt;agentPublicKey&gt;
+Label: &lt;agentLabel&gt;
+Identity: &lt;trustChainId&gt;</pre>
+			<p><strong>Errors:</strong> <code>400</code>, <code>403</code> signature mismatch, <code>409</code> already registered, <code>429</code> rate limit (max 5/min/wallet)</p>
+
+			<hr>
+
+			<!-- Auth endpoints -->
+			<h3 id="auth">Session Auth (for web UI)</h3>
+			<div class="endpoint"><div class="method m-post">POST</div><div><code>/api/auth/challenge</code> — Issue EIP-712 challenge. Body: <code>{ "walletAddress": "0x...", "chainId?": 1 }</code></div></div>
+			<div class="endpoint"><div class="method m-post">POST</div><div><code>/api/auth/verify</code> — Verify signature + set session cookie. Body: <code>{ "challengeId": "...", "signature": "0x..." }</code></div></div>
+			<div class="endpoint"><div class="method m-post">POST</div><div><code>/api/auth/logout</code> — Clear session cookie.</div></div>
+			<div class="endpoint"><div class="method m-get">GET</div><div><code>/api/me</code> — Get wallet from session. Requires session cookie.</div></div>
+			<div class="endpoint"><div class="method m-get">GET</div><div><code>/api/health</code> — Health check. No auth.</div></div>
+
+			<!-- ============================================================ -->
+			<h2 id="x402-flow">x402 Payment Flow</h2>
+			<!-- ============================================================ -->
+
+			<p>When your agent encounters an HTTP <code>402 Payment Required</code> from an x402 server:</p>
+			<ol>
+				<li><strong>Parse</strong> the <code>PAYMENT-REQUIRED</code> header to extract payment requirements</li>
+				<li><strong>Create intent</strong> with <code>details.x402</code> containing the resource and accepted fields</li>
+				<li><strong>Share <code>paymentUrl</code></strong> with the human</li>
+				<li><strong>Poll</strong> until status = <code>authorized</code> (human signed the EIP-3009 authorization)</li>
+				<li><strong>Fetch intent</strong> with AgentAuth — response now includes <code>details.x402.paymentSignatureHeader</code></li>
+				<li><strong>Retry</strong> original HTTP request with <code>PAYMENT: &lt;paymentSignatureHeader&gt;</code> header</li>
+				<li><strong>Update status</strong> to <code>confirmed</code> (+ settlementReceipt) or <code>failed</code></li>
+			</ol>
+
+			<!-- ============================================================ -->
+			<h2 id="supported-chains">Supported Chains & Tokens</h2>
+			<!-- ============================================================ -->
+
+			<table>
+				<tr><th>Chain ID</th><th>Name</th><th>Token</th><th>Contract</th><th>Decimals</th></tr>
+				<tr><td><code>8453</code></td><td>Base</td><td>USDC</td><td><code>0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913</code></td><td>6</td></tr>
+				<tr><td><code>11155111</code></td><td>Sepolia</td><td>USDC</td><td><code>0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238</code></td><td>6</td></tr>
+				<tr><td><code>84532</code></td><td>Base Sepolia</td><td>USDC</td><td><code>0x036CbD53842c5426634e7929541eC2318f3dCF7e</code></td><td>6</td></tr>
+			</table>
+
+			<!-- ============================================================ -->
+			<h2 id="rate-limits">Rate Limits</h2>
+			<!-- ============================================================ -->
+
+			<table>
+				<tr><th>Endpoint</th><th>Limit</th><th>HTTP Code</th></tr>
+				<tr><td><code>POST /api/intents</code></td><td>10 per agent per minute</td><td>429</td></tr>
+				<tr><td><code>POST /api/agents/register</code></td><td>5 per wallet per minute</td><td>429</td></tr>
+			</table>
+
+			<!-- ============================================================ -->
+			<h2 id="errors">Error Handling</h2>
+			<!-- ============================================================ -->
+
+			<p>All errors return: <code>{ "success": false, "error": "Human-readable message" }</code></p>
+			<table>
+				<tr><th>Code</th><th>Meaning</th><th>Action</th></tr>
+				<tr><td><code>400</code></td><td>Bad request / validation</td><td>Fix request and retry</td></tr>
+				<tr><td><code>401</code></td><td>Auth failed</td><td>Check AgentAuth header or session</td></tr>
+				<tr><td><code>403</code></td><td>Forbidden</td><td>Wrong owner or disallowed status</td></tr>
+				<tr><td><code>404</code></td><td>Not found</td><td>Check intent/agent ID</td></tr>
+				<tr><td><code>409</code></td><td>Conflict</td><td>Invalid state transition or duplicate</td></tr>
+				<tr><td><code>429</code></td><td>Rate limited</td><td>Wait 60s and retry</td></tr>
+				<tr><td><code>500</code></td><td>Server error</td><td>Retry with exponential backoff</td></tr>
+				<tr><td><code>503</code></td><td>Unavailable</td><td>Retry with exponential backoff</td></tr>
+			</table>
+
+			<!-- ============================================================ -->
+			<h2 id="response-envelope">Response Envelope</h2>
+			<!-- ============================================================ -->
+			<pre>// Success
+{ "success": true, "intent": { ... } }
+
+// Error
+{ "success": false, "error": "message" }</pre>
+
+			<!-- ============================================================ -->
+			<h2 id="polling">Recommended Polling Intervals</h2>
+			<!-- ============================================================ -->
+			<table>
+				<tr><th>Urgency</th><th>Interval</th></tr>
+				<tr><td><code>critical</code></td><td>5 seconds</td></tr>
+				<tr><td><code>high</code></td><td>15 seconds</td></tr>
+				<tr><td><code>normal</code></td><td>30 seconds</td></tr>
+				<tr><td><code>low</code></td><td>60 seconds</td></tr>
+			</table>
+
+			<hr>
+			<div style="color: var(--muted); font-size: 13px; margin-top: 20px;">
+				<p>For the web UI app, go to <a href="/">/</a>. For machine-readable spec, see <a href="/openapi.json">/openapi.json</a>.</p>
+				<p>This page is static HTML (no JavaScript required), so fetch-only tools can read it directly.</p>
 			</div>
 		</div>
 	</body>

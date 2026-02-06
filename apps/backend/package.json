@@ -10,11 +10,12 @@
 		"start": "node dist/index.js",
 		"clean": "rm -rf dist",
 		"typecheck": "tsc --noEmit",
-		"test:intent:base-usdc-self": "tsx src/test-intent-base-usdc-self.ts",
-		"test:intent:base-usdc-2": "tsx src/test-intent-base-usdc-2.ts",
-		"test:intent:x402": "tsx src/test-intent-x402-credential.ts",
+		"test": "vitest run",
+		"test:intent:base-usdc-self": "tsx scripts/test-intent-base-usdc-self.ts",
+		"test:intent:base-usdc-2": "tsx scripts/test-intent-base-usdc-2.ts",
+		"test:intent:x402": "tsx scripts/test-intent-x402-credential.ts",
 		"test:x402:integration": "tsx src/__tests__/x402-fetch-integration.test.ts",
-		"test:x402:smoke": "tsx src/x402-live-smoke-test.ts"
+		"test:x402:smoke": "tsx scripts/x402-live-smoke-test.ts"
 	},
 	"dependencies": {
 		"@agent-intents/shared": "workspace:*",
@@ -29,6 +30,7 @@
 		"@types/node": "^20.10.0",
 		"@types/uuid": "^9.0.7",
 		"tsx": "^4.7.0",
-		"typescript": "^5.7.0"
+		"typescript": "^5.7.0",
+		"vitest": "^4.0.18"
 	}
 }

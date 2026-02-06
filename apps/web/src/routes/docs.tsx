@@ -155,6 +155,14 @@ function DocsPage() {
 						<NavLink href="#get-intent">Get Intent Status</NavLink>
 						<NavLink href="#list-intents">List Intents</NavLink>
 						<NavLink href="#update-status">Update Status</NavLink>
+						<NavLink href="#agents">Agents</NavLink>
+					</div>
+					<div>
+						<h4 className="body-4-semi-bold text-muted-subtle uppercase tracking-wider mb-8 px-12">
+							x402 & Advanced
+						</h4>
+						<NavLink href="#x402-flow">x402 Payment Flow</NavLink>
+						<NavLink href="#rate-limits">Rate Limits</NavLink>
 					</div>
 					<div>
 						<h4 className="body-4-semi-bold text-muted-subtle uppercase tracking-wider mb-8 px-12">
@@ -249,88 +257,112 @@ function DocsPage() {
 				{/* Quick Start */}
 				<Section id="quick-start" title="Quick Start">
 					<p className="body-1 text-base">
-						Create your first intent in seconds. No API key required for the hackathon demo.
+						Create your first intent with AgentAuth. Your agent key must be registered first (human signs authorization on Ledger).
 					</p>
 
-					<Subsection id="quick-start-curl" title="Using cURL">
-						<CodeBlock language="bash" title="Create an Intent">
-{`curl -X POST https://your-api-url.com/api/intents \\
+					<Subsection id="quick-start-curl" title="1. Create an Intent">
+						<CodeBlock language="bash" title="POST /api/intents (with AgentAuth)">
+{`curl -X POST https://agent-intents-web.vercel.app/api/intents \\
   -H "Content-Type: application/json" \\
+  -H "Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>" \\
   -d '{
-    "agentId": "your-agent-id",
-    "agentName": "Your Agent Name",
-    "userId": "demo-user",
+    "agentId": "my-research-bot",
+    "agentName": "Research Assistant",
     "details": {
       "type": "transfer",
       "token": "USDC",
-      "amount": "50",
-      "recipient": "0x1234567890abcdef1234567890abcdef12345678",
-      "chainId": 11155111,
-      "memo": "Payment for services"
-    }
+      "amount": "5.00",
+      "recipient": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      "chainId": 8453,
+      "memo": "API access fee for CoinGecko Pro"
+    },
+    "urgency": "normal",
+    "expiresInMinutes": 60
   }'`}
 						</CodeBlock>
 					</Subsection>
 
-					<Subsection id="quick-start-response" title="Response">
+					<Subsection id="quick-start-response" title="2. Response (201)">
 						<CodeBlock language="json" title="Success Response">
 {`{
   "success": true,
   "intent": {
     "id": "int_1707048000_abc12345",
-    "userId": "demo-user",
-    "agentId": "your-agent-id",
-    "agentName": "Your Agent Name",
+    "userId": "0xabcdef1234567890abcdef1234567890abcdef12",
+    "agentId": "my-research-bot",
+    "agentName": "Research Assistant",
     "status": "pending",
     "details": {
       "type": "transfer",
       "token": "USDC",
-      "amount": "50",
-      "recipient": "0x1234567890abcdef1234567890abcdef12345678",
-      "chainId": 11155111,
-      "memo": "Payment for services"
+      "amount": "5.00",
+      "recipient": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
+      "chainId": 8453,
+      "memo": "API access fee for CoinGecko Pro"
     },
     "urgency": "normal",
-    "createdAt": "2026-02-04T10:00:00.000Z",
-    "expiresAt": "2026-02-05T10:00:00.000Z",
+    "createdAt": "2026-02-06T10:00:00.000Z",
+    "expiresAt": "2026-02-06T11:00:00.000Z",
     "statusHistory": [
-      { "status": "pending", "timestamp": "2026-02-04T10:00:00.000Z" }
+      { "status": "pending", "timestamp": "2026-02-06T10:00:00.000Z" }
     ]
-  }
+  },
+  "paymentUrl": "https://agent-intents-web.vercel.app/pay/int_1707048000_abc12345"
 }`}
 						</CodeBlock>
+						<div className="p-16 rounded-md bg-accent/10 mt-12">
+							<p className="body-2 text-accent">
+								<strong>Share the paymentUrl</strong> with the human. They open it in their browser to review and sign the payment on their Ledger.
+							</p>
+						</div>
+					</Subsection>
+
+					<Subsection id="quick-start-poll" title="3. Poll for Status">
+						<CodeBlock language="bash" title="GET /api/intents/:id">
+{`curl https://agent-intents-web.vercel.app/api/intents/int_1707048000_abc12345 \\
+  -H "Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>"`}
+						</CodeBlock>
+						<p className="body-2 text-muted mt-8">
+							Poll until <code className="bg-muted px-4 py-2 rounded-xs text-accent">status</code> reaches
+							a terminal state: <code className="bg-muted px-4 py-2 rounded-xs text-accent">confirmed</code>,{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">rejected</code>,{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">failed</code>, or{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">expired</code>.
+							With AgentAuth, the response includes full x402 secrets if applicable.
+						</p>
 					</Subsection>
 				</Section>
 
 				{/* Authentication */}
 				<Section id="authentication" title="Authentication">
-					<div className="p-16 rounded-md bg-interactive/10">
-						<p className="body-2 text-interactive">
-							<strong>Two modes are supported:</strong>
+					<Subsection id="auth-agentauth" title="AgentAuth (for agents)">
+						<div className="p-16 rounded-md bg-interactive/10">
+							<p className="body-2 text-interactive">
+								Every authenticated agent request must include:
+							</p>
+							<CodeBlock language="text" title="Authorization Header">
+{`Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>`}
+							</CodeBlock>
+						</div>
+						<div className="rounded-lg p-16 bg-[#0d1117] mt-12">
+							<Param name="timestamp" type="number" required description="Unix epoch seconds. Must be within 5 minutes of server time." />
+							<Param name="bodyHash" type="string" required description="keccak256 of the raw JSON body as hex. Use '0x' for GET requests." />
+							<Param name="signature" type="string" required description="EIP-191 personal_sign of '<timestamp>.<bodyHash>' using the agent's secp256k1 private key." />
+						</div>
+						<p className="body-2 text-muted mt-12">
+							The server recovers the signer address from the signature and matches it against registered agent public keys. The intent is automatically linked to the agent's trustchain identity.
 						</p>
-						<ul className="body-2 text-interactive mt-8 space-y-4">
-							<li>
-								<strong>AgentAuth (preferred):</strong> send{" "}
-								<code className="bg-interactive/20 px-4 py-2 rounded-xs">
-									Authorization: AgentAuth &lt;timestamp&gt;.&lt;bodyHash&gt;.&lt;signature&gt;
-								</code>{" "}
-								(using your registered agent key). In this mode, the intent is tied to your
-								trustchain and any <code className="bg-interactive/20 px-4 py-2 rounded-xs">userId</code>{" "}
-								in the body is ignored.
-							</li>
-							<li>
-								<strong>Legacy/demo:</strong> no auth required. You may pass{" "}
-								<code className="bg-interactive/20 px-4 py-2 rounded-xs">userId</code>{" "}
-								in the body (defaults to <code className="bg-interactive/20 px-4 py-2 rounded-xs">demo-user</code>).
-							</li>
-						</ul>
-					</div>
-					<p className="body-1 text-base">
-						AgentAuth signatures must be recent (within ~5 minutes). For{" "}
-						<code className="bg-muted px-4 py-2 rounded-xs text-accent">GET</code>{" "}
-						requests, the <code className="bg-muted px-4 py-2 rounded-xs text-accent">bodyHash</code>{" "}
-						is <code className="bg-muted px-4 py-2 rounded-xs text-accent">0x</code>.
-					</p>
+					</Subsection>
+					<Subsection id="auth-session" title="Session Cookie (for web UI humans)">
+						<p className="body-2 text-muted">
+							The web UI uses{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">POST /api/auth/challenge</code> +{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">POST /api/auth/verify</code>{" "}
+							(EIP-712) to establish an{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">ai_session</code> cookie (valid 7 days).
+							This is used for human actions like approve, reject, and authorize. Agents do not use session cookies.
+						</p>
+					</Subsection>
 				</Section>
 
 				{/* API Reference: Create Intent */}
@@ -347,17 +379,12 @@ function DocsPage() {
 								name="agentId"
 								type="string"
 								required
-								description="Unique identifier for your agent (e.g., 'clouseau', 'research-bot')"
+								description="Your agent's unique identifier (e.g., 'research-bot', 'trading-agent')"
 							/>
 							<Param
 								name="agentName"
 								type="string"
 								description="Human-readable display name (defaults to agentId if omitted)"
-							/>
-							<Param
-								name="userId"
-								type="string"
-								description="Legacy/demo: optional; defaults to 'demo-user'. When using AgentAuth, this field is ignored."
 							/>
 							<Param
 								name="details"
@@ -376,6 +403,9 @@ function DocsPage() {
 								description="Minutes until intent expires (default: 1440 = 24 hours)"
 							/>
 						</div>
+						<p className="body-2 text-muted mt-8">
+							The <code className="bg-muted px-4 py-2 rounded-xs text-accent">userId</code> is automatically derived from your AgentAuth — do not pass it in the body.
+						</p>
 					</Subsection>
 
 					<Subsection id="transfer-intent-schema" title="TransferIntent Schema">
@@ -396,7 +426,7 @@ function DocsPage() {
 								name="amount"
 								type="string"
 								required
-								description="Human-readable amount (e.g., '50', '0.5')"
+								description="Human-readable amount (e.g., '50', '0.01')"
 							/>
 							<Param
 								name="recipient"
@@ -408,7 +438,7 @@ function DocsPage() {
 								name="chainId"
 								type="number"
 								required
-								description="Chain ID (11155111 for Sepolia, 84532 for Base Sepolia)"
+								description="Chain ID: 8453 (Base), 11155111 (Sepolia), 84532 (Base Sepolia)"
 							/>
 							<Param
 								name="memo"
@@ -420,15 +450,29 @@ function DocsPage() {
 								type="string"
 								description="ERC-20 contract address (auto-filled for known tokens)"
 							/>
+							<Param
+								name="resource"
+								type="string"
+								description="x402: URL of the resource being paid for"
+							/>
+							<Param
+								name="category"
+								type="string"
+								description="Payment category: 'api_payment' | 'subscription' | 'purchase' | 'p2p_transfer' | 'defi' | 'bill_payment' | 'donation' | 'other'"
+							/>
+							<Param
+								name="x402"
+								type="object"
+								description="Full x402 payment context with resource and accepted payment requirements"
+							/>
 						</div>
 					</Subsection>
 
 					<Subsection id="create-intent-example" title="Full Example">
-						<CodeBlock language="json" title="Request Body">
+						<CodeBlock language="json" title="Request Body (with AgentAuth header)">
 {`{
   "agentId": "podcast-agent",
   "agentName": "Podcast Payment Bot",
-  "userId": "ian",
   "urgency": "normal",
   "expiresInMinutes": 60,
   "details": {
@@ -436,11 +480,33 @@ function DocsPage() {
     "token": "USDC",
     "amount": "200",
     "recipient": "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
-    "chainId": 11155111,
+    "chainId": 8453,
     "memo": "Payment to Seth for podcast intro music"
   }
 }`}
 						</CodeBlock>
+					</Subsection>
+
+					<Subsection id="create-intent-response" title="Response (201)">
+						<p className="body-2 text-muted mb-8">
+							The response includes a <code className="bg-muted px-4 py-2 rounded-xs text-accent">paymentUrl</code> that you can share with
+							the user so they can review and sign the payment directly in their browser.
+						</p>
+						<CodeBlock language="json" title="Response">
+{`{
+  "success": true,
+  "intent": {
+    "id": "int_1707048000_abc12345",
+    "status": "pending",
+    ...
+  },
+  "paymentUrl": "https://your-app.vercel.app/pay/int_1707048000_abc12345"
+}`}
+						</CodeBlock>
+						<p className="body-2 text-muted mt-8">
+							Send this link to the user — they'll be able to connect their Ledger and approve the payment.
+							If generating a link isn't possible, direct the user to the main dashboard where all pending intents are displayed.
+						</p>
 					</Subsection>
 				</Section>
 
@@ -459,60 +525,89 @@ function DocsPage() {
 					</Subsection>
 
 					<Subsection id="intent-status-lifecycle" title="Status Lifecycle">
-						<div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+						<CodeBlock language="text" title="State Machine">
+{`pending → approved → broadcasting → confirmed       (on-chain tx path)
+pending → approved → authorized → executing → confirmed  (x402 path)
+pending → rejected
+any non-terminal → expired  (cron job, every minute)
+any non-terminal → failed`}
+						</CodeBlock>
+						<div className="grid grid-cols-2 md:grid-cols-3 gap-8 mt-16">
 							{(
 								[
 									{
 										status: "pending",
 										appearance: "warning",
-										desc: "Awaiting human review",
+										desc: "Created by agent, awaiting human review",
+										setBy: "System",
 									},
 									{
 										status: "approved",
 										appearance: "accent",
 										desc: "Human approved, ready to sign",
+										setBy: "Human",
 									},
-								{
-									status: "broadcasting",
-									appearance: "accent",
-									desc: "Signed, broadcasting tx",
-								},
-								{
-									status: "authorized",
-									appearance: "success",
-									desc: "x402 payment authorized",
-								},
-								{
-									status: "confirmed",
-									appearance: "success",
-									desc: "Transaction confirmed",
-								},
+									{
+										status: "broadcasting",
+										appearance: "accent",
+										desc: "Signed on Ledger, tx broadcasting",
+										setBy: "Human",
+									},
+									{
+										status: "authorized",
+										appearance: "success",
+										desc: "x402 payment signature ready for agent",
+										setBy: "Human",
+									},
+									{
+										status: "executing",
+										appearance: "accent",
+										desc: "Agent retrying with payment signature",
+										setBy: "Agent",
+									},
+									{
+										status: "confirmed",
+										appearance: "success",
+										desc: "Transaction confirmed on-chain / x402 settled",
+										setBy: "Agent/System",
+									},
 									{
 										status: "rejected",
 										appearance: "error",
-										desc: "Human rejected",
+										desc: "Human rejected the intent",
+										setBy: "Human",
 									},
 									{
 										status: "failed",
 										appearance: "error",
-										desc: "Transaction failed",
+										desc: "Transaction or payment failed",
+										setBy: "Agent/System",
 									},
 									{
 										status: "expired",
 										appearance: "gray",
-										desc: "Intent expired",
+										desc: "Expired without action",
+										setBy: "Cron",
 									},
 								] as const
-							).map(({ status, appearance, desc }) => (
+							).map(({ status, appearance, desc, setBy }) => (
 								<div
 									key={status}
 									className="p-12 rounded-md bg-muted text-center flex flex-col items-center gap-8"
 								>
 									<Tag appearance={appearance} label={status} size="md" />
 									<div className="body-3 text-muted-subtle">{desc}</div>
+									<div className="body-4 text-muted-subtle">Set by: {setBy}</div>
 								</div>
 							))}
 						</div>
+						<p className="body-2 text-muted mt-12">
+							<strong>Terminal states</strong> (no further transitions):{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">rejected</code>,{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">confirmed</code>,{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">failed</code>,{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">expired</code>
+						</p>
 					</Subsection>
 
 					<Subsection id="polling-strategy" title="Polling Strategy">
@@ -574,7 +669,7 @@ function DocsPage() {
 							<Param
 								name="status"
 								type="string"
-								description="Filter by status: 'pending' | 'approved' | 'signed' | 'authorized' | 'confirmed' | 'rejected' | 'failed' | 'expired'"
+								description="Filter by status: 'pending' | 'approved' | 'rejected' | 'broadcasting' | 'authorized' | 'executing' | 'confirmed' | 'failed' | 'expired'"
 							/>
 							<Param
 								name="limit"
@@ -599,19 +694,73 @@ function DocsPage() {
 					<Endpoint
 						method="POST"
 						path="/api/intents/status"
-						description="Update intent status using a static route (preferred; avoids Vercel dynamic-route issues)."
+						description="Update intent status. Requires AgentAuth or Session Cookie. Preferred route."
 					/>
 					<Endpoint
 						method="PATCH"
 						path="/api/intents/:id/status"
-						description="Legacy alternative: update the status of an intent (typically called by the signing app, not agents)."
+						description="Legacy alternative (intent ID in path instead of body)."
 					/>
-					<div className="p-16 rounded-md bg-warning/10">
-						<p className="body-2 text-warning">
-							<strong>Note:</strong> This endpoint is primarily for the signing
-							application. Agents should only poll status, not update it.
+
+					<Subsection id="update-status-body" title="Request Body (POST route)">
+						<div className="rounded-lg p-16 bg-[#0d1117]">
+							<Param name="id" type="string" required description="Intent ID" />
+							<Param name="status" type="string" required description="New status (see permissions below)" />
+							<Param name="txHash" type="string" description="Transaction hash (if applicable)" />
+							<Param name="note" type="string" description="Audit note" />
+							<Param name="settlementReceipt" type="object" description="x402 settlement receipt from the server" />
+						</div>
+					</Subsection>
+
+					<Subsection id="update-status-permissions" title="Permission Matrix">
+						<div className="rounded-md overflow-hidden bg-[#0d1117]">
+							<table className="w-full body-2">
+								<thead className="bg-[#161b22]">
+									<tr>
+										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Auth Type</th>
+										<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Allowed Statuses</th>
+									</tr>
+								</thead>
+								<tbody>
+									<tr className="border-t border-[#30363d]">
+										<td className="p-12 text-accent body-2-semi-bold">AgentAuth</td>
+										<td className="p-12 text-base">
+											<code className="bg-muted px-4 py-2 rounded-xs">executing</code>{" "}
+											<code className="bg-muted px-4 py-2 rounded-xs">confirmed</code>{" "}
+											<code className="bg-muted px-4 py-2 rounded-xs">failed</code>
+										</td>
+									</tr>
+									<tr className="border-t border-[#30363d]">
+										<td className="p-12 text-interactive body-2-semi-bold">Session Cookie</td>
+										<td className="p-12 text-base">
+											<code className="bg-muted px-4 py-2 rounded-xs">approved</code>{" "}
+											<code className="bg-muted px-4 py-2 rounded-xs">rejected</code>{" "}
+											<code className="bg-muted px-4 py-2 rounded-xs">authorized</code>{" "}
+											<code className="bg-muted px-4 py-2 rounded-xs">broadcasting</code>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</Subsection>
+
+					<div className="p-16 rounded-md bg-accent/10">
+						<p className="body-2 text-accent">
+							<strong>For agents:</strong> After the human authorizes an x402 payment, update status to{" "}
+							<code className="bg-accent/20 px-4 py-2 rounded-xs">executing</code>, then to{" "}
+							<code className="bg-accent/20 px-4 py-2 rounded-xs">confirmed</code> or{" "}
+							<code className="bg-accent/20 px-4 py-2 rounded-xs">failed</code> based on the outcome.
 						</p>
 					</div>
+
+					<p className="body-2 text-muted mt-8">
+						<strong>Errors:</strong>{" "}
+						<code className="bg-muted px-4 py-2 rounded-xs text-warning">400</code> invalid fields,{" "}
+						<code className="bg-muted px-4 py-2 rounded-xs text-error">401</code> auth failed,{" "}
+						<code className="bg-muted px-4 py-2 rounded-xs text-error">403</code> wrong owner or disallowed status,{" "}
+						<code className="bg-muted px-4 py-2 rounded-xs text-warning">404</code> not found,{" "}
+						<code className="bg-muted px-4 py-2 rounded-xs text-warning">409</code> invalid state transition
+					</p>
 				</Section>
 
 				{/* API Reference: Agents */}
@@ -674,6 +823,115 @@ function DocsPage() {
 						path="/api/agents/:id"
 						description="Legacy alternative: revoke an agent via DELETE."
 					/>
+				</Section>
+
+				{/* x402 Payment Flow */}
+				<Section id="x402-flow" title="x402 Payment Flow">
+					<p className="body-1 text-base">
+						When your agent encounters an HTTP{" "}
+						<code className="bg-muted px-4 py-2 rounded-xs text-accent">402 Payment Required</code>{" "}
+						response from an x402 server, use this flow:
+					</p>
+
+					<div className="space-y-8">
+						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
+							<span className="body-1-semi-bold text-accent w-24 text-center">1</span>
+							<p className="body-2 text-base flex-1">
+								<strong>Parse</strong> the <code className="bg-[#21262d] px-4 py-2 rounded-xs">PAYMENT-REQUIRED</code> header to extract payment requirements (network, amount, asset, payTo)
+							</p>
+						</div>
+						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
+							<span className="body-1-semi-bold text-accent w-24 text-center">2</span>
+							<p className="body-2 text-base flex-1">
+								<strong>Create intent</strong> with <code className="bg-[#21262d] px-4 py-2 rounded-xs">details.x402</code> containing the resource URL and accepted payment fields
+							</p>
+						</div>
+						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
+							<span className="body-1-semi-bold text-accent w-24 text-center">3</span>
+							<p className="body-2 text-base flex-1">
+								<strong>Share the <code className="bg-[#21262d] px-4 py-2 rounded-xs">paymentUrl</code></strong> with the human — they sign the EIP-3009 TransferWithAuthorization on their Ledger
+							</p>
+						</div>
+						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
+							<span className="body-1-semi-bold text-accent w-24 text-center">4</span>
+							<p className="body-2 text-base flex-1">
+								<strong>Poll</strong> until status = <code className="bg-[#21262d] px-4 py-2 rounded-xs">authorized</code>
+							</p>
+						</div>
+						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
+							<span className="body-1-semi-bold text-accent w-24 text-center">5</span>
+							<p className="body-2 text-base flex-1">
+								<strong>Fetch intent</strong> with AgentAuth — response now includes <code className="bg-[#21262d] px-4 py-2 rounded-xs">details.x402.paymentSignatureHeader</code>
+							</p>
+						</div>
+						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
+							<span className="body-1-semi-bold text-accent w-24 text-center">6</span>
+							<p className="body-2 text-base flex-1">
+								<strong>Retry</strong> your original HTTP request with <code className="bg-[#21262d] px-4 py-2 rounded-xs">PAYMENT: &lt;paymentSignatureHeader&gt;</code> header
+							</p>
+						</div>
+						<div className="flex items-start gap-12 p-12 rounded-md bg-muted">
+							<span className="body-1-semi-bold text-accent w-24 text-center">7</span>
+							<p className="body-2 text-base flex-1">
+								<strong>Update status</strong> to <code className="bg-[#21262d] px-4 py-2 rounded-xs">confirmed</code> (with settlement receipt) or <code className="bg-[#21262d] px-4 py-2 rounded-xs">failed</code>
+							</p>
+						</div>
+					</div>
+
+					<Subsection id="x402-example" title="x402 Intent Example">
+						<CodeBlock language="json" title="Request body with x402 context">
+{`{
+  "agentId": "my-agent",
+  "details": {
+    "type": "transfer",
+    "token": "USDC",
+    "amount": "0.01",
+    "recipient": "0xPayToAddress...",
+    "chainId": 8453,
+    "memo": "x402 payment for api.coingecko.com",
+    "resource": "https://api.coingecko.com/pro/v1/coins/bitcoin",
+    "category": "api_payment",
+    "x402": {
+      "resource": { "url": "https://api.coingecko.com/pro/v1/coins/bitcoin" },
+      "accepted": {
+        "scheme": "exact",
+        "network": "eip155:8453",
+        "amount": "10000",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "payTo": "0xPayToAddress..."
+      }
+    }
+  }
+}`}
+						</CodeBlock>
+					</Subsection>
+				</Section>
+
+				{/* Rate Limits */}
+				<Section id="rate-limits" title="Rate Limits">
+					<div className="rounded-md overflow-hidden bg-[#0d1117]">
+						<table className="w-full body-2">
+							<thead className="bg-[#161b22]">
+								<tr>
+									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Endpoint</th>
+									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">Limit</th>
+									<th className="text-left p-12 text-[#8b949e] body-2-semi-bold">HTTP Code</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className="border-t border-[#30363d]">
+									<td className="p-12 font-mono text-accent">POST /api/intents</td>
+									<td className="p-12 text-base">10 per agent per minute</td>
+									<td className="p-12 font-mono text-warning">429</td>
+								</tr>
+								<tr className="border-t border-[#30363d]">
+									<td className="p-12 font-mono text-accent">POST /api/agents/register</td>
+									<td className="p-12 text-base">5 per wallet per minute</td>
+									<td className="p-12 font-mono text-warning">429</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
 				</Section>
 
 				{/* CLI Skill */}
@@ -775,13 +1033,17 @@ done`}
 						<CodeBlock language="typescript" title="Intent Type">
 {`interface Intent {
   id: string;                    // Unique intent ID (e.g., "int_1707048000_abc12345")
-  userId: string;                // User who will sign
+  userId: string;                // Wallet address of the human signer
   agentId: string;               // Agent that created the intent
   agentName: string;             // Agent display name
   
   details: TransferIntent;       // Transaction details
   urgency: IntentUrgency;        // "low" | "normal" | "high" | "critical"
   status: IntentStatus;          // Current status in lifecycle
+  
+  // Trustchain (set when created by authenticated agent)
+  trustChainId?: string;         // Owner's wallet address
+  createdByMemberId?: string;    // Agent member UUID
   
   // Timestamps (ISO 8601)
   createdAt: string;
@@ -791,7 +1053,7 @@ done`}
   confirmedAt?: string;
   
   // Transaction result
-  txHash?: string;               // Transaction hash after signing
+  txHash?: string;               // Transaction hash after confirmation
   txUrl?: string;                // Block explorer link
   
   // Audit trail
@@ -814,8 +1076,13 @@ done`}
   amountWei?: string;            // Wei amount for precision
   recipient: string;             // Destination address
   recipientEns?: string;         // ENS name if resolved
-  chainId: number;               // Chain ID (e.g., 11155111)
+  chainId: number;               // Chain ID (8453, 11155111, 84532)
   memo?: string;                 // Human-readable reason
+  
+  // x402-aligned fields
+  resource?: string;             // x402 resource URL being paid for
+  category?: PaymentCategory;    // Payment category
+  x402?: X402Context;            // Full x402 payment context
 }`}
 						</CodeBlock>
 					</Subsection>
@@ -823,14 +1090,18 @@ done`}
 					<Subsection id="status-enum" title="IntentStatus Enum">
 						<CodeBlock language="typescript" title="IntentStatus Type">
 {`type IntentStatus =
-  | "pending"     // Created by agent, awaiting human review
-  | "approved"    // Human approved, ready to sign
-  | "rejected"    // Human rejected
+  | "pending"      // Created by agent, awaiting human review
+  | "approved"     // Human approved, ready to sign
+  | "rejected"     // Human rejected
   | "broadcasting" // Signed on device, broadcasting tx
-  | "authorized"  // x402 payment authorized (optional)
-  | "confirmed"   // Transaction confirmed on-chain
-  | "failed"      // Transaction failed
-  | "expired";    // Intent expired without action`}
+  | "authorized"   // x402 payment authorized, agent can use it
+  | "executing"    // Agent retrying with payment signature (x402)
+  | "confirmed"    // Transaction confirmed on-chain / x402 settled
+  | "failed"       // Transaction or payment failed
+  | "expired";     // Intent expired without action
+
+// Terminal states (no further transitions):
+// rejected, confirmed, failed, expired`}
 						</CodeBlock>
 					</Subsection>
 				</Section>
@@ -838,7 +1109,7 @@ done`}
 				{/* Supported Chains */}
 				<Section id="chains" title="Supported Chains">
 					<p className="body-1 text-base mb-16">
-						Currently supporting testnet chains for the hackathon:
+						Supported chains (Base mainnet + testnets):
 					</p>
 					<div className="rounded-md overflow-hidden bg-[#0d1117]">
 						<table className="w-full body-2">
@@ -963,22 +1234,55 @@ done`}
 								<tbody>
 									<tr className="border-t border-[#30363d]">
 										<td className="p-12 font-mono text-warning">400</td>
-										<td className="p-12 text-base">Missing required fields</td>
+										<td className="p-12 text-base">Bad request</td>
 										<td className="p-12 text-[#8b949e]">
-											Request body missing agentId or details
+											Missing or invalid fields. Fix the request.
+										</td>
+									</tr>
+									<tr className="border-t border-[#30363d]">
+										<td className="p-12 font-mono text-error">401</td>
+										<td className="p-12 text-base">Authentication failed</td>
+										<td className="p-12 text-[#8b949e]">
+											Missing or invalid AgentAuth header or session cookie
+										</td>
+									</tr>
+									<tr className="border-t border-[#30363d]">
+										<td className="p-12 font-mono text-error">403</td>
+										<td className="p-12 text-base">Forbidden</td>
+										<td className="p-12 text-[#8b949e]">
+											Wrong owner, signature mismatch, or disallowed status transition
 										</td>
 									</tr>
 									<tr className="border-t border-[#30363d]">
 										<td className="p-12 font-mono text-warning">404</td>
-										<td className="p-12 text-base">Intent not found</td>
+										<td className="p-12 text-base">Not found</td>
 										<td className="p-12 text-[#8b949e]">
-											The requested intent ID does not exist
+											Intent or agent ID does not exist
+										</td>
+									</tr>
+									<tr className="border-t border-[#30363d]">
+										<td className="p-12 font-mono text-warning">409</td>
+										<td className="p-12 text-base">Conflict</td>
+										<td className="p-12 text-[#8b949e]">
+											Invalid state transition or duplicate registration
+										</td>
+									</tr>
+									<tr className="border-t border-[#30363d]">
+										<td className="p-12 font-mono text-warning">429</td>
+										<td className="p-12 text-base">Rate limited</td>
+										<td className="p-12 text-[#8b949e]">
+											Too many requests. Wait 60 seconds and retry.
 										</td>
 									</tr>
 									<tr className="border-t border-[#30363d]">
 										<td className="p-12 font-mono text-error">500</td>
-										<td className="p-12 text-base">Internal server error</td>
-										<td className="p-12 text-[#8b949e]">Unexpected server error</td>
+										<td className="p-12 text-base">Server error</td>
+										<td className="p-12 text-[#8b949e]">Retry with exponential backoff</td>
+									</tr>
+									<tr className="border-t border-[#30363d]">
+										<td className="p-12 font-mono text-error">503</td>
+										<td className="p-12 text-base">Unavailable</td>
+										<td className="p-12 text-[#8b949e]">Service temporarily unavailable. Retry with backoff.</td>
 									</tr>
 								</tbody>
 							</table>
@@ -990,10 +1294,13 @@ done`}
 							<p className="body-2 text-base mb-8">Recommended retry behavior:</p>
 							<ul className="body-2 text-muted space-y-4 list-disc list-inside">
 								<li>
-									<strong>4xx errors:</strong> Do not retry. Fix the request.
+									<strong>400–499 errors:</strong> Do not retry. Fix the request.
 								</li>
 								<li>
-									<strong>5xx errors:</strong> Retry with exponential backoff
+									<strong>429 (rate limited):</strong> Wait 60 seconds, then retry.
+								</li>
+								<li>
+									<strong>500–599 errors:</strong> Retry with exponential backoff
 									(1s, 2s, 4s, max 30s)
 								</li>
 								<li>
@@ -1013,7 +1320,11 @@ done`}
 								Ledger Agent Payments API Documentation
 							</p>
 							<p className="body-3 text-muted-subtle mt-4">
-								Built for the USDC OpenClaw Hackathon on Moltbook
+								Machine-readable spec:{" "}
+								<a href="/openapi.json" className="text-accent hover:underline">/openapi.json</a>
+								{" | "}
+								Static HTML docs:{" "}
+								<a href="/docs" className="text-accent hover:underline">/docs</a>
 							</p>
 						</div>
 						<Link

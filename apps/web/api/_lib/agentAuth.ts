@@ -16,6 +16,7 @@ import type { VercelRequest } from "@vercel/node";
 import { recoverMessageAddress, keccak256, toHex, isAddress } from "viem";
 import { getActiveMemberByPubkey } from "./agentsRepo.js";
 import type { TrustchainMember } from "@agent-intents/shared";
+import { logger } from "./logger.js";
 
 /** Maximum clock skew tolerance for agent-signed timestamps (5 minutes). */
 const MAX_TIMESTAMP_DRIFT_SECONDS = 300;
@@ -30,66 +31,77 @@ export interface AgentAuthResult {
  *
  * Returns the authenticated TrustchainMember or throws an Error.
  */
+const AUTH_FAILED = "Authentication failed";
+
 export async function verifyAgentAuth(req: VercelRequest): Promise<AgentAuthResult> {
 	const authHeader = req.headers.authorization;
 	if (!authHeader) {
-		throw new Error("Missing Authorization header");
+		logger.warn("AgentAuth: Missing Authorization header");
+		throw new Error(AUTH_FAILED);
 	}
 
 	if (!authHeader.startsWith("AgentAuth ")) {
-		throw new Error("Invalid authorization scheme – expected AgentAuth");
+		logger.warn("AgentAuth: Invalid authorization scheme – expected AgentAuth");
+		throw new Error(AUTH_FAILED);
 	}
 
 	const payload = authHeader.slice("AgentAuth ".length);
 	const parts = payload.split(".");
 
-	// Format: <timestamp>.<bodyHash>.<signature>
-	// The signature is itself 0x-prefixed and may contain '.' in theory,
-	// so we split into exactly 3 parts: timestamp, bodyHash, rest-is-signature.
 	if (parts.length < 3) {
-		throw new Error("Malformed AgentAuth header");
+		logger.warn("AgentAuth: Malformed AgentAuth header");
+		throw new Error(AUTH_FAILED);
 	}
 
 	const timestamp = parts[0];
 	const bodyHash = parts[1];
 	const signature = parts.slice(2).join(".") as `0x${string}`;
 
-	// 1. Validate timestamp freshness
 	const ts = Number.parseInt(timestamp, 10);
 	if (Number.isNaN(ts)) {
-		throw new Error("Invalid timestamp in AgentAuth header");
+		logger.warn("AgentAuth: Invalid timestamp in AgentAuth header");
+		throw new Error(AUTH_FAILED);
 	}
 
 	const now = Math.floor(Date.now() / 1000);
 	if (Math.abs(now - ts) > MAX_TIMESTAMP_DRIFT_SECONDS) {
-		throw new Error("AgentAuth timestamp expired or too far in the future");
+		logger.warn("AgentAuth: Timestamp expired or too far in the future");
+		throw new Error(AUTH_FAILED);
 	}
 
-	// 2. Validate body hash (for non-GET requests)
 	if (req.method !== "GET" && req.method !== "HEAD") {
 		const rawBody = typeof req.body === "string" ? req.body : JSON.stringify(req.body);
 		const expectedHash = keccak256(toHex(rawBody));
 		if (bodyHash !== expectedHash) {
-			throw new Error("AgentAuth body hash mismatch");
+			logger.warn("AgentAuth: Body hash mismatch");
+			throw new Error(AUTH_FAILED);
 		}
 	}
 
-	// 3. Recover signer address from the EIP-191 personal_sign signature
 	const message = `${timestamp}.${bodyHash}`;
-	const recoveredAddress = await recoverMessageAddress({
-		message,
-		signature,
-	});
+	let recoveredAddress: string;
+	try {
+		recoveredAddress = await recoverMessageAddress({
+			message,
+			signature,
+		});
+	} catch (err) {
+		// viem can throw its own errors for malformed signatures (e.g.
+		// "Invalid yParityOrV value"). Wrap so we never leak internals.
+		logger.warn({ err }, "AgentAuth: Signature recovery failed");
+		throw new Error(AUTH_FAILED);
+	}
 
 	const normalizedAddress = recoveredAddress.toLowerCase();
 	if (!isAddress(normalizedAddress)) {
-		throw new Error("Recovered address is not valid");
+		logger.warn("AgentAuth: Recovered address is not valid");
+		throw new Error(AUTH_FAILED);
 	}
 
-	// 4. Look up the agent in the trustchain_members registry
 	const member = await getActiveMemberByPubkey(normalizedAddress);
 	if (!member) {
-		throw new Error("Agent not registered or revoked");
+		logger.warn("AgentAuth: Agent not registered or revoked");
+		throw new Error(AUTH_FAILED);
 	}
 
 	return { member };

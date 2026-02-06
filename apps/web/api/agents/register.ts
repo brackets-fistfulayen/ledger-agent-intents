@@ -13,10 +13,15 @@
  * (which is the user's wallet address).
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import type { RegisterAgentRequest } from "@agent-intents/shared";
 import { recoverMessageAddress } from "viem";
-import { methodRouter, jsonSuccess, jsonError, parseBody } from "../_lib/http.js";
+import { sql } from "@vercel/postgres";
+import { methodRouter, jsonSuccess, jsonError, parseBodyWithSchema } from "../_lib/http.js";
+import { registerAgentRequestSchema } from "../_lib/validation.js";
+import { logger } from "../_lib/logger.js";
 import { registerAgent, getActiveMemberByPubkey } from "../_lib/agentsRepo.js";
+
+/** Max agent registrations per wallet per minute */
+const RATE_LIMIT_REGISTRATIONS_PER_MINUTE = 5;
 
 /**
  * Reconstruct the authorization message.
@@ -37,13 +42,8 @@ function buildAuthorizationMessage(params: {
 
 export default methodRouter({
 	POST: async (req: VercelRequest, res: VercelResponse) => {
-		const body = parseBody<RegisterAgentRequest>(req);
-
-		// --- Validate required fields ---
-		if (!body.trustChainId || !body.agentPublicKey || !body.authorizationSignature) {
-			jsonError(res, "Missing required fields: trustChainId, agentPublicKey, authorizationSignature", 400);
-			return;
-		}
+		const body = parseBodyWithSchema(req, res, registerAgentRequestSchema);
+		if (body === null) return;
 
 		const agentPublicKey = body.agentPublicKey.toLowerCase();
 		const trustchainId = body.trustChainId.toLowerCase();
@@ -70,15 +70,37 @@ export default methodRouter({
 			});
 
 			if (recoveredAddress.toLowerCase() !== trustchainId) {
-				console.error(
-					`[Agent Registration] Signature mismatch: recovered=${recoveredAddress.toLowerCase()}, expected=${trustchainId}`,
-				);
+				logger.error({ recovered: recoveredAddress.toLowerCase(), expected: trustchainId }, "Agent registration: signature mismatch");
 				jsonError(res, "Authorization signature does not match the connected wallet", 403);
 				return;
 			}
 		} catch (err) {
-			console.error("[Agent Registration] Signature verification failed:", err);
+			logger.error({ err }, "Agent registration: signature verification failed");
 			jsonError(res, "Invalid authorization signature", 400);
+			return;
+		}
+
+		// --- Rate limit: max N registrations per wallet per minute ---
+		try {
+			const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+			const countResult = await sql`
+				SELECT COUNT(*)::int AS cnt
+				FROM trustchain_members
+				WHERE trustchain_id = ${trustchainId}
+					AND created_at > ${oneMinuteAgo}
+			`;
+			const recentCount = (countResult.rows[0] as { cnt: number })?.cnt ?? 0;
+			if (recentCount >= RATE_LIMIT_REGISTRATIONS_PER_MINUTE) {
+				jsonError(
+					res,
+					`Rate limit exceeded: max ${RATE_LIMIT_REGISTRATIONS_PER_MINUTE} agent registrations per minute`,
+					429,
+				);
+				return;
+			}
+		} catch (err) {
+			logger.error({ err }, "Agent registration: rate limit check failed");
+			jsonError(res, "Service temporarily unavailable", 503);
 			return;
 		}
 
@@ -98,8 +120,9 @@ export default methodRouter({
 				authorizationSignature: signature,
 			});
 
-			console.log(
-				`[Agent Registered] ${member.id} "${agentLabel}" for trustchain ${member.trustchainId} (device-authorized)`,
+			logger.info(
+				{ memberId: member.id, agentLabel, trustchainId: member.trustchainId },
+				"Agent registered",
 			);
 
 			jsonSuccess(res, { member }, 201);

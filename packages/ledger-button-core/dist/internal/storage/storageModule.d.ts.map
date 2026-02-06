@@ -1,0 +1,1 @@
+{"version":3,"file":"storageModule.d.ts","sourceRoot":"","sources":["../../../src/internal/storage/storageModule.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,eAAe,EAAE,MAAM,WAAW,CAAC;AAQ5C,KAAK,oBAAoB,GAAG;IAC1B,IAAI,CAAC,EAAE,OAAO,CAAC;CAChB,CAAC;AAEF,wBAAgB,oBAAoB,CAAC,EAAE,IAAI,EAAE,EAAE,oBAAoB,mBAwBlE"}

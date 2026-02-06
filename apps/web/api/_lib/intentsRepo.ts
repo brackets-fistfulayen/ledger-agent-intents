@@ -1,6 +1,15 @@
 /**
  * Intents repository - database operations for intents
  */
+
+/** Thrown when a concurrent update changed the intent status (atomic update returned 0 rows). */
+export class IntentStatusConflictError extends Error {
+	constructor() {
+		super("Intent status has changed, please refresh");
+		this.name = "IntentStatusConflictError";
+	}
+}
+
 import {
 	type Intent,
 	type IntentStatus,
@@ -135,10 +144,11 @@ async function getStatusHistoriesBatch(
 		return historyMap;
 	}
 
+	// ANY() with array - driver accepts string[] for this parameter
 	const result = await sql`
     SELECT intent_id, status, timestamp, note
     FROM intent_status_history
-    WHERE intent_id = ANY(${intentIds as any})
+    WHERE intent_id = ANY(${intentIds as unknown as string[]})
     ORDER BY intent_id, timestamp ASC
   `;
 
@@ -327,7 +337,11 @@ function buildAuditNote(
 }
 
 /**
- * Update intent status
+ * Update intent status.
+ *
+ * All mutations are wrapped in a single DB transaction so that a failure at any
+ * step (details update, expires_at, status, history INSERT) leaves the DB in a
+ * consistent state.
  */
 export async function updateIntentStatus(params: {
 	id: string;
@@ -350,7 +364,7 @@ export async function updateIntentStatus(params: {
 		expiresAt,
 	} = params;
 
-	// Get current intent to check it exists
+	// Get current intent to check it exists (outside transaction — read-only)
 	const existing = await sql`SELECT * FROM intents WHERE id = ${id}`;
 	if (existing.rows.length === 0) {
 		return null;
@@ -365,104 +379,130 @@ export async function updateIntentStatus(params: {
 		throw new Error(`Invalid status transition: ${currentStatus} -> ${status}`);
 	}
 
-	// If we received x402 proof data or settlement receipt, persist it inside the JSON `details` blob.
-	// This avoids needing extra columns/migrations for the demo.
-	if (paymentSignatureHeader || paymentPayload || settlementReceipt) {
-		const existing = intentRow.details.x402;
-		const base = paymentPayload
-			? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }
-			: existing;
+	// --- All writes happen inside a single transaction ---
+	const client = await sql.connect();
+	try {
+		await client.sql`BEGIN`;
 
-		if (base) {
-			const nextDetails: TransferIntent = {
-				...intentRow.details,
-				x402: {
-					...base,
-					...(existing ?? {}),
-					paymentSignatureHeader: paymentSignatureHeader ?? existing?.paymentSignatureHeader,
-					paymentPayload: paymentPayload ?? existing?.paymentPayload,
-					settlementReceipt: settlementReceipt ?? existing?.settlementReceipt,
-					// Store expiry timestamp from the authorization's validBefore
-					...(expiresAt ? { expiresAt } : {}),
-				},
-			};
+		// If we received x402 proof data or settlement receipt, persist it inside the JSON `details` blob.
+		if (paymentSignatureHeader || paymentPayload || settlementReceipt) {
+			const existingX402 = intentRow.details.x402;
+			const base = paymentPayload
+				? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }
+				: existingX402;
 
-			await sql`
-      UPDATE intents
-      SET details = ${JSON.stringify(nextDetails)}
-      WHERE id = ${id}
-    `;
+			if (base) {
+				const nextDetails: TransferIntent = {
+					...intentRow.details,
+					x402: {
+						...base,
+						...(existingX402 ?? {}),
+						paymentSignatureHeader: paymentSignatureHeader ?? existingX402?.paymentSignatureHeader,
+						paymentPayload: paymentPayload ?? existingX402?.paymentPayload,
+						settlementReceipt: settlementReceipt ?? existingX402?.settlementReceipt,
+						...(expiresAt ? { expiresAt } : {}),
+					},
+				};
 
-			// Keep local copy in sync for txUrl computation below
-			intentRow.details = nextDetails;
+				await client.sql`
+					UPDATE intents
+					SET details = ${JSON.stringify(nextDetails)}
+					WHERE id = ${id}
+				`;
+
+				// Keep local copy in sync for txUrl computation below
+				intentRow.details = nextDetails;
+			}
 		}
+
+		// Persist expiresAt on the intent row itself (used by cron + derived status)
+		if (expiresAt) {
+			await client.sql`
+				UPDATE intents
+				SET expires_at = ${expiresAt}
+				WHERE id = ${id}
+			`;
+		}
+
+		// Build update based on status
+		let txUrl: string | null = null;
+		if (status === "broadcasting" && txHash) {
+			txUrl = getExplorerTxUrl(intentRow.details.chainId, txHash);
+		}
+
+		// Atomic status update: only update if current status matches (prevents race conditions)
+		let updateResult: { rows: unknown[] };
+		if (status === "approved") {
+			updateResult = await client.sql`
+				UPDATE intents
+				SET status = ${status}, reviewed_at = ${nowIso}
+				WHERE id = ${id} AND status = ${currentStatus}
+				RETURNING *
+			`;
+		} else if (status === "broadcasting" && txHash) {
+			updateResult = await client.sql`
+				UPDATE intents
+				SET status = ${status}, broadcast_at = ${nowIso}, tx_hash = ${txHash}, tx_url = ${txUrl}
+				WHERE id = ${id} AND status = ${currentStatus}
+				RETURNING *
+			`;
+		} else if (status === "broadcasting") {
+			updateResult = await client.sql`
+				UPDATE intents
+				SET status = ${status}, broadcast_at = ${nowIso}
+				WHERE id = ${id} AND status = ${currentStatus}
+				RETURNING *
+			`;
+		} else if (status === "confirmed") {
+			updateResult = await client.sql`
+				UPDATE intents
+				SET status = ${status}, confirmed_at = ${nowIso}
+				WHERE id = ${id} AND status = ${currentStatus}
+				RETURNING *
+			`;
+		} else if (status === "rejected") {
+			updateResult = await client.sql`
+				UPDATE intents
+				SET status = ${status}, reviewed_at = ${nowIso}
+				WHERE id = ${id} AND status = ${currentStatus}
+				RETURNING *
+			`;
+		} else {
+			updateResult = await client.sql`
+				UPDATE intents
+				SET status = ${status}
+				WHERE id = ${id} AND status = ${currentStatus}
+				RETURNING *
+			`;
+		}
+
+		if (updateResult.rows.length === 0) {
+			// Concurrent update — ROLLBACK and throw
+			await client.sql`ROLLBACK`;
+			throw new IntentStatusConflictError();
+		}
+
+		// Build enriched audit note with x402 context
+		const auditNote = buildAuditNote(status, note, intentRow, params);
+
+		// Add status history entry
+		await client.sql`
+			INSERT INTO intent_status_history (intent_id, status, timestamp, note)
+			VALUES (${id}, ${status}, ${nowIso}, ${auditNote})
+		`;
+
+		await client.sql`COMMIT`;
+	} catch (err) {
+		// ROLLBACK for any unexpected error (conflict error already rolled back above)
+		if (!(err instanceof IntentStatusConflictError)) {
+			await client.sql`ROLLBACK`.catch(() => {});
+		}
+		throw err;
+	} finally {
+		client.release();
 	}
 
-	// Persist expiresAt on the intent row itself (used by cron + derived status)
-	if (expiresAt) {
-		await sql`
-      UPDATE intents
-      SET expires_at = ${expiresAt}
-      WHERE id = ${id}
-    `;
-	}
-
-	// Build update based on status
-	let txUrl: string | null = null;
-	if (status === "broadcasting" && txHash) {
-		txUrl = getExplorerTxUrl(intentRow.details.chainId, txHash);
-	}
-
-	// Update the intent
-	if (status === "approved") {
-		await sql`
-      UPDATE intents
-      SET status = ${status}, reviewed_at = ${nowIso}
-      WHERE id = ${id}
-    `;
-	} else if (status === "broadcasting" && txHash) {
-		await sql`
-      UPDATE intents
-      SET status = ${status}, broadcast_at = ${nowIso}, tx_hash = ${txHash}, tx_url = ${txUrl}
-      WHERE id = ${id}
-    `;
-	} else if (status === "broadcasting") {
-		// Broadcasting without a tx hash (edge case)
-		await sql`
-      UPDATE intents
-      SET status = ${status}, broadcast_at = ${nowIso}
-      WHERE id = ${id}
-    `;
-	} else if (status === "confirmed") {
-		await sql`
-      UPDATE intents
-      SET status = ${status}, confirmed_at = ${nowIso}
-      WHERE id = ${id}
-    `;
-	} else if (status === "rejected") {
-		await sql`
-      UPDATE intents
-      SET status = ${status}, reviewed_at = ${nowIso}
-      WHERE id = ${id}
-    `;
-	} else {
-		await sql`
-      UPDATE intents
-      SET status = ${status}
-      WHERE id = ${id}
-    `;
-	}
-
-	// Build enriched audit note with x402 context
-	const auditNote = buildAuditNote(status, note, intentRow, params);
-
-	// Add status history entry
-	await sql`
-    INSERT INTO intent_status_history (intent_id, status, timestamp, note)
-    VALUES (${id}, ${status}, ${nowIso}, ${auditNote})
-  `;
-
-	// Return updated intent
+	// Return updated intent (reads outside transaction are fine)
 	return getIntentById(id);
 }
 

@@ -8,6 +8,9 @@ export default defineConfig(({ command }) => ({
 		TanStackRouterVite(),
 		react(),
 	],
+	build: {
+		sourcemap: command === "build" ? "hidden" : true,
+	},
 	resolve: {
 		alias: {
 			"@": path.resolve(__dirname, "./src"),

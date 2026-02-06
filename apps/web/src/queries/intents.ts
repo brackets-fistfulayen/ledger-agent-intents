@@ -132,25 +132,35 @@ export function useUpdateIntentStatus() {
 				const contentType = res.headers.get("content-type") ?? "";
 				const isJson = contentType.includes("application/json");
 				if (isJson) {
-					const error = (await res.json().catch(() => ({}))) as { error?: string };
-					throw new Error(error.error || `Failed to update intent: ${res.statusText}`);
+					const body = (await res.json().catch(() => ({}))) as { error?: string };
+					const err = new Error(body.error || `Failed to update intent: ${res.statusText}`) as Error & { status?: number };
+					err.status = res.status;
+					throw err;
 				}
 				const text = await res.text().catch(() => "");
 				const snippet = text.trim().slice(0, 140);
-				throw new Error(
+				const err = new Error(
 					`Failed to update intent: ${res.status} ${res.statusText}${
 						snippet ? ` — ${snippet}` : ""
 					}`
-				);
+				) as Error & { status?: number };
+				err.status = res.status;
+				throw err;
 			}
 
 			const data = (await res.json()) as { success: boolean; intent: Intent };
 			return data.intent;
 		},
 		onSuccess: () => {
-			// Invalidate all intent queries to refresh the list immediately
 			queryClient.invalidateQueries({ queryKey: ["intents"] });
 			queryClient.invalidateQueries({ queryKey: ["intent"] });
+		},
+		onError: (error: Error & { status?: number }) => {
+			// 409 Conflict: status changed concurrently — refetch so UI shows current state
+			if (error.status === 409) {
+				queryClient.invalidateQueries({ queryKey: ["intents"] });
+				queryClient.invalidateQueries({ queryKey: ["intent"] });
+			}
 		},
 	});
 }

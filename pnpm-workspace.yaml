@@ -1,4 +1,3 @@
 packages:
   - "apps/*"
-  - "!apps/live-app-old"
   - "packages/*"
