@@ -490,6 +490,11 @@ echo "Final status: $STATUS"`}
 									/docs
 								</Link>
 								{" | "}
+								This page as Markdown:{" "}
+								<a href="/agent-context.md" className="text-accent hover:underline">
+									/agent-context.md
+								</a>
+								{" | "}
 								This page as JSON:{" "}
 								<a href="/agent-context.json" className="text-accent hover:underline">
 									/agent-context.json
