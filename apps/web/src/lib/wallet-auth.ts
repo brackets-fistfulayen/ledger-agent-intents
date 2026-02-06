@@ -1,10 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLedger } from "./ledger-provider";
 
 // Use same-origin API in production (Vercel); allow override in development only.
 const API_BASE = import.meta.env.DEV ? (import.meta.env.VITE_BACKEND_URL || "") : "";
 
-type AuthStatus = "idle" | "authing" | "authed" | "error";
+/**
+ * - `idle`             – no wallet connected yet
+ * - `checking`         – validating existing session cookie via GET /api/me
+ * - `authed`           – valid session exists (cookie or just-signed)
+ * - `unauthenticated`  – no valid session; user must click "Authenticate"
+ * - `authing`          – EIP-712 challenge-sign-verify in progress
+ * - `error`            – auth attempt failed
+ */
+export type AuthStatus =
+	| "idle"
+	| "checking"
+	| "authed"
+	| "unauthenticated"
+	| "authing"
+	| "error";
 
 type MeResponse = {
 	success: boolean;
@@ -28,7 +42,7 @@ type VerifyResponse = {
  * Check whether the browser already holds a valid session cookie for `wallet`.
  * Uses GET /api/me which validates the cookie against the DB.
  */
-async function hasExistingSession(wallet: string): Promise<boolean> {
+async function checkExistingSession(wallet: string): Promise<boolean> {
 	try {
 		const res = await fetch(`${API_BASE}/api/me`, { credentials: "include" });
 		if (!res.ok) return false;
@@ -43,46 +57,67 @@ async function hasExistingSession(wallet: string): Promise<boolean> {
 	}
 }
 
-export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
-	const ledger = useLedger();
-	const { account, chainId, isConnected, signTypedDataV4 } = ledger;
+export function useWalletAuth(): {
+	status: AuthStatus;
+	error: Error | null;
+	/** Trigger the full EIP-712 challenge → Ledger-sign → verify flow. */
+	authenticate: () => void;
+} {
+	const { account, chainId, isConnected, signTypedDataV4 } = useLedger();
 	const [status, setStatus] = useState<AuthStatus>("idle");
 	const [error, setError] = useState<Error | null>(null);
-	const inFlightRef = useRef(false);
-	const lastWalletRef = useRef<string | null>(null);
-	// Read current status inside the effect without making it a dependency,
-	// which previously caused an infinite retry loop (error → re-trigger → error …).
-	const statusRef = useRef<AuthStatus>(status);
-	statusRef.current = status;
+	const checkingRef = useRef(false);
+	const lastCheckedWalletRef = useRef<string | null>(null);
+	const authingRef = useRef(false);
 
+	// ── Passive phase: check for existing session on connect ────────────
+	// Runs automatically. Never triggers a Ledger signing prompt.
 	useEffect(() => {
-		if (!isConnected || !account || !chainId) return;
+		if (!isConnected || !account) {
+			// Wallet disconnected — reset to idle
+			if (status !== "idle") {
+				setStatus("idle");
+				setError(null);
+				lastCheckedWalletRef.current = null;
+			}
+			return;
+		}
+
 		const walletLower = account.toLowerCase();
 
-		// Already authenticated this wallet — nothing to do.
-		if (statusRef.current === "authed" && lastWalletRef.current === walletLower) return;
-		// Already failed for this wallet — don't auto-retry (user can disconnect/reconnect).
-		if (statusRef.current === "error" && lastWalletRef.current === walletLower) return;
-		if (inFlightRef.current) return;
+		// Don't re-check if we already resolved this wallet
+		if (lastCheckedWalletRef.current === walletLower) return;
+		if (checkingRef.current) return;
 
-		inFlightRef.current = true;
-		lastWalletRef.current = walletLower;
+		checkingRef.current = true;
+		lastCheckedWalletRef.current = walletLower;
+		setStatus("checking");
+		setError(null);
+
+		(async () => {
+			try {
+				const valid = await checkExistingSession(walletLower);
+				setStatus(valid ? "authed" : "unauthenticated");
+			} catch {
+				setStatus("unauthenticated");
+			} finally {
+				checkingRef.current = false;
+			}
+		})();
+	}, [isConnected, account, status]);
+
+	// ── Active phase: full challenge → sign → verify ────────────────────
+	// Only runs when the user explicitly calls authenticate().
+	const authenticate = useCallback(() => {
+		if (!isConnected || !account || !chainId) return;
+		if (authingRef.current) return;
+
+		authingRef.current = true;
 		setStatus("authing");
 		setError(null);
 
 		(async () => {
 			try {
-				// ── Fast path: reuse an existing session cookie ──────────
-				// Sessions last 7 days. If the browser already has a valid
-				// cookie for this wallet we can skip the challenge-sign-verify
-				// round-trip entirely — no Ledger interaction required.
-				const alreadyAuthed = await hasExistingSession(walletLower);
-				if (alreadyAuthed) {
-					setStatus("authed");
-					return;
-				}
-
-				// ── Slow path: full EIP-712 challenge → sign → verify ───
 				const challengeRes = await fetch(`${API_BASE}/api/auth/challenge`, {
 					method: "POST",
 					credentials: "include",
@@ -116,11 +151,10 @@ export function useWalletAuth(): { status: AuthStatus; error: Error | null } {
 				setError(err);
 				setStatus("error");
 			} finally {
-				inFlightRef.current = false;
+				authingRef.current = false;
 			}
 		})();
 	}, [isConnected, account, chainId, signTypedDataV4]);
 
-	return { status, error };
+	return { status, error, authenticate };
 }
-
