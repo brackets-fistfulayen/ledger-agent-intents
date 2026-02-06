@@ -17,8 +17,8 @@ export function Shell({ children }: ShellProps) {
 			{/* Header */}
 			<Header />
 
-			{/* Left Navbar - Fixed position on left side */}
-			<aside className="fixed left-24 top-1/2 -translate-y-1/2 z-50">
+			{/* Left Navbar - Fixed position on left side, below header + banner */}
+			<aside className="fixed left-24 top-[112px] bottom-24 z-50 flex items-center">
 				<LeftNavbar />
 			</aside>
 

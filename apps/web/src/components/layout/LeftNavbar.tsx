@@ -252,7 +252,7 @@ export function LeftNavbar({ className }: LeftNavbarProps = {}) {
 			className={cn(
 				// Layout from Figma
 				"inline-flex flex-col items-center justify-between",
-				"h-[616px] px-16 py-24 gap-10",
+				"h-[616px] max-h-full px-16 py-24 gap-10",
 				// Style from Figma
 				"rounded-full",
 				"bg-muted-transparent",
