@@ -81,14 +81,29 @@ export function setCorsHeaders(res: VercelResponse, req?: VercelRequest) {
 }
 
 /**
- * Send a JSON success response
+ * Send a JSON success response.
+ *
+ * Handles BigInt values gracefully: values within Number.MAX_SAFE_INTEGER are
+ * converted to Number; larger values are serialised as strings.  This avoids
+ * the "Do not know how to serialize a BigInt" TypeError thrown by JSON.stringify.
  */
 export function jsonSuccess<T extends object>(
 	res: VercelResponse,
 	data: T,
 	status = 200
 ) {
-	res.status(status).json({ success: true, ...data });
+	const json = JSON.stringify({ success: true, ...data }, (_key, value) => {
+		if (typeof value === "bigint") {
+			return Number.isSafeInteger(Number(value))
+				? Number(value)
+				: value.toString();
+		}
+		return value;
+	});
+	res
+		.status(status)
+		.setHeader("Content-Type", "application/json; charset=utf-8")
+		.end(json);
 }
 
 /**
