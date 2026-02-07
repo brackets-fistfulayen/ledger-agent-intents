@@ -1,4 +1,4 @@
-import { ContextModuleBuilder } from "@ledgerhq/context-module";
+import { ContextModuleBuilder, type ContextModuleDatasourceConfig } from "@ledgerhq/context-module";
 import {
 	DeviceActionStatus,
 	type DeviceManagementKit,
@@ -123,101 +123,14 @@ const LedgerContext = createContext<LedgerContextType | null>(null);
 let dmkInstance: DeviceManagementKit | null = null;
 
 /**
- * DMK clear-signing API calls are proxied through /api/ledger-proxy/
- * so the Ledger API key stays server-side. The originToken sent by the
- * browser SDK is empty; the proxy injects the real key.
+ * Ledger Developer Portal origin token for clear-signing support.
+ *
+ * This is a PUBLIC client identifier (similar to a Google Maps API key),
+ * NOT a secret. It is safe to include in the client bundle.
+ * The Ledger APIs use it to identify the calling application, not for
+ * authentication or authorization of sensitive operations.
  */
-const LEDGER_API_KEY = "";
-
-// =============================================================================
-// Global HTTP interceptor: rewrite Ledger API URLs through our backend proxy
-// =============================================================================
-// The DMK uses its own bundled axios (isolated by pnpm), so a regular axios
-// interceptor from our app won't catch its requests. We intercept at the
-// browser's XMLHttpRequest level instead, which catches ALL XHR calls.
-
-const LEDGER_API_REWRITES: Array<{ pattern: RegExp; prefix: string }> = [
-	{
-		pattern: /^https:\/\/crypto-assets-service\.api\.ledger\.com\/v1(\/.*)?/,
-		prefix: "/api/ledger-proxy/cal",
-	},
-	{
-		pattern: /^https:\/\/web3checks-backend\.api\.ledger\.com\/v3(\/.*)?/,
-		prefix: "/api/ledger-proxy/web3checks",
-	},
-	{
-		pattern: /^https:\/\/nft\.api\.live\.ledger\.com(\/.*)?/,
-		prefix: "/api/ledger-proxy/metadata",
-	},
-];
-
-/**
- * Rewrite a URL if it matches a known Ledger API domain.
- * Returns the rewritten URL or the original if no match.
- */
-function rewriteLedgerUrl(url: string): string {
-	for (const { pattern, prefix } of LEDGER_API_REWRITES) {
-		const match = url.match(pattern);
-		if (match) {
-			// match[1] contains everything after the base (path + query string)
-			// e.g. "/tokens?contract_address=0x..." or undefined
-			const rest = match[1] ?? "";
-			return `${window.location.origin}${prefix}${rest}`;
-		}
-	}
-	return url;
-}
-
-// Patch XMLHttpRequest.prototype.open (axios default browser adapter)
-{
-	const OriginalOpen = XMLHttpRequest.prototype.open;
-	XMLHttpRequest.prototype.open = function patchedOpen(
-		method: string,
-		url: string | URL,
-		...rest: unknown[]
-	) {
-		const urlStr = typeof url === "string" ? url : url.toString();
-		const rewritten = rewriteLedgerUrl(urlStr);
-		if (rewritten !== urlStr) {
-			console.info("[LedgerProxy] XHR rewrite:", urlStr, "→", rewritten);
-		}
-		// biome-ignore lint/suspicious/noExplicitAny: patching native API
-		return (OriginalOpen as any).call(this, method, rewritten, ...rest);
-	};
-}
-
-// Also patch fetch (in case some code paths use it)
-{
-	const OriginalFetch = window.fetch;
-	window.fetch = function patchedFetch(
-		input: RequestInfo | URL,
-		init?: RequestInit,
-	): Promise<Response> {
-		if (typeof input === "string") {
-			const rewritten = rewriteLedgerUrl(input);
-			if (rewritten !== input) {
-				console.info("[LedgerProxy] fetch rewrite:", input, "→", rewritten);
-			}
-			return OriginalFetch.call(this, rewritten, init);
-		}
-		if (input instanceof URL) {
-			const rewritten = rewriteLedgerUrl(input.toString());
-			if (rewritten !== input.toString()) {
-				console.info("[LedgerProxy] fetch rewrite:", input.toString(), "→", rewritten);
-			}
-			return OriginalFetch.call(this, rewritten, init);
-		}
-		if (input instanceof Request) {
-			const rewritten = rewriteLedgerUrl(input.url);
-			if (rewritten !== input.url) {
-				console.info("[LedgerProxy] fetch rewrite:", input.url, "→", rewritten);
-				const newReq = new Request(rewritten, input);
-				return OriginalFetch.call(this, newReq, init);
-			}
-		}
-		return OriginalFetch.call(this, input, init);
-	};
-}
+const LEDGER_API_KEY: string = import.meta.env.VITE_LEDGER_API_KEY ?? "";
 
 function getDmk(): DeviceManagementKit {
 	if (!dmkInstance) {
@@ -514,14 +427,14 @@ function humanizeError(error: unknown): string {
 // =============================================================================
 
 function buildEthSigner(dmk: DeviceManagementKit, sessionId: DeviceSessionId) {
-	// The global HTTP interceptor (see above) rewrites all Ledger API
-	// domain requests to go through /api/ledger-proxy/*, so the context
-	// module can use the default URLs. The proxy injects the API key.
+	const loggerFactory = dmk.getLoggerFactory();
+	const datasourceConfig: ContextModuleDatasourceConfig = { proxy: "safe" };
+
 	const contextModule = new ContextModuleBuilder({
 		originToken: LEDGER_API_KEY,
-		loggerFactory: dmk.getLoggerFactory(),
+		loggerFactory,
 	})
-		.setDatasourceConfig({ proxy: "safe" })
+		.setDatasourceConfig(datasourceConfig)
 		.build();
 
 	return new SignerEthBuilder({
