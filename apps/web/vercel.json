@@ -4,24 +4,20 @@
 	"installCommand": "cd ../.. && pnpm install --frozen-lockfile",
 	"buildCommand": "cd ../.. && pnpm -w turbo run build --filter=@agent-intents/web...",
 	"outputDirectory": "dist",
-	"headers": [
-		{
-			"source": "/(.*)",
-			"headers": [
-				{ "key": "X-Frame-Options", "value": "DENY" },
-				{ "key": "X-Content-Type-Options", "value": "nosniff" },
-				{ "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-				{ "key": "Permissions-Policy", "value": "geolocation=(), microphone=(), camera=()" },
-				{ "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
-				{ "key": "Cross-Origin-Resource-Policy", "value": "same-origin" },
-				{
-					"key": "Content-Security-Policy",
-					"value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.api.ledger.com https://*.live.ledger.com https://*.g.alchemy.com https://*.base.org wss://*; frame-ancestors 'none'"
-				}
-			]
-		}
-	],
 	"routes": [
+		{
+			"src": "/(.*)",
+			"headers": {
+				"X-Frame-Options": "DENY",
+				"X-Content-Type-Options": "nosniff",
+				"Referrer-Policy": "strict-origin-when-cross-origin",
+				"Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+				"Cross-Origin-Opener-Policy": "same-origin",
+				"Cross-Origin-Resource-Policy": "same-origin",
+				"Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.api.ledger.com https://*.live.ledger.com https://*.g.alchemy.com https://*.base.org wss://*; frame-ancestors 'none'"
+			},
+			"continue": true
+		},
 		{ "src": "/api/ledger-proxy/cal/(.*)", "dest": "/api/ledger-proxy?target=cal&path=/$1" },
 		{
 			"src": "/api/ledger-proxy/web3checks/(.*)",
