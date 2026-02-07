@@ -1252,6 +1252,15 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 			const chain = getChain(currentChainId);
 			const rpcUrl = getRpcUrl(currentChainId);
 
+			console.info("[sendTransaction] Starting", {
+				chainId: currentChainId,
+				rpcUrl,
+				to: tx.to,
+				hasData: !!tx.data,
+				value: tx.value,
+				account,
+			});
+
 			setDeviceActionState({
 				status: "open-app",
 				message: "Preparing transaction…",
@@ -1268,6 +1277,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
 				const senderAddress = account as `0x${string}`;
 
+				console.info("[sendTransaction] Fetching nonce + gas…");
+
 				// Get nonce and gas estimates in parallel
 				const [nonce, gasPrice, estimatedGas] = await Promise.all([
 					publicClient.getTransactionCount({ address: senderAddress }),
@@ -1279,6 +1290,12 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 						value: tx.value ? BigInt(tx.value) : 0n,
 					}),
 				]);
+
+				console.info("[sendTransaction] Gas OK", {
+					nonce,
+					gasPrice: gasPrice.toString(),
+					estimatedGas: estimatedGas.toString(),
+				});
 
 				const unsignedTx: TransactionSerializable = {
 					to: tx.to as `0x${string}`,
@@ -1299,6 +1316,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
 				// Inner helper for the signing step so retry can re-invoke it
 				doSign = async (): Promise<{ r: string; s: string; v: number }> => {
+					console.info("[sendTransaction] Starting device signing…");
 					const signer = buildEthSigner(dmk, sessionId);
 					const { observable } = signer.signTransaction(derivationPathRef.current, txBytes, {
 						skipOpenApp: true,
@@ -1310,10 +1328,12 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 				try {
 					signature = await doSign();
 				} catch (firstErr) {
+					console.warn("[sendTransaction] First sign attempt failed:", firstErr);
 					if (!isAppNotOpenError(firstErr)) throw firstErr;
 					await ensureEthereumApp();
 					signature = await doSign();
 				}
+				console.info("[sendTransaction] Signature obtained");
 
 				const r = signature.r.startsWith("0x") ? signature.r : `0x${signature.r}`;
 				const s = signature.s.startsWith("0x") ? signature.s : `0x${signature.s}`;
@@ -1344,6 +1364,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
 				return txHash;
 			} catch (err) {
+				console.error("[sendTransaction] FAILED:", err);
 				if (doSign) {
 					const capturedDoSign = doSign;
 					retryCallbackRef.current = async () => {
