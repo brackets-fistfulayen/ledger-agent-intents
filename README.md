@@ -602,7 +602,7 @@ Go to your project **Settings > Environment Variables** and add:
 |----------|-------|----------|
 | `POSTGRES_URL` | Neon pooled connection string | Yes |
 | `POSTGRES_URL_NON_POOLING` | Neon direct connection string | Yes |
-| `VITE_LEDGER_API_KEY` | Ledger Developer Portal origin token (public identifier) | Yes |
+| `LEDGER_API_KEY` | Ledger Developer Portal origin token (server-side proxy) | Yes |
 | `CRON_SECRET` | Secret for cron job auth | Yes |
 | `VITE_BASE_MAINNET_RPC_URL` | Base mainnet RPC URL (e.g., Alchemy) | Optional |
 | `VITE_LEDGER_STUB_DAPP_CONFIG` | `false` (or omit) | No |
@@ -623,7 +623,7 @@ Go to your project **Settings > Environment Variables** and add:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_LEDGER_API_KEY` | Ledger Developer Portal origin token (public identifier) | (required) |
+| `LEDGER_API_KEY` | Ledger Developer Portal origin token (server-side proxy) | (required) |
 | `VITE_BACKEND_URL` | Backend URL for local dev | `""` (same-origin) |
 | `VITE_BASE_MAINNET_RPC_URL` | Base mainnet RPC override | (optional) |
 | `VITE_LEDGER_STUB_DAPP_CONFIG` | Use stub dApp config | `false` |
