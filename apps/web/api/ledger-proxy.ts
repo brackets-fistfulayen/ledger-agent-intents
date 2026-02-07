@@ -31,12 +31,30 @@ const STRIP_REQUEST_HEADERS = new Set([
 	"transfer-encoding",
 	"cookie",
 	"authorization",
+	// content-length is recalculated by fetch() for the re-serialized body
+	"content-length",
 	// Strip browser origin/referer to avoid upstream CORS/origin rejections
 	"origin",
 	"referer",
 	// Strip Ledger SDK headers — we inject the real values server-side
 	"x-ledger-client-origin",
 	"x-ledger-client-version",
+	// Strip proxy/Vercel infrastructure headers
+	"x-forwarded-for",
+	"x-forwarded-host",
+	"x-forwarded-proto",
+	"x-real-ip",
+	"x-vercel-id",
+	"x-vercel-deployment-url",
+	"x-vercel-forwarded-for",
+	"x-vercel-ip-city",
+	"x-vercel-ip-country",
+	"x-vercel-ip-country-region",
+	"x-vercel-ip-latitude",
+	"x-vercel-ip-longitude",
+	"x-vercel-ip-timezone",
+	"x-vercel-proxy-signature",
+	"x-vercel-proxy-signature-ts",
 ]);
 
 /** Headers we never forward back to the client */
@@ -88,12 +106,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 	// Inject Ledger API key (after loop so it can't be overwritten)
 	upstreamHeaders["x-ledger-client-origin"] = LEDGER_API_KEY;
 
+	const method = req.method ?? "GET";
+	const requestBody = method !== "GET" && method !== "HEAD" ? JSON.stringify(req.body) : undefined;
+
+	logger.info(
+		{
+			target,
+			path: pathParam,
+			method,
+			upstreamUrl: upstreamUrl.toString(),
+			hasApiKey: LEDGER_API_KEY.length > 0,
+			apiKeyLength: LEDGER_API_KEY.length,
+			forwardedHeaders: Object.keys(upstreamHeaders),
+		},
+		"Ledger proxy: forwarding request",
+	);
+
 	try {
 		const upstreamRes = await fetch(upstreamUrl.toString(), {
-			method: req.method ?? "GET",
+			method,
 			headers: upstreamHeaders,
-			body: req.method !== "GET" && req.method !== "HEAD" ? JSON.stringify(req.body) : undefined,
+			body: requestBody,
 		});
+
+		// Log non-2xx responses for debugging
+		if (!upstreamRes.ok) {
+			const errorBody = await upstreamRes
+				.clone()
+				.text()
+				.catch(() => "(unreadable)");
+			logger.warn(
+				{
+					target,
+					path: pathParam,
+					status: upstreamRes.status,
+					errorBody: errorBody.slice(0, 500),
+				},
+				"Ledger proxy: upstream returned non-2xx",
+			);
+		}
 
 		// Forward response headers
 		for (const [key, value] of upstreamRes.headers.entries()) {
