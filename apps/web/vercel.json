@@ -5,6 +5,19 @@
 	"buildCommand": "cd ../.. && pnpm -w turbo run build --filter=@agent-intents/web...",
 	"outputDirectory": "dist",
 	"routes": [
+		{
+			"src": "/(.*)",
+			"headers": {
+				"X-Frame-Options": "DENY",
+				"X-Content-Type-Options": "nosniff",
+				"Referrer-Policy": "strict-origin-when-cross-origin",
+				"Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+				"Cross-Origin-Opener-Policy": "same-origin",
+				"Cross-Origin-Resource-Policy": "same-origin",
+				"Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://crypto-icons.ledger.com; connect-src 'self' https://*.api.ledger.com https://*.live.ledger.com https://*.g.alchemy.com https://*.base.org https://vercel.live wss://*; frame-src https://vercel.live; frame-ancestors 'none'"
+			},
+			"continue": true
+		},
 		{ "src": "/api/(.*)", "dest": "/api/$1" },
 		{ "handle": "filesystem" },
 		{ "src": "/(.*)", "dest": "/index.html" }

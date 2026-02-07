@@ -19,6 +19,9 @@ import { verifyBodySchema } from "../_lib/validation.js";
 
 const SESSION_VALIDITY_DAYS = 7;
 
+/** Max verify attempts per wallet per minute */
+const RATE_LIMIT_VERIFY_PER_MINUTE = 10;
+
 export default methodRouter({
 	POST: async (req: VercelRequest, res: VercelResponse) => {
 		const body = parseBodyWithSchema(req, res, verifyBodySchema);
@@ -29,6 +32,30 @@ export default methodRouter({
 			wallet = normalizeWalletAddress(body.walletAddress);
 		} catch {
 			jsonError(res, "Invalid wallet address", 400);
+			return;
+		}
+
+		// Rate limiting: max N verify attempts per wallet per minute
+		try {
+			const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+			const countResult = await sql`
+				SELECT COUNT(*)::int AS cnt
+				FROM auth_challenges
+				WHERE wallet_address = ${wallet}
+					AND used_at IS NOT NULL
+					AND used_at > ${oneMinuteAgo}
+			`;
+			const recentCount = (countResult.rows[0] as { cnt: number })?.cnt ?? 0;
+			if (recentCount >= RATE_LIMIT_VERIFY_PER_MINUTE) {
+				jsonError(
+					res,
+					"Rate limit exceeded: too many verify attempts. Try again in a minute.",
+					429,
+				);
+				return;
+			}
+		} catch {
+			jsonError(res, "Service temporarily unavailable", 503);
 			return;
 		}
 
