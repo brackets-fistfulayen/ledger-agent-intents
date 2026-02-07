@@ -44,6 +44,7 @@ const USER_ALLOWED_STATUSES: IntentStatus[] = [
 	"rejected",
 	"authorized",
 	"broadcasting",
+	"failed",
 ];
 
 export default methodRouter({
