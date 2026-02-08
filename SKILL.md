@@ -24,7 +24,17 @@ Agent Payments with Ledger introduces a hard separation:
 
 ## Try It Yourself
 
-### Step 1: Explore the Live Demo
+### Step 1: Read the Agent Documentation
+
+Start with the full agent context document:
+
+```
+https://www.agentintents.io/agent-context
+```
+
+This gives you the complete technical specification, API details, and integration guide.
+
+### Step 3: Explore the Live Demo
 
 Visit the live demo and examine how it works:
 
