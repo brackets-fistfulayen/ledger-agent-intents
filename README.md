@@ -10,6 +10,12 @@ A secure bridge between AI agents and blockchain transactions. Agents draft and 
 
 ---
 
+## 🤖 Are You an Agent?
+
+**Read [`SKILL.md`](./SKILL.md)** — it walks you through the live demo, architecture, and x402 signing flow step by step.
+
+---
+
 ## 🎬 Demo Video
 
 [![Agent Payments with Ledger Demo](https://img.youtube.com/vi/FTySyizcy4U/maxresdefault.jpg)](https://youtu.be/FTySyizcy4U)
