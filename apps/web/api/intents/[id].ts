@@ -2,12 +2,15 @@
  * Get intent by ID endpoint
  * GET /api/intents/:id
  *
- * Returns full intent details. Sensitive x402 fields (paymentSignatureHeader,
- * paymentPayload, signature) are stripped unless the caller is the owning
- * agent authenticated via AgentAuth.
+ * Requires authentication (session or AgentAuth).
+ *
+ * - Authenticated agent that owns the intent → full intent (incl. x402 secrets)
+ * - Authenticated user that owns the intent  → sanitized intent (no x402 secrets)
+ * - Otherwise → 403
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { verifyAgentAuth } from "../_lib/agentAuth.js";
+import { requireSession } from "../_lib/auth.js";
 import { jsonError, jsonSuccess, methodRouter } from "../_lib/http.js";
 import { getIntentById, sanitizeIntent } from "../_lib/intentsRepo.js";
 
@@ -28,23 +31,41 @@ export default methodRouter({
 			return;
 		}
 
-		// Check if caller is the owning agent -- if so, return full intent
-		// (agent needs paymentSignatureHeader to complete the x402 flow)
+		// --- Agent auth path ---
 		const authHeader = req.headers.authorization;
 		if (authHeader?.startsWith("AgentAuth ")) {
 			try {
 				const { member } = await verifyAgentAuth(req);
 				if (intent.trustChainId && intent.trustChainId === member.trustchainId) {
-					// Owning agent -- return full intent with x402 secrets
+					// Owning agent — return full intent with x402 secrets
 					jsonSuccess(res, { intent });
 					return;
 				}
+				// Authenticated agent but not the owner
+				jsonError(res, "You can only access intents on your own trustchain", 403);
+				return;
 			} catch {
-				// Auth failed -- fall through to sanitized response
+				jsonError(res, "Agent authentication failed", 401);
+				return;
 			}
 		}
 
-		// Non-owning caller or no auth -- strip x402 bearer credentials
-		jsonSuccess(res, { intent: sanitizeIntent(intent) });
+		// --- Session auth path ---
+		try {
+			const session = await requireSession(req);
+			// The intent's userId (wallet address) must match the session
+			if (
+				intent.userId &&
+				intent.userId.toLowerCase() === session.walletAddress.toLowerCase()
+			) {
+				jsonSuccess(res, { intent: sanitizeIntent(intent) });
+				return;
+			}
+			jsonError(res, "You can only access your own intents", 403);
+			return;
+		} catch {
+			jsonError(res, "Authentication required", 401);
+			return;
+		}
 	},
 });
