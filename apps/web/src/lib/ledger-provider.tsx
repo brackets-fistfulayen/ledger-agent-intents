@@ -672,7 +672,8 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 	const openAppAndDeriveAddresses = useCallback(async () => {
 		const appWasOpen = await ensureEthereumApp();
 
-		const sessionId = sessionIdRef.current!;
+		const sessionId = sessionIdRef.current;
+		if (!sessionId) throw new Error("No device session after ensureEthereumApp");
 		const dmk = getDmk();
 		const ethSigner = buildEthSigner(dmk, sessionId);
 		const addresses: DerivedAddress[] = [];
@@ -720,7 +721,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
 
 		try {
 			await openAppAndDeriveAddresses();
-			monitorSession(sessionIdRef.current!);
+			if (sessionIdRef.current) monitorSession(sessionIdRef.current);
 		} catch (err) {
 			setConnectingTransport(null);
 			setIsDerivingAddresses(false);

@@ -1,5 +1,5 @@
 /**
- * Shared types for Ledger Agent Payments system
+ * Shared types for Agent Payments with Ledger system
  */
 export type IntentStatus = "pending" | "approved" | "rejected" | "broadcasting" | "authorized" | "executing" | "confirmed" | "failed" | "expired";
 /**
@@ -183,6 +183,8 @@ export interface CreateIntentRequest {
 export interface CreateIntentResponse {
     success: boolean;
     intent?: Intent;
+    /** Direct link the agent can share for the user to review & sign this intent. */
+    paymentUrl?: string;
     error?: string;
 }
 export interface IntentWebhook {

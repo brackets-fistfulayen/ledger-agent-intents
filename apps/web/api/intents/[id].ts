@@ -54,10 +54,7 @@ export default methodRouter({
 		try {
 			const session = await requireSession(req);
 			// The intent's userId (wallet address) must match the session
-			if (
-				intent.userId &&
-				intent.userId.toLowerCase() === session.walletAddress.toLowerCase()
-			) {
+			if (intent.userId && intent.userId.toLowerCase() === session.walletAddress.toLowerCase()) {
 				jsonSuccess(res, { intent: sanitizeIntent(intent) });
 				return;
 			}

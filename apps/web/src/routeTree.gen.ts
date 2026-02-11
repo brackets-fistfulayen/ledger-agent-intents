@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as DocsRouteImport } from './routes/docs'
+import { Route as AgentContextRouteImport } from './routes/agent-context'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PayIntentIdRouteImport } from './routes/pay.$intentId'
 
@@ -30,6 +31,11 @@ const DocsRoute = DocsRouteImport.update({
   path: '/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgentContextRoute = AgentContextRouteImport.update({
+  id: '/agent-context',
+  path: '/agent-context',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -43,6 +49,7 @@ const PayIntentIdRoute = PayIntentIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agent-context': typeof AgentContextRoute
   '/docs': typeof DocsRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agent-context': typeof AgentContextRoute
   '/docs': typeof DocsRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agent-context': typeof AgentContextRoute
   '/docs': typeof DocsRoute
   '/history': typeof HistoryRoute
   '/settings': typeof SettingsRoute
@@ -65,14 +74,34 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/docs' | '/history' | '/settings' | '/pay/$intentId'
+  fullPaths:
+    | '/'
+    | '/agent-context'
+    | '/docs'
+    | '/history'
+    | '/settings'
+    | '/pay/$intentId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/docs' | '/history' | '/settings' | '/pay/$intentId'
-  id: '__root__' | '/' | '/docs' | '/history' | '/settings' | '/pay/$intentId'
+  to:
+    | '/'
+    | '/agent-context'
+    | '/docs'
+    | '/history'
+    | '/settings'
+    | '/pay/$intentId'
+  id:
+    | '__root__'
+    | '/'
+    | '/agent-context'
+    | '/docs'
+    | '/history'
+    | '/settings'
+    | '/pay/$intentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgentContextRoute: typeof AgentContextRoute
   DocsRoute: typeof DocsRoute
   HistoryRoute: typeof HistoryRoute
   SettingsRoute: typeof SettingsRoute
@@ -102,6 +131,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/agent-context': {
+      id: '/agent-context'
+      path: '/agent-context'
+      fullPath: '/agent-context'
+      preLoaderRoute: typeof AgentContextRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -121,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgentContextRoute: AgentContextRoute,
   DocsRoute: DocsRoute,
   HistoryRoute: HistoryRoute,
   SettingsRoute: SettingsRoute,

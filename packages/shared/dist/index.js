@@ -1,5 +1,5 @@
 /**
- * Shared types for Ledger Agent Payments system
+ * Shared types for Agent Payments with Ledger system
  */
 /**
  * Valid status transitions for intents.
