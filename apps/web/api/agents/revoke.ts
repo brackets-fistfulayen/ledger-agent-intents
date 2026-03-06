@@ -8,10 +8,14 @@
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { recoverMessageAddress } from "viem";
+import { sql } from "../_lib/db.js";
 import { getMemberById, revokeMember } from "../_lib/agentsRepo.js";
 import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
 import { logger } from "../_lib/logger.js";
 import { revokeAgentBodySchema } from "../_lib/validation.js";
+
+/** Max agent revocations per wallet per minute */
+const RATE_LIMIT_REVOCATIONS_PER_MINUTE = 5;
 
 /**
  * Reconstruct the revocation message.
@@ -41,6 +45,31 @@ export default methodRouter({
 		const member = await getMemberById(id);
 		if (!member) {
 			jsonError(res, "Agent not found", 404);
+			return;
+		}
+
+		// --- Rate limit: max N revocations per wallet per minute ---
+		try {
+			const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+			const countResult = await sql`
+				SELECT COUNT(*)::int AS cnt
+				FROM trustchain_members
+				WHERE trustchain_id = ${member.trustchainId}
+					AND revoked_at IS NOT NULL
+					AND revoked_at > ${oneMinuteAgo}
+			`;
+			const recentCount = (countResult.rows[0] as { cnt: number })?.cnt ?? 0;
+			if (recentCount >= RATE_LIMIT_REVOCATIONS_PER_MINUTE) {
+				jsonError(
+					res,
+					`Rate limit exceeded: max ${RATE_LIMIT_REVOCATIONS_PER_MINUTE} agent revocations per minute`,
+					429,
+				);
+				return;
+			}
+		} catch (err) {
+			logger.error({ err }, "Agent revocation: rate limit check failed");
+			jsonError(res, "Service temporarily unavailable", 503);
 			return;
 		}
 

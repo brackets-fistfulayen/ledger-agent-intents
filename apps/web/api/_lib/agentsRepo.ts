@@ -85,6 +85,24 @@ export async function getMemberById(id: string): Promise<TrustchainMember | null
 }
 
 /**
+ * Get a member by ID, scoped to a single trustchain owner.
+ */
+export async function getMemberByIdForOwner(
+	id: string,
+	walletAddress: string,
+): Promise<TrustchainMember | null> {
+	const result = await sql`
+    SELECT * FROM trustchain_members
+    WHERE id = ${id}::uuid
+      AND trustchain_id = ${walletAddress.toLowerCase()}
+    LIMIT 1
+  `;
+
+	if (result.rows.length === 0) return null;
+	return rowToMember(result.rows[0] as TrustchainMemberRow);
+}
+
+/**
  * List all members for a trustchain (including revoked ones).
  */
 export async function getMembersByTrustchain(trustchainId: string): Promise<TrustchainMember[]> {

@@ -11,6 +11,10 @@ type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
 type Handler = (req: VercelRequest, res: VercelResponse) => Promise<void>;
 
 type RouteHandlers = Partial<Record<HttpMethod, Handler>>;
+type JsonSuccessOptions = {
+	cacheControl?: string | false;
+	pragma?: string | false;
+};
 
 /**
  * Method router - dispatch to the right handler based on HTTP method
@@ -84,14 +88,28 @@ export function setCorsHeaders(res: VercelResponse, req?: VercelRequest) {
  * converted to Number; larger values are serialised as strings.  This avoids
  * the "Do not know how to serialize a BigInt" TypeError thrown by JSON.stringify.
  */
-export function jsonSuccess<T extends object>(res: VercelResponse, data: T, status = 200) {
+export function jsonSuccess<T extends object>(
+	res: VercelResponse,
+	data: T,
+	status = 200,
+	options?: JsonSuccessOptions,
+) {
+	const cacheControl = options?.cacheControl ?? "no-store, no-cache, must-revalidate";
+	const pragma = options?.pragma ?? "no-cache";
 	const json = JSON.stringify({ success: true, ...data }, (_key, value) => {
 		if (typeof value === "bigint") {
 			return Number.isSafeInteger(Number(value)) ? Number(value) : value.toString();
 		}
 		return value;
 	});
-	res.status(status).setHeader("Content-Type", "application/json; charset=utf-8").end(json);
+	const response = res.status(status).setHeader("Content-Type", "application/json; charset=utf-8");
+	if (cacheControl !== false) {
+		response.setHeader("Cache-Control", cacheControl);
+	}
+	if (pragma !== false) {
+		response.setHeader("Pragma", pragma);
+	}
+	response.end(json);
 }
 
 /**

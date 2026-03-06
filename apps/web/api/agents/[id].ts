@@ -4,7 +4,7 @@
  * DELETE /api/agents/:id   – Revoke an agent (requires session, ownership)
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { getMemberById, revokeMember } from "../_lib/agentsRepo.js";
+import { getMemberByIdForOwner, revokeMember } from "../_lib/agentsRepo.js";
 import { requireSession } from "../_lib/auth.js";
 import { jsonError, jsonSuccess, methodRouter } from "../_lib/http.js";
 import { logger } from "../_lib/logger.js";
@@ -25,14 +25,9 @@ export default methodRouter({
 			return;
 		}
 
-		const member = await getMemberById(id);
+		const member = await getMemberByIdForOwner(id, session.walletAddress);
 		if (!member) {
 			jsonError(res, "Agent not found", 404);
-			return;
-		}
-
-		if (member.trustchainId !== session.walletAddress) {
-			jsonError(res, "You can only view your own agents", 403);
 			return;
 		}
 
@@ -54,14 +49,9 @@ export default methodRouter({
 			return;
 		}
 
-		const member = await getMemberById(id);
+		const member = await getMemberByIdForOwner(id, session.walletAddress);
 		if (!member) {
 			jsonError(res, "Agent not found", 404);
-			return;
-		}
-
-		if (member.trustchainId !== session.walletAddress) {
-			jsonError(res, "You can only revoke your own agents", 403);
 			return;
 		}
 
