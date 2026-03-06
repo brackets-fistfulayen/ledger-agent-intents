@@ -8,8 +8,8 @@
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { recoverMessageAddress } from "viem";
-import { sql } from "../_lib/db.js";
 import { getMemberById, revokeMember } from "../_lib/agentsRepo.js";
+import { sql } from "../_lib/db.js";
 import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
 import { logger } from "../_lib/logger.js";
 import { revokeAgentBodySchema } from "../_lib/validation.js";
