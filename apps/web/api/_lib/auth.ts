@@ -3,6 +3,7 @@ import { isAddress, recoverMessageAddress } from "viem";
 import { sql } from "./db.js";
 
 const SESSION_COOKIE_NAME = "ai_session";
+const SESSION_IDLE_TIMEOUT_MINUTES = 30;
 
 export function normalizeWalletAddress(addr: string): string {
 	const trimmed = addr.trim();
@@ -67,12 +68,16 @@ export async function requireSession(
 	}
 
 	const now = new Date().toISOString();
+	const idleThreshold = new Date(Date.now() - SESSION_IDLE_TIMEOUT_MINUTES * 60_000).toISOString();
 	const result = await sql`
-    SELECT id, wallet_address
-    FROM auth_sessions
-    WHERE id = ${sessionId} AND expires_at > ${now}
-    LIMIT 1
-  `;
+		UPDATE auth_sessions
+		SET last_accessed_at = ${now}
+		WHERE
+			id = ${sessionId}
+			AND expires_at > ${now}
+			AND last_accessed_at > ${idleThreshold}
+		RETURNING id, wallet_address
+	`;
 	if (result.rows.length === 0) {
 		throw new Error("Unauthorized");
 	}

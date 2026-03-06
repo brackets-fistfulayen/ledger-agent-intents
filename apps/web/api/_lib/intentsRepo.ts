@@ -372,9 +372,32 @@ export async function updateIntentStatus(params: {
 
 	const intentRow = existing.rows[0] as IntentRow;
 	const nowIso = new Date().toISOString();
+	const now = new Date();
+
+	const currentStatus = intentRow.status as IntentStatus;
+
+	// Block race window: never allow execution of an expired x402 authorization.
+	if (status === "executing") {
+		const x402ExpiresAt = intentRow.details?.x402?.expiresAt ?? intentRow.expires_at?.toISOString();
+		if (x402ExpiresAt && new Date(x402ExpiresAt) <= now) {
+			const expireUpdate = await sql`
+				UPDATE intents
+				SET status = 'expired'
+				WHERE id = ${id} AND status <> 'expired'
+			`;
+
+			if ((expireUpdate.rowCount ?? 0) > 0) {
+				await sql`
+					INSERT INTO intent_status_history (intent_id, status, timestamp, note)
+					VALUES (${id}, 'expired', ${nowIso}, 'Auto-expired before executing: x402 authorization expired')
+				`;
+			}
+
+			throw new Error("Cannot execute: x402 authorization has expired");
+		}
+	}
 
 	// Enforce state machine: reject invalid transitions
-	const currentStatus = intentRow.status as IntentStatus;
 	if (!isValidTransition(currentStatus, status)) {
 		throw new Error(`Invalid status transition: ${currentStatus} -> ${status}`);
 	}

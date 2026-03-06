@@ -19,7 +19,7 @@ export type IntentStatus =
  * Terminal states (rejected, confirmed, failed, expired) have no outgoing transitions.
  */
 export const INTENT_TRANSITIONS: Record<IntentStatus, IntentStatus[]> = {
-	pending: ["approved", "rejected", "broadcasting", "authorized", "failed", "expired"],
+	pending: ["approved", "rejected", "failed", "expired"],
 	approved: ["broadcasting", "authorized", "failed", "expired"],
 	rejected: [],
 	broadcasting: ["confirmed", "failed", "expired"],

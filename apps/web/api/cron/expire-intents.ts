@@ -59,6 +59,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 			logger.info({ count }, "expire-intents: transitioned intents to expired");
 		}
 
+		const cleanedNonces = await sql`
+			DELETE FROM agentauth_used_nonces
+			WHERE used_at < NOW() - INTERVAL '10 minutes'
+		`;
+		const cleanedNonceCount = cleanedNonces.rowCount ?? 0;
+		if (cleanedNonceCount > 0) {
+			logger.info({ count: cleanedNonceCount }, "expire-intents: cleaned AgentAuth nonce records");
+		}
+
 		// Also insert status history entries for the expired intents
 		// (We do this in a separate pass since we need the IDs)
 		if (count > 0) {
@@ -73,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 			`;
 		}
 
-		res.status(200).json({ success: true, expiredCount: count });
+		res.status(200).json({ success: true, expiredCount: count, cleanedNonceCount });
 	} catch (error) {
 		logger.error({ err: error }, "expire-intents error");
 		res.status(500).json({ error: "Internal error" });

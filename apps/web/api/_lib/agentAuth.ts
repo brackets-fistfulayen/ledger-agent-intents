@@ -16,6 +16,7 @@ import type { TrustchainMember } from "@agent-intents/shared";
 import type { VercelRequest } from "@vercel/node";
 import { isAddress, keccak256, recoverMessageAddress, toHex } from "viem";
 import { getActiveMemberByPubkey } from "./agentsRepo.js";
+import { sql } from "./db.js";
 import { logger } from "./logger.js";
 
 /** Maximum clock skew tolerance for agent-signed timestamps (5 minutes). */
@@ -101,6 +102,19 @@ export async function verifyAgentAuth(req: VercelRequest): Promise<AgentAuthResu
 	const member = await getActiveMemberByPubkey(normalizedAddress);
 	if (!member) {
 		logger.warn("AgentAuth: Agent not registered or revoked");
+		throw new Error(AUTH_FAILED);
+	}
+
+	// Replay protection: every AgentAuth signature may be used only once.
+	const signatureHash = keccak256(signature);
+	const nonceInsertResult = await sql`
+		INSERT INTO agentauth_used_nonces (signature_hash)
+		VALUES (${signatureHash})
+		ON CONFLICT DO NOTHING
+		RETURNING signature_hash
+	`;
+	if (nonceInsertResult.rows.length === 0) {
+		logger.warn("AgentAuth: Replay detected - signature already used");
 		throw new Error(AUTH_FAILED);
 	}
 
