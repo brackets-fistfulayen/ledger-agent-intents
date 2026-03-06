@@ -15,7 +15,14 @@ import type {
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { verifyAgentAuth } from "../_lib/agentAuth.js";
 import { requireSession } from "../_lib/auth.js";
-import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
+import { withDbRlsContext } from "../_lib/db.js";
+import {
+	authError,
+	jsonError,
+	jsonSuccess,
+	methodRouter,
+	parseBodyWithSchema,
+} from "../_lib/http.js";
 import {
 	IntentStatusConflictError,
 	getIntentById,
@@ -55,12 +62,6 @@ export default methodRouter({
 
 		const intentId = body.id;
 
-		const existing = await getIntentById(intentId);
-		if (!existing) {
-			jsonError(res, "Intent not found", 404);
-			return;
-		}
-
 		if (!body.status || !VALID_STATUSES.includes(body.status)) {
 			jsonError(res, "Valid status required", 400);
 			return;
@@ -69,62 +70,114 @@ export default methodRouter({
 		// --- Authentication & authorization ---
 		const authHeader = req.headers.authorization;
 		if (authHeader?.startsWith("AgentAuth ")) {
-			// Authenticated agent flow
+			let member: { trustchainId: string };
 			try {
-				const { member } = await verifyAgentAuth(req);
-
-				if (!AGENT_ALLOWED_STATUSES.includes(body.status)) {
-					jsonError(
-						res,
-						`Agents can only set status to: ${AGENT_ALLOWED_STATUSES.join(", ")}`,
-						403,
-					);
-					return;
-				}
-
-				// Verify ownership: agent's trustchain must match intent's trustchain
-				if (existing.trustChainId && existing.trustChainId !== member.trustchainId) {
-					jsonError(res, "Agent does not own this intent", 403);
-					return;
-				}
+				({ member } = await verifyAgentAuth(req));
 			} catch (err) {
 				const message = err instanceof Error ? err.message : "Authentication failed";
-				jsonError(res, message, 401);
+				authError(req, res, message, 401);
 				return;
 			}
-		} else {
-			// Session cookie for web UI users
+			const existing = await withDbRlsContext(
+				{ currentUser: member.trustchainId },
+				async (client) => getIntentById(intentId, client.sql),
+			);
+			if (!existing) {
+				jsonError(res, "Intent not found", 404);
+				return;
+			}
+			if (!AGENT_ALLOWED_STATUSES.includes(body.status)) {
+				authError(
+					req,
+					res,
+					`Agents can only set status to: ${AGENT_ALLOWED_STATUSES.join(", ")}`,
+					403,
+					member.trustchainId,
+				);
+				return;
+			}
+
+			let intent: Awaited<ReturnType<typeof updateIntentStatus>>;
 			try {
-				const session = await requireSession(req);
-
-				if (!USER_ALLOWED_STATUSES.includes(body.status)) {
-					jsonError(res, `Users can only set status to: ${USER_ALLOWED_STATUSES.join(", ")}`, 403);
+				intent = await withDbRlsContext({ currentUser: member.trustchainId }, async (client) =>
+					updateIntentStatus(
+						{
+							id: intentId,
+							status: body.status,
+							txHash: body.txHash,
+							note: body.note,
+							paymentSignatureHeader: body.paymentSignatureHeader,
+							paymentPayload: body.paymentPayload as X402PaymentPayload | undefined,
+							settlementReceipt: body.settlementReceipt as X402SettlementReceipt | undefined,
+							expiresAt: body.expiresAt,
+						},
+						client,
+					),
+				);
+			} catch (err) {
+				if (err instanceof IntentStatusConflictError) {
+					jsonError(res, err.message, 409);
 					return;
 				}
+				throw err;
+			}
 
-				// Verify ownership: session wallet must match intent's userId
-				if (existing.userId !== session.walletAddress) {
-					jsonError(res, "User does not own this intent", 403);
-					return;
-				}
-			} catch {
-				jsonError(res, "Authentication failed", 401);
+			if (!intent) {
+				jsonError(res, "Intent not found", 404);
 				return;
 			}
+			logger.info(
+				{ intentId: intent.id, status: body.status, txHash: body.txHash },
+				`Intent ${body.status}`,
+			);
+			jsonSuccess(res, { intent });
+			return;
+		}
+
+		let session: { walletAddress: string };
+		try {
+			session = await requireSession(req);
+		} catch {
+			authError(req, res, "Authentication failed", 401);
+			return;
+		}
+
+		const existing = await withDbRlsContext(
+			{ currentUser: session.walletAddress },
+			async (client) => getIntentById(intentId, client.sql),
+		);
+		if (!existing) {
+			jsonError(res, "Intent not found", 404);
+			return;
+		}
+		if (!USER_ALLOWED_STATUSES.includes(body.status)) {
+			authError(
+				req,
+				res,
+				`Users can only set status to: ${USER_ALLOWED_STATUSES.join(", ")}`,
+				403,
+				session.walletAddress,
+			);
+			return;
 		}
 
 		let intent: Awaited<ReturnType<typeof updateIntentStatus>>;
 		try {
-			intent = await updateIntentStatus({
-				id: intentId,
-				status: body.status,
-				txHash: body.txHash,
-				note: body.note,
-				paymentSignatureHeader: body.paymentSignatureHeader,
-				paymentPayload: body.paymentPayload as X402PaymentPayload | undefined,
-				settlementReceipt: body.settlementReceipt as X402SettlementReceipt | undefined,
-				expiresAt: body.expiresAt,
-			});
+			intent = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
+				updateIntentStatus(
+					{
+						id: intentId,
+						status: body.status,
+						txHash: body.txHash,
+						note: body.note,
+						paymentSignatureHeader: body.paymentSignatureHeader,
+						paymentPayload: body.paymentPayload as X402PaymentPayload | undefined,
+						settlementReceipt: body.settlementReceipt as X402SettlementReceipt | undefined,
+						expiresAt: body.expiresAt,
+					},
+					client,
+				),
+			);
 		} catch (err) {
 			if (err instanceof IntentStatusConflictError) {
 				jsonError(res, err.message, 409);
@@ -137,12 +190,10 @@ export default methodRouter({
 			jsonError(res, "Intent not found", 404);
 			return;
 		}
-
 		logger.info(
 			{ intentId: intent.id, status: body.status, txHash: body.txHash },
 			`Intent ${body.status}`,
 		);
-
 		jsonSuccess(res, { intent });
 	},
 });

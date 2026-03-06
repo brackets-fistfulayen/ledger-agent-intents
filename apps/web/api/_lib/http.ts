@@ -5,6 +5,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import type { z } from "zod";
 import { getAllowedOrigins } from "./env.js";
 import { logger } from "./logger.js";
+import { checkIpRateLimit, logAuthFailure } from "./security.js";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "OPTIONS";
 
@@ -38,6 +39,14 @@ export function methodRouter(handlers: RouteHandlers) {
 
 		try {
 			setCorsHeaders(res, req);
+			const rateLimit = checkIpRateLimit(req);
+			if (!rateLimit.allowed) {
+				if (rateLimit.retryAfterSeconds) {
+					res.setHeader("Retry-After", rateLimit.retryAfterSeconds.toString());
+				}
+				jsonError(res, "Rate limit exceeded. Try again later.", 429);
+				return;
+			}
 			await handler(req, res);
 		} catch (error) {
 			logger.error({ err: error, method, url: req.url }, "API error");
@@ -99,6 +108,20 @@ export function jsonSuccess<T extends object>(res: VercelResponse, data: T, stat
  */
 export function jsonError(res: VercelResponse, error: string, status = 400) {
 	res.status(status).json({ success: false, error });
+}
+
+/**
+ * Send a JSON auth failure response and emit structured audit logging.
+ */
+export function authError(
+	req: VercelRequest,
+	res: VercelResponse,
+	error: string,
+	status: 401 | 403,
+	walletAddress?: string,
+) {
+	logAuthFailure({ req, status, reason: error, walletAddress });
+	jsonError(res, error, status);
 }
 
 /**

@@ -6,7 +6,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getMemberById, revokeMember } from "../_lib/agentsRepo.js";
 import { requireSession } from "../_lib/auth.js";
-import { jsonError, jsonSuccess, methodRouter } from "../_lib/http.js";
+import { withDbRlsContext } from "../_lib/db.js";
+import { authError, jsonError, jsonSuccess, methodRouter } from "../_lib/http.js";
 import { logger } from "../_lib/logger.js";
 
 export default methodRouter({
@@ -15,7 +16,7 @@ export default methodRouter({
 		try {
 			session = await requireSession(req);
 		} catch {
-			jsonError(res, "Authentication required", 401);
+			authError(req, res, "Authentication required", 401);
 			return;
 		}
 
@@ -25,14 +26,11 @@ export default methodRouter({
 			return;
 		}
 
-		const member = await getMemberById(id);
+		const member = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
+			getMemberById(id, client.sql),
+		);
 		if (!member) {
 			jsonError(res, "Agent not found", 404);
-			return;
-		}
-
-		if (member.trustchainId !== session.walletAddress) {
-			jsonError(res, "You can only view your own agents", 403);
 			return;
 		}
 
@@ -44,7 +42,7 @@ export default methodRouter({
 		try {
 			session = await requireSession(req);
 		} catch {
-			jsonError(res, "Authentication required", 401);
+			authError(req, res, "Authentication required", 401);
 			return;
 		}
 
@@ -54,18 +52,16 @@ export default methodRouter({
 			return;
 		}
 
-		const member = await getMemberById(id);
+		const member = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
+			getMemberById(id, client.sql),
+		);
 		if (!member) {
 			jsonError(res, "Agent not found", 404);
 			return;
 		}
-
-		if (member.trustchainId !== session.walletAddress) {
-			jsonError(res, "You can only revoke your own agents", 403);
-			return;
-		}
-
-		const revoked = await revokeMember(id);
+		const revoked = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
+			revokeMember(id, client.sql),
+		);
 		if (!revoked) {
 			jsonError(res, "Agent not found or already revoked", 404);
 			return;

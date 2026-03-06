@@ -11,7 +11,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { verifyAgentAuth } from "../_lib/agentAuth.js";
 import { requireSession } from "../_lib/auth.js";
-import { jsonError, jsonSuccess, methodRouter } from "../_lib/http.js";
+import { withDbRlsContext } from "../_lib/db.js";
+import { authError, jsonError, jsonSuccess, methodRouter } from "../_lib/http.js";
 import { getIntentById, sanitizeIntent } from "../_lib/intentsRepo.js";
 
 export default methodRouter({
@@ -24,44 +25,43 @@ export default methodRouter({
 			return;
 		}
 
-		const intent = await getIntentById(intentId);
-
-		if (!intent) {
-			jsonError(res, "Intent not found", 404);
-			return;
-		}
-
 		// --- Agent auth path ---
 		const authHeader = req.headers.authorization;
 		if (authHeader?.startsWith("AgentAuth ")) {
+			let member: { trustchainId: string };
 			try {
-				const { member } = await verifyAgentAuth(req);
-				if (intent.trustChainId && intent.trustChainId === member.trustchainId) {
-					// Owning agent — return full intent with x402 secrets
-					jsonSuccess(res, { intent });
-					return;
-				}
-				// Authenticated agent but not the owner
-				jsonError(res, "You can only access intents on your own trustchain", 403);
-				return;
+				({ member } = await verifyAgentAuth(req));
 			} catch {
-				jsonError(res, "Agent authentication failed", 401);
+				authError(req, res, "Agent authentication failed", 401);
 				return;
 			}
+
+			const intent = await withDbRlsContext({ currentUser: member.trustchainId }, async (client) =>
+				getIntentById(intentId, client.sql),
+			);
+			if (!intent) {
+				jsonError(res, "Intent not found", 404);
+				return;
+			}
+			jsonSuccess(res, { intent });
+			return;
 		}
 
 		// --- Session auth path ---
 		try {
 			const session = await requireSession(req);
-			// The intent's userId (wallet address) must match the session
-			if (intent.userId && intent.userId.toLowerCase() === session.walletAddress.toLowerCase()) {
-				jsonSuccess(res, { intent: sanitizeIntent(intent) });
+			const intent = await withDbRlsContext(
+				{ currentUser: session.walletAddress },
+				async (client) => getIntentById(intentId, client.sql),
+			);
+			if (!intent) {
+				jsonError(res, "Intent not found", 404);
 				return;
 			}
-			jsonError(res, "You can only access your own intents", 403);
+			jsonSuccess(res, { intent: sanitizeIntent(intent) });
 			return;
 		} catch {
-			jsonError(res, "Authentication required", 401);
+			authError(req, res, "Authentication required", 401);
 			return;
 		}
 	},

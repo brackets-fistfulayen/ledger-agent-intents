@@ -16,6 +16,7 @@ import type { TrustchainMember } from "@agent-intents/shared";
 import type { VercelRequest } from "@vercel/node";
 import { isAddress, keccak256, recoverMessageAddress, toHex } from "viem";
 import { getActiveMemberByPubkey } from "./agentsRepo.js";
+import { withDbRlsContext } from "./db.js";
 import { logger } from "./logger.js";
 
 /** Maximum clock skew tolerance for agent-signed timestamps (5 minutes). */
@@ -98,7 +99,9 @@ export async function verifyAgentAuth(req: VercelRequest): Promise<AgentAuthResu
 		throw new Error(AUTH_FAILED);
 	}
 
-	const member = await getActiveMemberByPubkey(normalizedAddress);
+	const member = await withDbRlsContext({ systemRole: true }, async (client) =>
+		getActiveMemberByPubkey(normalizedAddress, client.sql),
+	);
 	if (!member) {
 		logger.warn("AgentAuth: Agent not registered or revoked");
 		throw new Error(AUTH_FAILED);

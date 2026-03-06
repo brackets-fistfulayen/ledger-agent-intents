@@ -13,10 +13,16 @@
  * (which is the user's wallet address).
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql } from "@vercel/postgres";
 import { recoverMessageAddress } from "viem";
 import { getActiveMemberByPubkey, registerAgent } from "../_lib/agentsRepo.js";
-import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
+import { withDbRlsContext } from "../_lib/db.js";
+import {
+	authError,
+	jsonError,
+	jsonSuccess,
+	methodRouter,
+	parseBodyWithSchema,
+} from "../_lib/http.js";
 import { logger } from "../_lib/logger.js";
 import { registerAgentRequestSchema } from "../_lib/validation.js";
 
@@ -74,7 +80,13 @@ export default methodRouter({
 					{ recovered: recoveredAddress.toLowerCase(), expected: trustchainId },
 					"Agent registration: signature mismatch",
 				);
-				jsonError(res, "Authorization signature does not match the connected wallet", 403);
+				authError(
+					req,
+					res,
+					"Authorization signature does not match the connected wallet",
+					403,
+					trustchainId,
+				);
 				return;
 			}
 		} catch (err) {
@@ -85,22 +97,29 @@ export default methodRouter({
 
 		// --- Rate limit: max N registrations per wallet per minute ---
 		try {
-			const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
-			const countResult = await sql`
-				SELECT COUNT(*)::int AS cnt
-				FROM trustchain_members
-				WHERE trustchain_id = ${trustchainId}
-					AND created_at > ${oneMinuteAgo}
-			`;
-			const recentCount = (countResult.rows[0] as { cnt: number })?.cnt ?? 0;
-			if (recentCount >= RATE_LIMIT_REGISTRATIONS_PER_MINUTE) {
-				jsonError(
-					res,
-					`Rate limit exceeded: max ${RATE_LIMIT_REGISTRATIONS_PER_MINUTE} agent registrations per minute`,
-					429,
-				);
-				return;
-			}
+			const rateLimitExceeded = await withDbRlsContext(
+				{ currentUser: trustchainId },
+				async (client) => {
+					const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+					const countResult = await client.sql`
+					SELECT COUNT(*)::int AS cnt
+					FROM trustchain_members
+					WHERE trustchain_id = ${trustchainId}
+						AND created_at > ${oneMinuteAgo}
+				`;
+					const recentCount = (countResult.rows[0] as { cnt: number })?.cnt ?? 0;
+					if (recentCount >= RATE_LIMIT_REGISTRATIONS_PER_MINUTE) {
+						jsonError(
+							res,
+							`Rate limit exceeded: max ${RATE_LIMIT_REGISTRATIONS_PER_MINUTE} agent registrations per minute`,
+							429,
+						);
+						return true;
+					}
+					return false;
+				},
+			);
+			if (rateLimitExceeded) return;
 		} catch (err) {
 			logger.error({ err }, "Agent registration: rate limit check failed");
 			jsonError(res, "Service temporarily unavailable", 503);
@@ -108,7 +127,9 @@ export default methodRouter({
 		}
 
 		// --- Check if already registered ---
-		const existing = await getActiveMemberByPubkey(agentPublicKey);
+		const existing = await withDbRlsContext({ currentUser: trustchainId }, async (client) =>
+			getActiveMemberByPubkey(agentPublicKey, client.sql),
+		);
 		if (existing) {
 			jsonError(res, "This agent public key is already registered", 409);
 			return;
@@ -116,12 +137,17 @@ export default methodRouter({
 
 		// --- Register the agent ---
 		try {
-			const member = await registerAgent({
-				trustchainId,
-				memberPubkey: agentPublicKey,
-				label: agentLabel,
-				authorizationSignature: signature,
-			});
+			const member = await withDbRlsContext({ currentUser: trustchainId }, async (client) =>
+				registerAgent(
+					{
+						trustchainId,
+						memberPubkey: agentPublicKey,
+						label: agentLabel,
+						authorizationSignature: signature,
+					},
+					client.sql,
+				),
+			);
 
 			logger.info(
 				{ memberId: member.id, agentLabel, trustchainId: member.trustchainId },
