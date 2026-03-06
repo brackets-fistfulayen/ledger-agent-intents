@@ -24,15 +24,12 @@ export function parseCookieHeader(cookieHeader: string | undefined): Record<stri
 }
 
 export function setSessionCookie(res: VercelResponse, sessionId: string, expiresAt: Date) {
-	const nodeEnv = (globalThis as unknown as { process?: { env?: { NODE_ENV?: string } } }).process
-		?.env?.NODE_ENV;
-	const isProd = nodeEnv === "production";
 	const cookie = [
 		`${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}`,
 		"Path=/",
 		"HttpOnly",
 		"SameSite=Lax",
-		isProd ? "Secure" : "",
+		"Secure",
 		`Expires=${expiresAt.toUTCString()}`,
 	]
 		.filter(Boolean)
@@ -41,15 +38,12 @@ export function setSessionCookie(res: VercelResponse, sessionId: string, expires
 }
 
 export function clearSessionCookie(res: VercelResponse) {
-	const nodeEnv = (globalThis as unknown as { process?: { env?: { NODE_ENV?: string } } }).process
-		?.env?.NODE_ENV;
-	const isProd = nodeEnv === "production";
 	const cookie = [
 		`${SESSION_COOKIE_NAME}=`,
 		"Path=/",
 		"HttpOnly",
 		"SameSite=Lax",
-		isProd ? "Secure" : "",
+		"Secure",
 		"Expires=Thu, 01 Jan 1970 00:00:00 GMT",
 	]
 		.filter(Boolean)
