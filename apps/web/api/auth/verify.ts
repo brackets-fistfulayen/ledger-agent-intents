@@ -17,7 +17,7 @@ import { sql } from "../_lib/db.js";
 import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
 import { verifyBodySchema } from "../_lib/validation.js";
 
-const SESSION_VALIDITY_DAYS = 7;
+const SESSION_VALIDITY_DAYS = 1;
 
 /** Max verify attempts per wallet per minute */
 const RATE_LIMIT_VERIFY_PER_MINUTE = 10;
@@ -111,9 +111,15 @@ export default methodRouter({
 		const sessionExpiresAt = new Date();
 		sessionExpiresAt.setDate(sessionExpiresAt.getDate() + SESSION_VALIDITY_DAYS);
 
+		// Rotate sessions on login: invalidate all prior sessions for this wallet.
 		await sql`
-			INSERT INTO auth_sessions (id, wallet_address, expires_at)
-			VALUES (${sessionId}, ${wallet}, ${sessionExpiresAt.toISOString()})
+			DELETE FROM auth_sessions
+			WHERE wallet_address = ${wallet}
+		`;
+
+		await sql`
+			INSERT INTO auth_sessions (id, wallet_address, expires_at, last_accessed_at)
+			VALUES (${sessionId}, ${wallet}, ${sessionExpiresAt.toISOString()}, NOW())
 		`;
 
 		setSessionCookie(res, sessionId, sessionExpiresAt);
