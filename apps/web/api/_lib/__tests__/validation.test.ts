@@ -106,12 +106,12 @@ describe("createIntentRequestSchema", () => {
 		}
 	});
 
-	it("allows extra passthrough fields in details", () => {
+	it("rejects unknown fields in details", () => {
 		const result = createIntentRequestSchema.safeParse({
 			...validInput,
 			details: { ...validInput.details, customField: "hello" },
 		});
-		expect(result.success).toBe(true);
+		expect(result.success).toBe(false);
 	});
 
 	it("accepts x402 context in details", () => {
@@ -126,6 +126,34 @@ describe("createIntentRequestSchema", () => {
 			},
 		});
 		expect(result.success).toBe(true);
+	});
+
+	it("accepts merchant logo when HTTPS", () => {
+		const result = createIntentRequestSchema.safeParse({
+			...validInput,
+			details: {
+				...validInput.details,
+				merchant: {
+					name: "Merchant Inc",
+					logo: "https://cdn.example.com/logo.png",
+				},
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects merchant logo when not HTTPS", () => {
+		const result = createIntentRequestSchema.safeParse({
+			...validInput,
+			details: {
+				...validInput.details,
+				merchant: {
+					name: "Merchant Inc",
+					logo: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'/>",
+				},
+			},
+		});
+		expect(result.success).toBe(false);
 	});
 });
 

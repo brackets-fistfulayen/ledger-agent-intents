@@ -238,6 +238,52 @@ export async function getIntentById(id: string): Promise<Intent | null> {
 }
 
 /**
+ * Get an intent by ID for a specific wallet owner.
+ * Returns null for both "not found" and "not owned by this wallet".
+ */
+export async function getIntentByIdForUser(
+	id: string,
+	walletAddress: string,
+): Promise<Intent | null> {
+	const result = await sql`
+    SELECT * FROM intents
+    WHERE id = ${id} AND user_id = ${walletAddress.toLowerCase()}
+    LIMIT 1
+  `;
+
+	if (result.rows.length === 0) {
+		return null;
+	}
+
+	const row = result.rows[0] as IntentRow;
+	const history = await getStatusHistory(id);
+	return rowToIntent(row, history);
+}
+
+/**
+ * Get an intent by ID for a specific trustchain.
+ * Returns null for both "not found" and "not owned by this trustchain".
+ */
+export async function getIntentByIdForAgent(
+	id: string,
+	trustchainId: string,
+): Promise<Intent | null> {
+	const result = await sql`
+    SELECT * FROM intents
+    WHERE id = ${id} AND trust_chain_id = ${trustchainId.toLowerCase()}
+    LIMIT 1
+  `;
+
+	if (result.rows.length === 0) {
+		return null;
+	}
+
+	const row = result.rows[0] as IntentRow;
+	const history = await getStatusHistory(id);
+	return rowToIntent(row, history);
+}
+
+/**
  * Get intents for a user with optional status filter
  */
 export async function getIntentsByUser(params: {

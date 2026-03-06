@@ -52,6 +52,17 @@ function randomNonce32BytesHex() {
 		.join("")}`;
 }
 
+function safeMerchantLogo(logo: string | undefined): string | undefined {
+	if (!logo) return undefined;
+	try {
+		const parsed = new URL(logo);
+		if (parsed.protocol !== "https:") return undefined;
+		return parsed.toString();
+	} catch {
+		return undefined;
+	}
+}
+
 // =============================================================================
 // Chain Logo Component (reused from IntentTable)
 // =============================================================================
@@ -425,6 +436,7 @@ function SettlementReceiptSection({ intent }: { intent: Intent }) {
 function MerchantSection({ intent }: { intent: Intent }) {
 	const { details } = intent;
 	const { merchant, category, memo } = details;
+	const merchantLogo = safeMerchantLogo(merchant?.logo);
 
 	if (!merchant && !category && !memo) return null;
 
@@ -433,8 +445,8 @@ function MerchantSection({ intent }: { intent: Intent }) {
 			{merchant && (
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-12">
-						{merchant.logo ? (
-							<img src={merchant.logo} alt={merchant.name} className="size-32 rounded-full" />
+						{merchantLogo ? (
+							<img src={merchantLogo} alt={merchant.name} className="size-32 rounded-full" />
 						) : (
 							<div className="size-32 rounded-full bg-muted flex items-center justify-center body-3-semi-bold text-muted">
 								{merchant.name.charAt(0)}
