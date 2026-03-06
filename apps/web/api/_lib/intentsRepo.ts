@@ -241,7 +241,10 @@ export async function getIntentById(id: string): Promise<Intent | null> {
  * Get an intent by ID for a specific wallet owner.
  * Returns null for both "not found" and "not owned by this wallet".
  */
-export async function getIntentByIdForUser(id: string, walletAddress: string): Promise<Intent | null> {
+export async function getIntentByIdForUser(
+	id: string,
+	walletAddress: string,
+): Promise<Intent | null> {
 	const result = await sql`
     SELECT * FROM intents
     WHERE id = ${id} AND user_id = ${walletAddress.toLowerCase()}
@@ -261,7 +264,10 @@ export async function getIntentByIdForUser(id: string, walletAddress: string): P
  * Get an intent by ID for a specific trustchain.
  * Returns null for both "not found" and "not owned by this trustchain".
  */
-export async function getIntentByIdForAgent(id: string, trustchainId: string): Promise<Intent | null> {
+export async function getIntentByIdForAgent(
+	id: string,
+	trustchainId: string,
+): Promise<Intent | null> {
 	const result = await sql`
     SELECT * FROM intents
     WHERE id = ${id} AND trust_chain_id = ${trustchainId.toLowerCase()}

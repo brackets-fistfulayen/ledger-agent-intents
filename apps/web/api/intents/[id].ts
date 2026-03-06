@@ -12,7 +12,11 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { verifyAgentAuth } from "../_lib/agentAuth.js";
 import { requireSession } from "../_lib/auth.js";
 import { jsonError, jsonSuccess, methodRouter } from "../_lib/http.js";
-import { getIntentByIdForAgent, getIntentByIdForUser, sanitizeIntent } from "../_lib/intentsRepo.js";
+import {
+	getIntentByIdForAgent,
+	getIntentByIdForUser,
+	sanitizeIntent,
+} from "../_lib/intentsRepo.js";
 
 export default methodRouter({
 	GET: async (req: VercelRequest, res: VercelResponse) => {

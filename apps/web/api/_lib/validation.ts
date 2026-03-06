@@ -17,82 +17,97 @@ const intentStatusSchema = z.enum([
 ]);
 
 /** X402 resource (minimal for validation) */
-const x402ResourceSchema = z.object({
-	url: z.string().url(),
-	description: z.string().optional(),
-	mimeType: z.string().optional(),
-}).strict();
+const x402ResourceSchema = z
+	.object({
+		url: z.string().url(),
+		description: z.string().optional(),
+		mimeType: z.string().optional(),
+	})
+	.strict();
 
 /** X402 accepted EVM (minimal for validation) */
-const x402AcceptedEvmSchema = z.object({
-	scheme: z.literal("exact").optional(),
-	network: z.string(),
-	asset: z.string(),
-	amount: z.string(),
-	payTo: z.string(),
-	maxTimeoutSeconds: z.number().int().positive().optional(),
-	extra: z
-		.object({
-			name: z.string().optional(),
-			version: z.string().optional(),
-			decimals: z.number().int().nonnegative().optional(),
-		})
-		.strict()
-		.optional(),
-}).strict();
+const x402AcceptedEvmSchema = z
+	.object({
+		scheme: z.literal("exact").optional(),
+		network: z.string(),
+		asset: z.string(),
+		amount: z.string(),
+		payTo: z.string(),
+		maxTimeoutSeconds: z.number().int().positive().optional(),
+		extra: z
+			.object({
+				name: z.string().optional(),
+				version: z.string().optional(),
+				decimals: z.number().int().nonnegative().optional(),
+			})
+			.strict()
+			.optional(),
+	})
+	.strict();
 
 /** X402 context (optional nested) */
-const x402ContextSchema = z.object({
-	resource: x402ResourceSchema.optional(),
-	accepted: x402AcceptedEvmSchema.optional(),
-	authorization: z
-		.object({
-			from: z.string(),
-			to: z.string(),
-			value: z.string(),
-			validAfter: z.string(),
-			validBefore: z.string(),
-			nonce: z.string(),
-		})
-		.strict()
-		.optional(),
-	signature: z.string().optional(),
-	paymentPayload: z.unknown().optional(),
-	paymentSignatureHeader: z.string().optional(),
-	settlementReceipt: z.unknown().optional(),
-	expiresAt: z.string().optional(),
-}).strict();
+const x402ContextSchema = z
+	.object({
+		resource: x402ResourceSchema.optional(),
+		accepted: x402AcceptedEvmSchema.optional(),
+		authorization: z
+			.object({
+				from: z.string(),
+				to: z.string(),
+				value: z.string(),
+				validAfter: z.string(),
+				validBefore: z.string(),
+				nonce: z.string(),
+			})
+			.strict()
+			.optional(),
+		signature: z.string().optional(),
+		paymentPayload: z.unknown().optional(),
+		paymentSignatureHeader: z.string().optional(),
+		settlementReceipt: z.unknown().optional(),
+		expiresAt: z.string().optional(),
+	})
+	.strict();
 
-const httpsUrlStringSchema = z.string().url().refine((url) => url.startsWith("https://"), {
-	message: "Must be an HTTPS URL",
-});
+const httpsUrlStringSchema = z
+	.string()
+	.url()
+	.refine((url) => url.startsWith("https://"), {
+		message: "Must be an HTTPS URL",
+	});
 
-const merchantSchema = z.object({
-	name: z.string().max(200),
-	url: httpsUrlStringSchema.optional(),
-	logo: httpsUrlStringSchema.refine((url) => /^https:\/\//.test(url), {
-		message: "Logo must be an HTTPS URL",
-	}).optional(),
-	verified: z.boolean().optional(),
-}).strict();
+const merchantSchema = z
+	.object({
+		name: z.string().max(200),
+		url: httpsUrlStringSchema.optional(),
+		logo: httpsUrlStringSchema
+			.refine((url) => /^https:\/\//.test(url), {
+				message: "Logo must be an HTTPS URL",
+			})
+			.optional(),
+		verified: z.boolean().optional(),
+	})
+	.strict();
 
 /** Transfer intent details */
-const transferIntentSchema = z.object({
-	type: z.literal("transfer"),
-	token: z.string().min(1),
-	tokenAddress: z.string().optional(),
-	tokenLogo: z.string().optional(),
-	amount: z.string().min(1),
-	amountWei: z.string().optional(),
-	recipient: z.string().min(1),
-	recipientEns: z.string().optional(),
-	chainId: z.number().int().positive(),
-	memo: z.string().optional(),
-	resource: z.string().optional(),
-	merchant: merchantSchema.optional(),
-	category: z.string().optional(),
-	x402: x402ContextSchema.optional(),
-}).strict();
+const transferIntentSchema = z
+	.object({
+		type: z.literal("transfer"),
+		token: z.string().min(1),
+		tokenAddress: z.string().optional(),
+		tokenLogo: z.string().optional(),
+		amount: z.string().min(1),
+		amountWei: z.string().optional(),
+		recipient: z.string().min(1),
+		recipientEns: z.string().optional(),
+		chainId: z.number().int().positive(),
+		memo: z.string().optional(),
+		resource: z.string().optional(),
+		merchant: merchantSchema.optional(),
+		category: z.string().optional(),
+		x402: x402ContextSchema.optional(),
+	})
+	.strict();
 
 const urgencySchema = z.enum(["low", "normal", "high", "critical"]).optional();
 
