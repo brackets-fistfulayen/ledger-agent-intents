@@ -149,6 +149,42 @@ async function getStatusHistoriesBatch(
 	return historyMap;
 }
 
+/**
+ * Transition all pending intents from the given agent to "expired",
+ * so they don't pile up when the agent recreates intents.
+ * Returns the number of intents superseded.
+ */
+export async function supersedePendingIntents(
+	agentId: string,
+	userId: string,
+	dbClient?: DbClient,
+): Promise<number> {
+	const nowIso = new Date().toISOString();
+	const db = dbClient?.sql ?? sql;
+
+	const result = await db`
+		UPDATE intents
+		SET status = 'expired'
+		WHERE agent_id = ${agentId}
+			AND user_id = ${userId}
+			AND status = 'pending'
+		RETURNING id
+	`;
+
+	const count = result.rows.length;
+	if (count > 0) {
+		const ids = result.rows.map((r: { id: string }) => r.id);
+		for (const id of ids) {
+			await db`
+				INSERT INTO intent_status_history (intent_id, status, timestamp, note)
+				VALUES (${id}, 'expired', ${nowIso}, 'Superseded by newer intent from same agent')
+			`;
+		}
+	}
+
+	return count;
+}
+
 export async function createIntent(
 	params: {
 		id: string;

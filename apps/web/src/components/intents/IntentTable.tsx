@@ -232,7 +232,13 @@ function LoadingRow() {
 // =============================================================================
 
 function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
-	const { chainId: walletChainId, sendTransaction, signTypedDataV4, account } = useLedger();
+	const {
+		chainId: walletChainId,
+		sendTransaction,
+		signTypedDataV4,
+		account,
+		dismissDeviceAction,
+	} = useLedger();
 	const updateStatus = useUpdateIntentStatus();
 
 	const [isSigning, setIsSigning] = useState(false);
@@ -409,27 +415,28 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 					paymentSignatureHeader,
 					paymentPayload,
 				});
-			} catch (err) {
-				const message = err instanceof Error ? err.message : "Signature failed";
-				const lowerMessage = message.toLowerCase();
-				const isUserRejection =
-					lowerMessage.includes("reject") ||
-					lowerMessage.includes("cancel") ||
-					lowerMessage.includes("denied") ||
-					lowerMessage.includes("user");
-				if (isUserRejection) {
-					setError("Authorization cancelled");
-				} else {
-					setError(message);
-				}
-			} finally {
-				setIsSigning(false);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Signature failed";
+			const lowerMessage = message.toLowerCase();
+			const isUserRejection =
+				lowerMessage.includes("reject") ||
+				lowerMessage.includes("cancel") ||
+				lowerMessage.includes("denied") ||
+				lowerMessage.includes("user");
+			dismissDeviceAction();
+			if (isUserRejection) {
+				setError("Authorization cancelled");
+			} else {
+				setError(message);
 			}
-
-			return;
+		} finally {
+			setIsSigning(false);
 		}
 
-		// Check chain mismatch for standard transfers
+		return;
+	}
+
+	// Check chain mismatch for standard transfers
 		if (isWrongChain) {
 			setError(`Please switch to ${chain?.name ?? "the correct network"} to sign`);
 			return;
@@ -468,8 +475,6 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Transaction failed";
 
-			// Check if this is a user-initiated cancellation (not a real failure)
-			// This includes: rejecting on device, closing modal, cancelling action
 			const lowerMessage = message.toLowerCase();
 			const isUserRejection =
 				lowerMessage.includes("reject") ||
@@ -479,6 +484,8 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 				lowerMessage.includes("close") ||
 				lowerMessage.includes("user") ||
 				lowerMessage.includes("abort");
+
+			dismissDeviceAction();
 
 			if (!isUserRejection) {
 				try {

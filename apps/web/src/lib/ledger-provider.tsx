@@ -1,4 +1,4 @@
-import { ContextModuleBuilder, type ContextModuleDatasourceConfig } from "@ledgerhq/context-module";
+import { ContextModuleBuilder } from "@ledgerhq/context-module";
 import {
 	DeviceActionStatus,
 	type DeviceManagementKit,
@@ -428,14 +428,23 @@ function humanizeError(error: unknown): string {
 
 function buildEthSigner(dmk: DeviceManagementKit, sessionId: DeviceSessionId) {
 	const loggerFactory = dmk.getLoggerFactory();
-	const datasourceConfig: ContextModuleDatasourceConfig = { proxy: "safe" };
 
-	const contextModule = new ContextModuleBuilder({
+	const builder = new ContextModuleBuilder({
 		originToken: LEDGER_API_KEY,
 		loggerFactory,
-	})
-		.setDatasourceConfig(datasourceConfig)
-		.build();
+	});
+
+	builder
+		.setCalConfig({
+			url: "https://cdn.live.ledger.com/cryptoassets",
+			mode: "prod",
+			branch: "main",
+		})
+		.setWeb3ChecksConfig({
+			url: "https://web3checks-backend.api.ledger.com/v3",
+		});
+
+	const contextModule = builder.build();
 
 	return new SignerEthBuilder({
 		dmk,

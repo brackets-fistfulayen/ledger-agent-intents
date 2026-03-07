@@ -574,7 +574,13 @@ function TechnicalDetailsSection({ intent }: { intent: Intent }) {
 // =============================================================================
 
 function IntentActions({ intent, onClose }: IntentActionsProps) {
-	const { chainId: walletChainId, sendTransaction, signTypedDataV4, account } = useLedger();
+	const {
+		chainId: walletChainId,
+		sendTransaction,
+		signTypedDataV4,
+		account,
+		dismissDeviceAction,
+	} = useLedger();
 	const updateStatus = useUpdateIntentStatus();
 
 	const [isSigning, setIsSigning] = useState(false);
@@ -768,25 +774,25 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 				});
 
 				onClose();
-			} catch (err) {
-				const message = err instanceof Error ? err.message : "Signature failed";
-				// Check for user rejection
-				const lowerMessage = message.toLowerCase();
-				const isUserRejection =
-					lowerMessage.includes("reject") ||
-					lowerMessage.includes("cancel") ||
-					lowerMessage.includes("denied") ||
-					lowerMessage.includes("user");
-				if (isUserRejection) {
-					setError("Authorization cancelled");
-				} else {
-					setError(message);
-				}
-			} finally {
-				setIsSigning(false);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Signature failed";
+			const lowerMessage = message.toLowerCase();
+			const isUserRejection =
+				lowerMessage.includes("reject") ||
+				lowerMessage.includes("cancel") ||
+				lowerMessage.includes("denied") ||
+				lowerMessage.includes("user");
+			dismissDeviceAction();
+			if (isUserRejection) {
+				setError("Authorization cancelled");
+			} else {
+				setError(message);
 			}
+		} finally {
+			setIsSigning(false);
+		}
 
-			return;
+		return;
 		}
 
 		// Check chain mismatch for standard transfers
@@ -830,8 +836,6 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 		} catch (err) {
 			const message = err instanceof Error ? err.message : "Transaction failed";
 
-			// Check if this is a user-initiated cancellation (not a real failure)
-			// This includes: rejecting on device, closing modal, cancelling action
 			const lowerMessage = message.toLowerCase();
 			const isUserRejection =
 				lowerMessage.includes("reject") ||
@@ -841,6 +845,8 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 				lowerMessage.includes("close") ||
 				lowerMessage.includes("user") ||
 				lowerMessage.includes("abort");
+
+			dismissDeviceAction();
 
 			if (!isUserRejection) {
 				try {

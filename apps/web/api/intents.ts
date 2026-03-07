@@ -24,7 +24,7 @@ import {
 	methodRouter,
 	parseBodyWithSchema,
 } from "./_lib/http.js";
-import { createIntent, getIntentsByUser } from "./_lib/intentsRepo.js";
+import { createIntent, getIntentsByUser, supersedePendingIntents } from "./_lib/intentsRepo.js";
 import { logger } from "./_lib/logger.js";
 import { createIntentRequestSchema } from "./_lib/validation.js";
 
@@ -147,6 +147,22 @@ export default methodRouter({
 			logger.error({ err }, "rate-limit check failed");
 			jsonError(res, "Service temporarily unavailable", 503);
 			return;
+		}
+
+		// Auto-expire any existing pending intents from the same agent so the
+		// queue doesn't accumulate duplicates when an agent recreates intents.
+		try {
+			const superseded = await withDbRlsContext({ currentUser: userId }, async (client) =>
+				supersedePendingIntents(body.agentId, userId, client),
+			);
+			if (superseded > 0) {
+				logger.info(
+					{ agentId: body.agentId, count: superseded },
+					"Superseded pending intents from same agent",
+				);
+			}
+		} catch (err) {
+			logger.warn({ err, agentId: body.agentId }, "Failed to supersede pending intents");
 		}
 
 		// Generate ID
