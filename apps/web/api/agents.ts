@@ -8,7 +8,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getMembersByTrustchain } from "./_lib/agentsRepo.js";
 import { requireSession } from "./_lib/auth.js";
-import { getQueryParam, jsonError, jsonSuccess, methodRouter } from "./_lib/http.js";
+import { withDbRlsContext } from "./_lib/db.js";
+import { authError, getQueryParam, jsonError, jsonSuccess, methodRouter } from "./_lib/http.js";
 
 export default methodRouter({
 	GET: async (req: VercelRequest, res: VercelResponse) => {
@@ -16,7 +17,7 @@ export default methodRouter({
 		try {
 			session = await requireSession(req);
 		} catch {
-			jsonError(res, "Authentication required", 401);
+			authError(req, res, "Authentication required", 401);
 			return;
 		}
 
@@ -31,11 +32,19 @@ export default methodRouter({
 
 		// Only allow users to list agents on their own trustchain
 		if (normalized !== session.walletAddress.toLowerCase()) {
-			jsonError(res, "You can only list agents on your own trustchain", 403);
+			authError(
+				req,
+				res,
+				"You can only list agents on your own trustchain",
+				403,
+				session.walletAddress,
+			);
 			return;
 		}
 
-		const members = await getMembersByTrustchain(normalized);
+		const members = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
+			getMembersByTrustchain(normalized, client.sql),
+		);
 		jsonSuccess(res, { members });
 	},
 });

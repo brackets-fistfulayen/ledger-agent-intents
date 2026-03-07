@@ -9,7 +9,14 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { recoverMessageAddress } from "viem";
 import { getMemberById, revokeMember } from "../_lib/agentsRepo.js";
-import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
+import { withDbRlsContext } from "../_lib/db.js";
+import {
+	authError,
+	jsonError,
+	jsonSuccess,
+	methodRouter,
+	parseBodyWithSchema,
+} from "../_lib/http.js";
 import { logger } from "../_lib/logger.js";
 import { revokeAgentBodySchema } from "../_lib/validation.js";
 
@@ -38,7 +45,9 @@ export default methodRouter({
 		const id = body.id;
 		const signature = body.signature as `0x${string}`;
 
-		const member = await getMemberById(id);
+		const member = await withDbRlsContext({ systemRole: true }, async (client) =>
+			getMemberById(id, client.sql),
+		);
 		if (!member) {
 			jsonError(res, "Agent not found", 404);
 			return;
@@ -62,7 +71,13 @@ export default methodRouter({
 					{ recovered: recoveredAddress.toLowerCase(), expected: member.trustchainId },
 					"Agent revocation: signature mismatch",
 				);
-				jsonError(res, "Revocation signature does not match the agent owner", 403);
+				authError(
+					req,
+					res,
+					"Revocation signature does not match the agent owner",
+					403,
+					member.trustchainId,
+				);
 				return;
 			}
 		} catch (err) {
@@ -71,7 +86,9 @@ export default methodRouter({
 			return;
 		}
 
-		const revoked = await revokeMember(id);
+		const revoked = await withDbRlsContext({ currentUser: member.trustchainId }, async (client) =>
+			revokeMember(id, client.sql),
+		);
 		if (!revoked) {
 			jsonError(res, "Agent not found or already revoked", 404);
 			return;

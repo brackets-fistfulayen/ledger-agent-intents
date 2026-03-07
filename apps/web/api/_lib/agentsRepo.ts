@@ -1,10 +1,9 @@
 /**
- * Agents repository – database operations for trustchain members (agents).
+ * Agents repository - database operations for trustchain members (agents).
  */
 import type { TrustchainMember, TrustchainMemberRole } from "@agent-intents/shared";
-import { sql } from "./db.js";
+import { type DbExecutor, sql } from "./db.js";
 
-// Database row type
 interface TrustchainMemberRow {
 	id: string;
 	trustchain_id: string;
@@ -28,17 +27,16 @@ function rowToMember(row: TrustchainMemberRow): TrustchainMember {
 	};
 }
 
-/**
- * Register a new agent (trustchain member).
- * Throws if the public key is already registered.
- */
-export async function registerAgent(params: {
-	trustchainId: string;
-	memberPubkey: string;
-	role?: TrustchainMemberRole;
-	label?: string;
-	authorizationSignature?: string;
-}): Promise<TrustchainMember> {
+export async function registerAgent(
+	params: {
+		trustchainId: string;
+		memberPubkey: string;
+		role?: TrustchainMemberRole;
+		label?: string;
+		authorizationSignature?: string;
+	},
+	db: DbExecutor = sql,
+): Promise<TrustchainMember> {
 	const {
 		trustchainId,
 		memberPubkey,
@@ -47,7 +45,7 @@ export async function registerAgent(params: {
 		authorizationSignature,
 	} = params;
 
-	const result = await sql`
+	const result = await db`
     INSERT INTO trustchain_members (trustchain_id, member_pubkey, role, label, authorization_signature)
     VALUES (${trustchainId}, ${memberPubkey}, ${role}, ${label ?? null}, ${authorizationSignature ?? null})
     RETURNING *
@@ -56,11 +54,11 @@ export async function registerAgent(params: {
 	return rowToMember(result.rows[0] as TrustchainMemberRow);
 }
 
-/**
- * Look up an active (non-revoked) member by their public key (address).
- */
-export async function getActiveMemberByPubkey(pubkey: string): Promise<TrustchainMember | null> {
-	const result = await sql`
+export async function getActiveMemberByPubkey(
+	pubkey: string,
+	db: DbExecutor = sql,
+): Promise<TrustchainMember | null> {
+	const result = await db`
     SELECT * FROM trustchain_members
     WHERE member_pubkey = ${pubkey}
       AND revoked_at IS NULL
@@ -71,11 +69,11 @@ export async function getActiveMemberByPubkey(pubkey: string): Promise<Trustchai
 	return rowToMember(result.rows[0] as TrustchainMemberRow);
 }
 
-/**
- * Get a member by ID.
- */
-export async function getMemberById(id: string): Promise<TrustchainMember | null> {
-	const result = await sql`
+export async function getMemberById(
+	id: string,
+	db: DbExecutor = sql,
+): Promise<TrustchainMember | null> {
+	const result = await db`
     SELECT * FROM trustchain_members WHERE id = ${id}::uuid
     LIMIT 1
   `;
@@ -84,11 +82,11 @@ export async function getMemberById(id: string): Promise<TrustchainMember | null
 	return rowToMember(result.rows[0] as TrustchainMemberRow);
 }
 
-/**
- * List all members for a trustchain (including revoked ones).
- */
-export async function getMembersByTrustchain(trustchainId: string): Promise<TrustchainMember[]> {
-	const result = await sql`
+export async function getMembersByTrustchain(
+	trustchainId: string,
+	db: DbExecutor = sql,
+): Promise<TrustchainMember[]> {
+	const result = await db`
     SELECT * FROM trustchain_members
     WHERE trustchain_id = ${trustchainId}
     ORDER BY created_at DESC
@@ -97,11 +95,11 @@ export async function getMembersByTrustchain(trustchainId: string): Promise<Trus
 	return (result.rows as TrustchainMemberRow[]).map(rowToMember);
 }
 
-/**
- * Revoke a member (soft-delete by setting revoked_at).
- */
-export async function revokeMember(id: string): Promise<TrustchainMember | null> {
-	const result = await sql`
+export async function revokeMember(
+	id: string,
+	db: DbExecutor = sql,
+): Promise<TrustchainMember | null> {
+	const result = await db`
     UPDATE trustchain_members
     SET revoked_at = NOW()
     WHERE id = ${id}::uuid AND revoked_at IS NULL

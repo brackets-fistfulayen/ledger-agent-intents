@@ -7,7 +7,9 @@ import type { IntentStatus } from "@agent-intents/shared";
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireSession } from "../../_lib/auth.js";
+import { withDbRlsContext } from "../../_lib/db.js";
 import {
+	authError,
 	getQueryNumber,
 	getQueryParam,
 	jsonError,
@@ -32,7 +34,7 @@ export default methodRouter({
 		try {
 			session = await requireSession(req);
 		} catch {
-			jsonError(res, "Authentication required", 401);
+			authError(req, res, "Authentication required", 401);
 			return;
 		}
 
@@ -45,7 +47,7 @@ export default methodRouter({
 		}
 
 		if (userIdStr.toLowerCase() !== session.walletAddress) {
-			jsonError(res, "You can only list your own intents", 403);
+			authError(req, res, "You can only list your own intents", 403, session.walletAddress);
 			return;
 		}
 
@@ -57,11 +59,16 @@ export default methodRouter({
 
 		const limit = getQueryNumber(req, "limit", 50, 1, 100);
 
-		const intents = await getIntentsByUser({
-			userId: userIdStr,
-			status,
-			limit,
-		});
+		const intents = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
+			getIntentsByUser(
+				{
+					userId: userIdStr,
+					status,
+					limit,
+				},
+				client.sql,
+			),
+		);
 
 		jsonSuccess(res, { intents });
 	},

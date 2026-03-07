@@ -20,9 +20,8 @@ import {
 	getExplorerTxUrl,
 	isValidTransition,
 } from "@agent-intents/shared";
-import { sql } from "./db.js";
+import { type DbClient, type DbExecutor, sql } from "./db.js";
 
-// Database row types
 interface IntentRow {
 	id: string;
 	user_id: string;
@@ -52,12 +51,7 @@ interface StatusHistoryRowWithIntentId extends StatusHistoryRow {
 	intent_id: string;
 }
 
-/**
- * Convert database row to Intent type
- */
 function rowToIntent(row: IntentRow, history: StatusHistoryRow[]): Intent {
-	// Derive effective status: if the authorization has expired and the DB
-	// row hasn't been updated yet (cron may lag), surface "expired" to callers.
 	let effectiveStatus: IntentStatus = row.status;
 	const x402ExpiresAt = row.details?.x402?.expiresAt ?? row.expires_at?.toISOString();
 	if (
@@ -93,12 +87,6 @@ function rowToIntent(row: IntentRow, history: StatusHistoryRow[]): Intent {
 	};
 }
 
-/**
- * Strip sensitive x402 fields from an intent for public API responses.
- * The paymentSignatureHeader is a bearer credential that could be replayed
- * to obtain the paid resource. Only the owning agent (who already has the
- * signature from polling) should see it.
- */
 export function sanitizeIntent(intent: Intent): Intent {
 	if (!intent.details.x402) return intent;
 
@@ -118,11 +106,11 @@ export function sanitizeIntent(intent: Intent): Intent {
 	};
 }
 
-/**
- * Get status history for an intent
- */
-async function getStatusHistory(intentId: string): Promise<StatusHistoryRow[]> {
-	const result = await sql`
+async function getStatusHistory(
+	intentId: string,
+	db: DbExecutor = sql,
+): Promise<StatusHistoryRow[]> {
+	const result = await db`
     SELECT status, timestamp, note
     FROM intent_status_history
     WHERE intent_id = ${intentId}
@@ -131,12 +119,9 @@ async function getStatusHistory(intentId: string): Promise<StatusHistoryRow[]> {
 	return result.rows as StatusHistoryRow[];
 }
 
-/**
- * Batch-fetch status histories for multiple intents in a single query.
- * Returns a Map of intentId -> StatusHistoryRow[]
- */
 async function getStatusHistoriesBatch(
 	intentIds: string[],
+	db: DbExecutor = sql,
 ): Promise<Map<string, StatusHistoryRow[]>> {
 	const historyMap = new Map<string, StatusHistoryRow[]>();
 
@@ -144,8 +129,7 @@ async function getStatusHistoriesBatch(
 		return historyMap;
 	}
 
-	// ANY() with array - driver accepts string[] for this parameter
-	const result = await sql`
+	const result = await db`
     SELECT intent_id, status, timestamp, note
     FROM intent_status_history
     WHERE intent_id = ANY(${intentIds as unknown as string[]})
@@ -165,20 +149,20 @@ async function getStatusHistoriesBatch(
 	return historyMap;
 }
 
-/**
- * Create a new intent
- */
-export async function createIntent(params: {
-	id: string;
-	userId: string;
-	agentId: string;
-	agentName: string;
-	details: TransferIntent;
-	urgency: IntentUrgency;
-	expiresAt?: string;
-	trustChainId?: string;
-	createdByMemberId?: string;
-}): Promise<Intent> {
+export async function createIntent(
+	params: {
+		id: string;
+		userId: string;
+		agentId: string;
+		agentName: string;
+		details: TransferIntent;
+		urgency: IntentUrgency;
+		expiresAt?: string;
+		trustChainId?: string;
+		createdByMemberId?: string;
+	},
+	db: DbExecutor = sql,
+): Promise<Intent> {
 	const {
 		id,
 		userId,
@@ -191,8 +175,7 @@ export async function createIntent(params: {
 		createdByMemberId,
 	} = params;
 
-	// Insert intent
-	const result = await sql`
+	const result = await db`
     INSERT INTO intents (id, user_id, agent_id, agent_name, details, urgency, status, expires_at, trust_chain_id, created_by_member_id)
     VALUES (
       ${id},
@@ -209,22 +192,18 @@ export async function createIntent(params: {
     RETURNING *
   `;
 
-	// Insert initial status history
-	await sql`
+	await db`
     INSERT INTO intent_status_history (intent_id, status, timestamp)
     VALUES (${id}, 'pending', NOW())
   `;
 
 	const row = result.rows[0] as IntentRow;
-	const history = await getStatusHistory(id);
+	const history = await getStatusHistory(id, db);
 	return rowToIntent(row, history);
 }
 
-/**
- * Get an intent by ID
- */
-export async function getIntentById(id: string): Promise<Intent | null> {
-	const result = await sql`
+export async function getIntentById(id: string, db: DbExecutor = sql): Promise<Intent | null> {
+	const result = await db`
     SELECT * FROM intents WHERE id = ${id}
   `;
 
@@ -233,31 +212,31 @@ export async function getIntentById(id: string): Promise<Intent | null> {
 	}
 
 	const row = result.rows[0] as IntentRow;
-	const history = await getStatusHistory(id);
+	const history = await getStatusHistory(id, db);
 	return rowToIntent(row, history);
 }
 
-/**
- * Get intents for a user with optional status filter
- */
-export async function getIntentsByUser(params: {
-	userId: string;
-	status?: IntentStatus;
-	limit?: number;
-	cursor?: string;
-}): Promise<Intent[]> {
+export async function getIntentsByUser(
+	params: {
+		userId: string;
+		status?: IntentStatus;
+		limit?: number;
+		cursor?: string;
+	},
+	db: DbExecutor = sql,
+): Promise<Intent[]> {
 	const { userId, status, limit = 50 } = params;
 
 	let result: Awaited<ReturnType<typeof sql>>;
 	if (status) {
-		result = await sql`
+		result = await db`
       SELECT * FROM intents
       WHERE user_id = ${userId} AND status = ${status}
       ORDER BY created_at DESC
       LIMIT ${limit}
     `;
 	} else {
-		result = await sql`
+		result = await db`
       SELECT * FROM intents
       WHERE user_id = ${userId}
       ORDER BY created_at DESC
@@ -267,17 +246,11 @@ export async function getIntentsByUser(params: {
 
 	const rows = result.rows as IntentRow[];
 	const intentIds = rows.map((row) => row.id);
-
-	// Batch-fetch all histories in a single query (eliminates N+1)
-	const historyMap = await getStatusHistoriesBatch(intentIds);
+	const historyMap = await getStatusHistoriesBatch(intentIds, db);
 
 	return rows.map((row) => rowToIntent(row, historyMap.get(row.id) ?? []));
 }
 
-/**
- * Build an enriched audit note for the status history, adding structured
- * x402 context at key transitions. Stored as JSON in the TEXT `note` column.
- */
 function buildAuditNote(
 	status: IntentStatus,
 	userNote: string | undefined,
@@ -329,30 +302,25 @@ function buildAuditNote(
 		context.resource = intentRow.details?.x402?.resource?.url;
 	}
 
-	// If no extra context was added, just return the user note
 	if (Object.keys(context).length === 0) return userNote ?? null;
 	if (Object.keys(context).length === 1 && context.message) return userNote ?? null;
 
 	return JSON.stringify(context);
 }
 
-/**
- * Update intent status.
- *
- * All mutations are wrapped in a single DB transaction so that a failure at any
- * step (details update, expires_at, status, history INSERT) leaves the DB in a
- * consistent state.
- */
-export async function updateIntentStatus(params: {
-	id: string;
-	status: IntentStatus;
-	txHash?: string;
-	note?: string;
-	paymentSignatureHeader?: string;
-	paymentPayload?: X402PaymentPayload;
-	settlementReceipt?: X402SettlementReceipt;
-	expiresAt?: string;
-}): Promise<Intent | null> {
+export async function updateIntentStatus(
+	params: {
+		id: string;
+		status: IntentStatus;
+		txHash?: string;
+		note?: string;
+		paymentSignatureHeader?: string;
+		paymentPayload?: X402PaymentPayload;
+		settlementReceipt?: X402SettlementReceipt;
+		expiresAt?: string;
+	},
+	dbClient?: DbClient,
+): Promise<Intent | null> {
 	const {
 		id,
 		status,
@@ -364,27 +332,24 @@ export async function updateIntentStatus(params: {
 		expiresAt,
 	} = params;
 
-	// Get current intent to check it exists (outside transaction — read-only)
-	const existing = await sql`SELECT * FROM intents WHERE id = ${id}`;
+	const existingQuery = dbClient?.sql ?? sql;
+	const existing = await existingQuery`SELECT * FROM intents WHERE id = ${id}`;
 	if (existing.rows.length === 0) {
 		return null;
 	}
 
 	const intentRow = existing.rows[0] as IntentRow;
 	const nowIso = new Date().toISOString();
-
-	// Enforce state machine: reject invalid transitions
 	const currentStatus = intentRow.status as IntentStatus;
 	if (!isValidTransition(currentStatus, status)) {
 		throw new Error(`Invalid status transition: ${currentStatus} -> ${status}`);
 	}
 
-	// --- All writes happen inside a single transaction ---
-	const client = await sql.connect();
+	const ownConnection = !dbClient;
+	const client = dbClient ?? (await sql.connect());
 	try {
 		await client.sql`BEGIN`;
 
-		// If we received x402 proof data or settlement receipt, persist it inside the JSON `details` blob.
 		if (paymentSignatureHeader || paymentPayload || settlementReceipt) {
 			const existingX402 = intentRow.details.x402;
 			const base = paymentPayload
@@ -410,12 +375,10 @@ export async function updateIntentStatus(params: {
 					WHERE id = ${id}
 				`;
 
-				// Keep local copy in sync for txUrl computation below
 				intentRow.details = nextDetails;
 			}
 		}
 
-		// Persist expiresAt on the intent row itself (used by cron + derived status)
 		if (expiresAt) {
 			await client.sql`
 				UPDATE intents
@@ -424,13 +387,11 @@ export async function updateIntentStatus(params: {
 			`;
 		}
 
-		// Build update based on status
 		let txUrl: string | null = null;
 		if (status === "broadcasting" && txHash) {
 			txUrl = getExplorerTxUrl(intentRow.details.chainId, txHash);
 		}
 
-		// Atomic status update: only update if current status matches (prevents race conditions)
 		let updateResult: { rows: unknown[] };
 		if (status === "approved") {
 			updateResult = await client.sql`
@@ -477,15 +438,11 @@ export async function updateIntentStatus(params: {
 		}
 
 		if (updateResult.rows.length === 0) {
-			// Concurrent update — ROLLBACK and throw
 			await client.sql`ROLLBACK`;
 			throw new IntentStatusConflictError();
 		}
 
-		// Build enriched audit note with x402 context
 		const auditNote = buildAuditNote(status, note, intentRow, params);
-
-		// Add status history entry
 		await client.sql`
 			INSERT INTO intent_status_history (intent_id, status, timestamp, note)
 			VALUES (${id}, ${status}, ${nowIso}, ${auditNote})
@@ -493,24 +450,21 @@ export async function updateIntentStatus(params: {
 
 		await client.sql`COMMIT`;
 	} catch (err) {
-		// ROLLBACK for any unexpected error (conflict error already rolled back above)
 		if (!(err instanceof IntentStatusConflictError)) {
 			await client.sql`ROLLBACK`.catch(() => {});
 		}
 		throw err;
 	} finally {
-		client.release();
+		if (ownConnection) {
+			client.release();
+		}
 	}
 
-	// Return updated intent (reads outside transaction are fine)
-	return getIntentById(id);
+	return getIntentById(id, dbClient?.sql ?? sql);
 }
 
-/**
- * Get all intents (debug only)
- */
-export async function getAllIntents(): Promise<Intent[]> {
-	const result = await sql`
+export async function getAllIntents(db: DbExecutor = sql): Promise<Intent[]> {
+	const result = await db`
     SELECT * FROM intents
     ORDER BY created_at DESC
     LIMIT 100
@@ -518,17 +472,12 @@ export async function getAllIntents(): Promise<Intent[]> {
 
 	const rows = result.rows as IntentRow[];
 	const intentIds = rows.map((row) => row.id);
-
-	// Batch-fetch all histories in a single query (eliminates N+1)
-	const historyMap = await getStatusHistoriesBatch(intentIds);
+	const historyMap = await getStatusHistoriesBatch(intentIds, db);
 
 	return rows.map((row) => rowToIntent(row, historyMap.get(row.id) ?? []));
 }
 
-/**
- * Delete all intents (debug only)
- */
-export async function deleteAllIntents(): Promise<void> {
-	await sql`DELETE FROM intent_status_history`;
-	await sql`DELETE FROM intents`;
+export async function deleteAllIntents(db: DbExecutor = sql): Promise<void> {
+	await db`DELETE FROM intent_status_history`;
+	await db`DELETE FROM intents`;
 }

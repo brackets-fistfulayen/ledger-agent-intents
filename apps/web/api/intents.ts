@@ -10,12 +10,13 @@ import { isSupportedChain } from "@agent-intents/shared";
  * The trustchain_id and member_id are derived from the verified signature.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sql } from "@vercel/postgres";
 import { v4 as uuidv4 } from "uuid";
 import { isAddress } from "viem";
 import { verifyAgentAuth } from "./_lib/agentAuth.js";
 import { requireSession } from "./_lib/auth.js";
+import { withDbRlsContext } from "./_lib/db.js";
 import {
+	authError,
 	getQueryNumber,
 	getQueryParam,
 	jsonError,
@@ -48,7 +49,7 @@ export default methodRouter({
 		try {
 			session = await requireSession(req);
 		} catch {
-			jsonError(res, "Authentication required", 401);
+			authError(req, res, "Authentication required", 401);
 			return;
 		}
 
@@ -61,7 +62,7 @@ export default methodRouter({
 
 		// Enforce ownership: users can only list their own intents
 		if (userId.toLowerCase() !== session.walletAddress) {
-			jsonError(res, "You can only list your own intents", 403);
+			authError(req, res, "You can only list your own intents", 403, session.walletAddress);
 			return;
 		}
 
@@ -73,14 +74,16 @@ export default methodRouter({
 
 		const limit = getQueryNumber(req, "limit", 50, 1, 100);
 
-		const intents = await getIntentsByUser({ userId, status, limit });
+		const intents = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
+			getIntentsByUser({ userId, status, limit }, client.sql),
+		);
 		jsonSuccess(res, { intents });
 	},
 
 	POST: async (req: VercelRequest, res: VercelResponse) => {
 		const authHeader = req.headers.authorization;
 		if (!authHeader?.startsWith("AgentAuth ")) {
-			jsonError(res, "Missing or invalid Authorization header", 401);
+			authError(req, res, "Missing or invalid Authorization header", 401);
 			return;
 		}
 
@@ -93,7 +96,7 @@ export default methodRouter({
 			trustChainId = member.trustchainId;
 			createdByMemberId = member.id;
 		} catch (err) {
-			jsonError(res, "Authentication failed", 401);
+			authError(req, res, "Authentication failed", 401);
 			return;
 		}
 
@@ -120,22 +123,26 @@ export default methodRouter({
 
 		// Rate limiting: max N intents per agent per minute (fail closed)
 		try {
-			const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
-			const countResult = await sql`
-				SELECT COUNT(*)::int AS cnt
-				FROM intents
-				WHERE agent_id = ${body.agentId}
-					AND created_at > ${oneMinuteAgo}
-			`;
-			const recentCount = (countResult.rows[0] as { cnt: number })?.cnt ?? 0;
-			if (recentCount >= RATE_LIMIT_PER_MINUTE) {
-				jsonError(
-					res,
-					`Rate limit exceeded: agent "${body.agentId}" has created ${recentCount} intents in the last minute (max ${RATE_LIMIT_PER_MINUTE})`,
-					429,
-				);
-				return;
-			}
+			const rateLimitExceeded = await withDbRlsContext({ currentUser: userId }, async (client) => {
+				const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
+				const countResult = await client.sql`
+					SELECT COUNT(*)::int AS cnt
+					FROM intents
+					WHERE agent_id = ${body.agentId}
+						AND created_at > ${oneMinuteAgo}
+				`;
+				const recentCount = (countResult.rows[0] as { cnt: number })?.cnt ?? 0;
+				if (recentCount >= RATE_LIMIT_PER_MINUTE) {
+					jsonError(
+						res,
+						`Rate limit exceeded: agent \"${body.agentId}\" has created ${recentCount} intents in the last minute (max ${RATE_LIMIT_PER_MINUTE})`,
+						429,
+					);
+					return true;
+				}
+				return false;
+			});
+			if (rateLimitExceeded) return;
 		} catch (err) {
 			logger.error({ err }, "rate-limit check failed");
 			jsonError(res, "Service temporarily unavailable", 503);
@@ -150,17 +157,22 @@ export default methodRouter({
 			? new Date(Date.now() + body.expiresInMinutes * 60 * 1000).toISOString()
 			: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // Default 24h
 
-		const intent = await createIntent({
-			id,
-			userId,
-			agentId: body.agentId,
-			agentName: body.agentName ?? body.agentId,
-			details: body.details,
-			urgency: body.urgency ?? "normal",
-			expiresAt,
-			trustChainId,
-			createdByMemberId,
-		});
+		const intent = await withDbRlsContext({ currentUser: userId }, async (client) =>
+			createIntent(
+				{
+					id,
+					userId,
+					agentId: body.agentId,
+					agentName: body.agentName ?? body.agentId,
+					details: body.details,
+					urgency: body.urgency ?? "normal",
+					expiresAt,
+					trustChainId,
+					createdByMemberId,
+				},
+				client.sql,
+			),
+		);
 
 		// Build payment URL from request headers
 		const proto = req.headers["x-forwarded-proto"] ?? "https";

@@ -14,7 +14,13 @@ import {
 	verifyPersonalSignature,
 } from "../_lib/auth.js";
 import { sql } from "../_lib/db.js";
-import { jsonError, jsonSuccess, methodRouter, parseBodyWithSchema } from "../_lib/http.js";
+import {
+	authError,
+	jsonError,
+	jsonSuccess,
+	methodRouter,
+	parseBodyWithSchema,
+} from "../_lib/http.js";
 import { verifyBodySchema } from "../_lib/validation.js";
 
 const SESSION_VALIDITY_DAYS = 7;
@@ -73,7 +79,7 @@ export default methodRouter({
 		`;
 
 		if (challengeResult.rows.length === 0) {
-			jsonError(res, "Invalid or expired challenge", 401);
+			authError(req, res, "Invalid or expired challenge", 401, wallet);
 			return;
 		}
 
@@ -90,12 +96,12 @@ export default methodRouter({
 		try {
 			recoveredAddress = await verifyPersonalSignature({ message, signature });
 		} catch {
-			jsonError(res, "Invalid signature", 401);
+			authError(req, res, "Invalid signature", 401, wallet);
 			return;
 		}
 
 		if (recoveredAddress !== wallet) {
-			jsonError(res, "Signature does not match wallet", 401);
+			authError(req, res, "Signature does not match wallet", 401, wallet);
 			return;
 		}
 
