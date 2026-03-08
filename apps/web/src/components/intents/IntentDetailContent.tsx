@@ -774,25 +774,25 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 				});
 
 				onClose();
-			} catch (err) {
-				const message = err instanceof Error ? err.message : "Signature failed";
-				const lowerMessage = message.toLowerCase();
-				const isUserRejection =
-					lowerMessage.includes("reject") ||
-					lowerMessage.includes("cancel") ||
-					lowerMessage.includes("denied") ||
-					lowerMessage.includes("user");
-				dismissDeviceAction();
-				if (isUserRejection) {
-					setError("Authorization cancelled");
-				} else {
-					setError(message);
-				}
-			} finally {
-				setIsSigning(false);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Signature failed";
+			const lowerMessage = message.toLowerCase();
+			const isUserRejection =
+				lowerMessage.includes("reject") ||
+				lowerMessage.includes("cancel") ||
+				lowerMessage.includes("denied") ||
+				lowerMessage.includes("user");
+			dismissDeviceAction();
+			if (isUserRejection) {
+				setError("Authorization cancelled");
+			} else {
+				setError(message);
 			}
+		} finally {
+			setIsSigning(false);
+		}
 
-			return;
+		return;
 		}
 
 		// Check chain mismatch for standard transfers

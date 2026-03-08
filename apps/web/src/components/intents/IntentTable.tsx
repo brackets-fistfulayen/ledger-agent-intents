@@ -415,28 +415,28 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 					paymentSignatureHeader,
 					paymentPayload,
 				});
-			} catch (err) {
-				const message = err instanceof Error ? err.message : "Signature failed";
-				const lowerMessage = message.toLowerCase();
-				const isUserRejection =
-					lowerMessage.includes("reject") ||
-					lowerMessage.includes("cancel") ||
-					lowerMessage.includes("denied") ||
-					lowerMessage.includes("user");
-				dismissDeviceAction();
-				if (isUserRejection) {
-					setError("Authorization cancelled");
-				} else {
-					setError(message);
-				}
-			} finally {
-				setIsSigning(false);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Signature failed";
+			const lowerMessage = message.toLowerCase();
+			const isUserRejection =
+				lowerMessage.includes("reject") ||
+				lowerMessage.includes("cancel") ||
+				lowerMessage.includes("denied") ||
+				lowerMessage.includes("user");
+			dismissDeviceAction();
+			if (isUserRejection) {
+				setError("Authorization cancelled");
+			} else {
+				setError(message);
 			}
-
-			return;
+		} finally {
+			setIsSigning(false);
 		}
 
-		// Check chain mismatch for standard transfers
+		return;
+	}
+
+	// Check chain mismatch for standard transfers
 		if (isWrongChain) {
 			setError(`Please switch to ${chain?.name ?? "the correct network"} to sign`);
 			return;

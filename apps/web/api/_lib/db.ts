@@ -1,9 +1,9 @@
 /**
  * Database client helper for Vercel Postgres
  */
-import { sql } from "@vercel/postgres";
+import { type VercelPoolClient, sql } from "@vercel/postgres";
 
-export type DbClient = Awaited<ReturnType<typeof sql.connect>>;
+export type DbClient = VercelPoolClient;
 export type DbExecutor = DbClient["sql"] | typeof sql;
 
 interface DbRlsContext {

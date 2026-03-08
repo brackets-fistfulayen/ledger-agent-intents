@@ -138,10 +138,11 @@ export function parseBodyWithSchema<T>(
 		return result.data;
 	}
 	const flattened = result.error.flatten();
-	const message =
+	const message = String(
 		flattened.formErrors[0] ??
 		Object.values(flattened.fieldErrors).flat()[0] ??
-		"Validation failed";
+		"Validation failed",
+	);
 	jsonError(res, message, 400);
 	return null;
 }

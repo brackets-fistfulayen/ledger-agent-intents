@@ -1,4 +1,4 @@
-import type { IntentStatus } from "@agent-intents/shared";
+import type { IntentStatus, TransferIntent } from "@agent-intents/shared";
 import { isSupportedChain } from "@agent-intents/shared";
 /**
  * Intents endpoint
@@ -180,7 +180,7 @@ export default methodRouter({
 					userId,
 					agentId: body.agentId,
 					agentName: body.agentName ?? body.agentId,
-					details: body.details,
+					details: body.details as unknown as TransferIntent,
 					urgency: body.urgency ?? "normal",
 					expiresAt,
 					trustChainId,

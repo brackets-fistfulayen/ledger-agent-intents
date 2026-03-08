@@ -132,7 +132,7 @@ async function getStatusHistoriesBatch(
 	const result = await db`
     SELECT intent_id, status, timestamp, note
     FROM intent_status_history
-    WHERE intent_id = ANY(${intentIds as unknown as string[]})
+    WHERE intent_id = ANY(${intentIds as unknown as never})
     ORDER BY intent_id, timestamp ASC
   `;
 

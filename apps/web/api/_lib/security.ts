@@ -15,11 +15,11 @@ function cleanupRateLimitStore(now: number) {
 	if (now - lastRateLimitCleanup < 60_000) return;
 	lastRateLimitCleanup = now;
 
-	for (const [ip, entry] of ipRateLimitStore) {
+	ipRateLimitStore.forEach((entry, ip) => {
 		if (entry.resetTime <= now) {
 			ipRateLimitStore.delete(ip);
 		}
-	}
+	});
 }
 
 export function getClientIp(req: VercelRequest): string | null {
