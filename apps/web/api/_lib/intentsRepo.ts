@@ -383,6 +383,9 @@ export async function updateIntentStatus(
 
 	const ownConnection = !dbClient;
 	const client = dbClient ?? (await sql.connect());
+	if (ownConnection) {
+		client.sql = client.sql.bind(client) as typeof client.sql;
+	}
 	try {
 		await client.sql`BEGIN`;
 

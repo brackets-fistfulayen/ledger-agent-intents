@@ -24,6 +24,9 @@ export async function withDbRlsContext<T>(
 	work: (client: DbClient) => Promise<T>,
 ): Promise<T> {
 	const client = await sql.connect();
+	// Bind client.sql so it can be safely passed as a standalone tagged-template
+	// function without losing its `this` context (required in ESM strict mode).
+	client.sql = client.sql.bind(client) as DbClient["sql"];
 	try {
 		const currentUser = context.currentUser?.toLowerCase() ?? "";
 		const role = context.systemRole ? "system" : "";
