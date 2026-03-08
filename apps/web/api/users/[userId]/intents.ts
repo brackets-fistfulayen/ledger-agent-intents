@@ -58,18 +58,20 @@ export default methodRouter({
 				: undefined;
 
 		const limit = getQueryNumber(req, "limit", 50, 1, 100);
+		const cursor = getQueryParam(req, "cursor");
 
-		const intents = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
+		const page = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
 			getIntentsByUser(
 				{
 					userId: userIdStr,
 					status,
 					limit,
+					cursor,
 				},
 				client.sql,
 			),
 		);
 
-		jsonSuccess(res, { intents });
+		jsonSuccess(res, page);
 	},
 });

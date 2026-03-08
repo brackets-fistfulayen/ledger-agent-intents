@@ -51,6 +51,37 @@ interface StatusHistoryRowWithIntentId extends StatusHistoryRow {
 	intent_id: string;
 }
 
+export interface IntentsPage {
+	intents: Intent[];
+	nextCursor?: string;
+}
+
+function encodeIntentCursor(row: Pick<IntentRow, "id" | "created_at">): string {
+	return Buffer.from(
+		JSON.stringify({
+			id: row.id,
+			createdAt: row.created_at.toISOString(),
+		}),
+	).toString("base64url");
+}
+
+function decodeIntentCursor(cursor: string): { id: string; createdAt: Date } {
+	const decoded = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as {
+		id?: unknown;
+		createdAt?: unknown;
+	};
+	if (typeof decoded.id !== "string" || typeof decoded.createdAt !== "string") {
+		throw new Error("Invalid cursor");
+	}
+
+	const createdAt = new Date(decoded.createdAt);
+	if (Number.isNaN(createdAt.getTime())) {
+		throw new Error("Invalid cursor");
+	}
+
+	return { id: decoded.id, createdAt };
+}
+
 function rowToIntent(row: IntentRow, history: StatusHistoryRow[]): Intent {
 	let effectiveStatus: IntentStatus = row.status;
 	const x402ExpiresAt = row.details?.x402?.expiresAt ?? row.expires_at?.toISOString();
@@ -260,31 +291,63 @@ export async function getIntentsByUser(
 		cursor?: string;
 	},
 	db: DbExecutor = sql,
-): Promise<Intent[]> {
-	const { userId, status, limit = 50 } = params;
+): Promise<IntentsPage> {
+	const { userId, status, limit = 50, cursor } = params;
+	const pageSize = Math.max(1, Math.min(limit, 100));
+	const fetchLimit = pageSize + 1;
+	const decodedCursor = cursor ? decodeIntentCursor(cursor) : null;
 
 	let result: Awaited<ReturnType<typeof sql>>;
-	if (status) {
+	if (status && decodedCursor) {
+		result = await db`
+      SELECT * FROM intents
+      WHERE user_id = ${userId}
+        AND status = ${status}
+        AND (
+          created_at < ${decodedCursor.createdAt}
+          OR (created_at = ${decodedCursor.createdAt} AND id < ${decodedCursor.id})
+        )
+      ORDER BY created_at DESC, id DESC
+      LIMIT ${fetchLimit}
+    `;
+	} else if (status) {
 		result = await db`
       SELECT * FROM intents
       WHERE user_id = ${userId} AND status = ${status}
-      ORDER BY created_at DESC
-      LIMIT ${limit}
+      ORDER BY created_at DESC, id DESC
+      LIMIT ${fetchLimit}
+    `;
+	} else if (decodedCursor) {
+		result = await db`
+      SELECT * FROM intents
+      WHERE user_id = ${userId}
+        AND (
+          created_at < ${decodedCursor.createdAt}
+          OR (created_at = ${decodedCursor.createdAt} AND id < ${decodedCursor.id})
+        )
+      ORDER BY created_at DESC, id DESC
+      LIMIT ${fetchLimit}
     `;
 	} else {
 		result = await db`
       SELECT * FROM intents
       WHERE user_id = ${userId}
-      ORDER BY created_at DESC
-      LIMIT ${limit}
+      ORDER BY created_at DESC, id DESC
+      LIMIT ${fetchLimit}
     `;
 	}
 
 	const rows = result.rows as IntentRow[];
-	const intentIds = rows.map((row) => row.id);
+	const pageRows = rows.slice(0, pageSize);
+	const intentIds = pageRows.map((row) => row.id);
 	const historyMap = await getStatusHistoriesBatch(intentIds, db);
 
-	return rows.map((row) => rowToIntent(row, historyMap.get(row.id) ?? []));
+	return {
+		intents: pageRows.map((row) => rowToIntent(row, historyMap.get(row.id) ?? [])),
+		nextCursor: rows.length > pageSize && pageRows.length > 0
+			? encodeIntentCursor(pageRows[pageRows.length - 1]!)
+			: undefined,
+	};
 }
 
 function buildAuditNote(

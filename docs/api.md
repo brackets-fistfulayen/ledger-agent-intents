@@ -281,7 +281,7 @@ Get intent by ID. **No auth required** (returns sanitized response). **With Agen
 
 ---
 
-### GET /api/intents?userId=...&status=...&limit=...
+### GET /api/intents?userId=...&status=...&limit=...&cursor=...
 
 List intents for a user. **No auth required.**
 
@@ -290,8 +290,9 @@ List intents for a user. **No auth required.**
 | `userId` | string | Yes | Wallet address |
 | `status` | string | No | Filter: `pending`, `approved`, `rejected`, `broadcasting`, `authorized`, `executing`, `confirmed`, `failed`, `expired` |
 | `limit` | number | No | 1–100 (default: 50) |
+| `cursor` | string | No | Opaque pagination cursor returned by the previous page |
 
-**Response (200):** `{ "success": true, "intents": Intent[] }`
+**Response (200):** `{ "success": true, "intents": Intent[], "nextCursor"?: string }`
 
 ---
 

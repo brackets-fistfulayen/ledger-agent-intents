@@ -53,14 +53,32 @@ export function intentsQueryOptions(userId: string, status?: IntentStatus) {
 	return queryOptions({
 		queryKey: ["intents", userId, status] as const,
 		queryFn: async (): Promise<Intent[]> => {
-			const params = new URLSearchParams({ userId });
-			if (status) {
-				params.set("status", status);
-			}
-			const url = `${API_BASE}/api/intents?${params.toString()}`;
+			const PAGE_SIZE = 100;
+			const allIntents: Intent[] = [];
+			let cursor: string | undefined;
 
-			const data = await fetchJson<{ success: boolean; intents: Intent[] }>(url);
-			return data.intents;
+			for (let page = 0; page < 20; page++) {
+				const params = new URLSearchParams({ userId, limit: String(PAGE_SIZE) });
+				if (status) params.set("status", status);
+				if (cursor) params.set("cursor", cursor);
+
+				const url = `${API_BASE}/api/intents?${params.toString()}`;
+				const data = await fetchJson<{
+					success: boolean;
+					intents: Intent[];
+					nextCursor?: string;
+				}>(url);
+
+				allIntents.push(...data.intents);
+
+				if (!data.nextCursor || data.intents.length < PAGE_SIZE) {
+					break;
+				}
+
+				cursor = data.nextCursor;
+			}
+
+			return allIntents;
 		},
 		// Stop polling/retrying when the API is misrouted (e.g. HTML returned instead of JSON).
 		retry: false,

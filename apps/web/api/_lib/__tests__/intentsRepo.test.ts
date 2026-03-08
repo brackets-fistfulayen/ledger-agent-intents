@@ -1,6 +1,6 @@
 import type { Intent } from "@agent-intents/shared";
 import { describe, expect, it } from "vitest";
-import { IntentStatusConflictError, sanitizeIntent } from "../intentsRepo.js";
+import { IntentStatusConflictError, getIntentsByUser, sanitizeIntent } from "../intentsRepo.js";
 
 // =============================================================================
 // IntentStatusConflictError
@@ -124,5 +124,84 @@ describe("sanitizeIntent", () => {
 		const _result = sanitizeIntent(intent);
 		// Original should still have the secret field
 		expect(intent.details.x402?.paymentSignatureHeader).toBe("secret");
+	});
+});
+
+describe("getIntentsByUser cursor pagination", () => {
+	const makeRow = (id: string, createdAt: string) => ({
+		id,
+		user_id: "0x1234",
+		agent_id: "agent-1",
+		agent_name: "Test Agent",
+		details: {
+			type: "transfer" as const,
+			token: "USDC",
+			amount: "10",
+			recipient: "0xabc",
+			chainId: 1,
+		},
+		urgency: "normal" as const,
+		status: "pending" as const,
+		created_at: new Date(createdAt),
+		expires_at: null,
+		reviewed_at: null,
+		broadcast_at: null,
+		confirmed_at: null,
+		tx_hash: null,
+		tx_url: null,
+		trust_chain_id: null,
+		created_by_member_id: null,
+	});
+
+	it("returns nextCursor when there are more rows than the requested limit", async () => {
+		let callCount = 0;
+		const db = (async () => {
+			callCount++;
+			if (callCount === 1) {
+				return {
+					rows: [
+						makeRow("intent-3", "2025-01-03T00:00:00.000Z"),
+						makeRow("intent-2", "2025-01-02T00:00:00.000Z"),
+						makeRow("intent-1", "2025-01-01T00:00:00.000Z"),
+					],
+				};
+			}
+			return { rows: [] };
+		}) as unknown as typeof import("../db.js").sql;
+
+		const page = await getIntentsByUser({ userId: "0x1234", limit: 2 }, db);
+
+		expect(page.intents).toHaveLength(2);
+		expect(page.intents[0]?.id).toBe("intent-3");
+		expect(page.intents[1]?.id).toBe("intent-2");
+		expect(page.nextCursor).toBeTruthy();
+	});
+
+	it("accepts a cursor and returns the next page", async () => {
+		let callCount = 0;
+		const db = (async (_strings: TemplateStringsArray, ...values: unknown[]) => {
+			callCount++;
+			if (callCount === 1) {
+				return {
+					rows: [
+						makeRow("intent-3", "2025-01-03T00:00:00.000Z"),
+						makeRow("intent-2", "2025-01-02T00:00:00.000Z"),
+						makeRow("intent-1", "2025-01-01T00:00:00.000Z"),
+					],
+				};
+			}
+
+			expect(values).toContain("intent-2");
+			return { rows: [] };
+		}) as unknown as typeof import("../db.js").sql;
+
+		const firstPage = await getIntentsByUser({ userId: "0x1234", limit: 2 }, db);
+		const secondPage = await getIntentsByUser(
+			{ userId: "0x1234", limit: 2, cursor: firstPage.nextCursor },
+			db,
+		);
+
+		expect(firstPage.nextCursor).toBeTruthy();
+		expect(secondPage.intents).toHaveLength(0);
 	});
 });

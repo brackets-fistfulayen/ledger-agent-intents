@@ -3,7 +3,7 @@ import { isSupportedChain } from "@agent-intents/shared";
 /**
  * Intents endpoint
  *
- * GET  /api/intents?userId=...&status=...&limit=...  – List intents for a user
+ * GET  /api/intents?userId=...&status=...&limit=...&cursor=...  – List intents for a user
  * POST /api/intents                                    – Create a new intent
  *
  * POST requires AgentAuth header signed by a registered agent key.
@@ -73,11 +73,12 @@ export default methodRouter({
 				: undefined;
 
 		const limit = getQueryNumber(req, "limit", 50, 1, 100);
+		const cursor = getQueryParam(req, "cursor");
 
-		const intents = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
-			getIntentsByUser({ userId, status, limit }, client.sql),
+		const page = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
+			getIntentsByUser({ userId, status, limit, cursor }, client.sql),
 		);
-		jsonSuccess(res, { intents });
+		jsonSuccess(res, page);
 	},
 
 	POST: async (req: VercelRequest, res: VercelResponse) => {

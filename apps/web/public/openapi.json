@@ -38,7 +38,7 @@
 				"tags": ["Intents"],
 				"operationId": "listIntents",
 				"summary": "List intents for a user",
-				"description": "Returns intents for a given userId, optionally filtered by status. No authentication required.",
+				"description": "Returns intents for a given userId, optionally filtered by status. Requires session auth and supports cursor pagination.",
 				"parameters": [
 					{
 						"name": "userId",
@@ -60,6 +60,13 @@
 						"required": false,
 						"description": "Max results (1–100)",
 						"schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"description": "Opaque cursor returned by the previous page",
+						"schema": { "type": "string" }
 					}
 				],
 				"responses": {
@@ -361,7 +368,7 @@
 				"tags": ["Intents"],
 				"operationId": "listUserIntents",
 				"summary": "List intents for a user (path param)",
-				"description": "Same as GET /api/intents?userId=... but with userId in the path. Requires session cookie; callers can only list their own intents.",
+				"description": "Same as GET /api/intents?userId=... but with userId in the path. Requires session cookie; callers can only list their own intents. Supports cursor pagination.",
 				"security": [{ "SessionCookie": [] }],
 				"parameters": [
 					{
@@ -382,6 +389,13 @@
 						"in": "query",
 						"required": false,
 						"schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 }
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"description": "Opaque cursor returned by the previous page",
+						"schema": { "type": "string" }
 					}
 				],
 				"responses": {
@@ -1039,6 +1053,10 @@
 					"intents": {
 						"type": "array",
 						"items": { "$ref": "#/components/schemas/Intent" }
+					},
+					"nextCursor": {
+						"type": "string",
+						"description": "Opaque cursor to fetch the next page of intents"
 					}
 				}
 			},
