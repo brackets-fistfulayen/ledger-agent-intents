@@ -2,8 +2,8 @@
  * Structured logger for Vercel serverless API.
  * Uses pino for JSON output (level, message, context, timestamp).
  */
-import * as pinoModule from "pino";
-const pino = (pinoModule as { default?: typeof pinoModule }).default ?? pinoModule;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+import pino = require("pino");
 
 export const logger = pino({
 	level: process.env.LOG_LEVEL ?? "info",
