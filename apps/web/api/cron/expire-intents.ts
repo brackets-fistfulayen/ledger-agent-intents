@@ -1,4 +1,3 @@
-/// <reference types="node" />
 /**
  * Vercel Cron: Batch-transition expired x402 intents.
  *
