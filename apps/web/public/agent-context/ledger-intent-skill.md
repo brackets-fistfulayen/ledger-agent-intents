@@ -125,6 +125,69 @@ pending → approved → broadcasting → confirmed
 
 Terminal states: `confirmed`, `rejected`, `failed`, `expired`. Stop polling when you reach one.
 
+## x402 Pay-Per-Call Payments
+
+When your agent calls a paywalled API that returns `402 Payment Required`, you can use agent intents to handle the payment flow with human approval.
+
+### How x402 works
+
+1. Agent calls a protected API endpoint
+2. Server responds with `402` and a `PAYMENT-REQUIRED` header (base64 JSON with payment terms: amount, token, recipient, network)
+3. Agent creates an intent via the API with the x402 context attached:
+   ```
+   POST https://www.agentintents.io/api/intents
+   ```
+   Include `details.x402` with the `resource` and `accepted` fields from the 402 response.
+4. Human reviews and signs an EIP-3009 `TransferWithAuthorization` on their Ledger
+5. Intent moves to `authorized` — the signed payment proof is now available
+6. Agent fetches the intent, extracts the `paymentSignatureHeader`, and retries the API call with it in the `PAYMENT-SIGNATURE` header
+7. The paywalled server settles the payment on-chain and returns the response
+
+### x402 intent request body
+
+```json
+{
+  "agentId": "my-agent",
+  "agentName": "My Agent",
+  "details": {
+    "type": "transfer",
+    "token": "USDC",
+    "amount": "0.01",
+    "recipient": "0xPaywallServerAddress",
+    "chainId": 8453,
+    "memo": "API payment for api.example.com",
+    "resource": "https://api.example.com/v1/endpoint",
+    "category": "api_payment",
+    "x402": {
+      "resource": {
+        "url": "https://api.example.com/v1/endpoint",
+        "description": "Premium API endpoint"
+      },
+      "accepted": {
+        "scheme": "exact",
+        "network": "eip155:8453",
+        "amount": "10000",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "payTo": "0xPaywallServerAddress"
+      }
+    }
+  },
+  "urgency": "normal"
+}
+```
+
+### x402 status lifecycle
+
+```
+pending → authorized → executing → confirmed
+```
+
+- `authorized`: human signed the payment proof on Ledger — fetch the intent to get `paymentSignatureHeader`
+- `executing`: agent is retrying the API call with the payment proof
+- `confirmed`: payment settled on-chain, API returned the response
+
+> **Note:** x402 intents must be created via the API directly (the CLI `send` command creates standard transfer intents). Use the AgentAuth header as described below.
+
 ## Alternative: Direct API
 
 If you can't use the CLI, you can call the API directly with HTTP. See the full guide at https://www.agentintents.io/agent-context#credential-file
