@@ -5,8 +5,10 @@ node_modules/
 
 # Build outputs
 build/
-# Ignore dist in apps but not in packages/ledger-button*
+# Ignore dist in apps and packages but not in packages/ledger-button*
 apps/**/dist/
+packages/shared/dist/
+packages/skill/dist/
 .next/
 out/
 *.tsbuildinfo

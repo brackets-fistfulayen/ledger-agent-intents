@@ -18,8 +18,8 @@
 			},
 			"continue": true
 		},
-		{ "src": "/api/(.*)", "dest": "/api/$1" },
 		{ "handle": "filesystem" },
+		{ "src": "/api/(.*)", "status": 404 },
 		{ "src": "/(.*)", "dest": "/index.html" }
 	],
 	"crons": [
