@@ -1,0 +1,25 @@
+{
+	"name": "@agent-intents/cli",
+	"version": "0.2.0",
+	"private": true,
+	"type": "module",
+	"main": "./dist/cli.js",
+	"bin": {
+		"ledger-intent": "./bin/ledger-intent.js"
+	},
+	"scripts": {
+		"build": "tsc",
+		"clean": "rm -rf dist",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@agent-intents/shared": "workspace:*",
+		"viem": "^2.45.1"
+	},
+	"devDependencies": {
+		"@types/node": "^20.10.0",
+		"typescript": "^5.7.0",
+		"vitest": "^4.0.18"
+	}
+}

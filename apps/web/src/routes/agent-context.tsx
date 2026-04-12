@@ -9,7 +9,7 @@ export const Route = createFileRoute("/agent-context")({
 			{
 				name: "description",
 				content:
-					"Quickstart guide for AI agents to create payment intents using a JSON credential file.",
+					"Quickstart guide for AI agents to create payment intents via CLI or API using a JSON credential file.",
 			},
 		],
 	}),
@@ -39,6 +39,15 @@ function Section({
 	);
 }
 
+function SubSection({ title, children }: { title: string; children: React.ReactNode }) {
+	return (
+		<div className="space-y-12">
+			<h3 className="heading-5-semi-bold text-base">{title}</h3>
+			{children}
+		</div>
+	);
+}
+
 // =============================================================================
 // Main Page
 // =============================================================================
@@ -51,24 +60,29 @@ function AgentContextPage() {
 				<div className="space-y-24">
 					<div>
 						<h4 className="body-4-semi-bold text-muted-subtle uppercase tracking-wider mb-8 px-12">
-							Getting Started
+							Skill (Recommended)
+						</h4>
+						<NavLink href="#skill">Download Skill</NavLink>
+						<NavLink href="#skill-install">Install</NavLink>
+						<NavLink href="#skill-commands">Commands</NavLink>
+						<NavLink href="#skill-examples">Examples</NavLink>
+					</div>
+					<div>
+						<h4 className="body-4-semi-bold text-muted-subtle uppercase tracking-wider mb-8 px-12">
+							API (Direct HTTP)
 						</h4>
 						<NavLink href="#credential-file">Credential File</NavLink>
 						<NavLink href="#agentauth-header">AgentAuth Header</NavLink>
 						<NavLink href="#send-intent">Send an Intent</NavLink>
 						<NavLink href="#poll">Poll for Completion</NavLink>
-					</div>
-					<div>
-						<h4 className="body-4-semi-bold text-muted-subtle uppercase tracking-wider mb-8 px-12">
-							Example
-						</h4>
-						<NavLink href="#complete-example">Complete Bash Script</NavLink>
+						<NavLink href="#api-example">Complete Bash Script</NavLink>
 					</div>
 					<div>
 						<h4 className="body-4-semi-bold text-muted-subtle uppercase tracking-wider mb-8 px-12">
 							Reference
 						</h4>
 						<NavLink href="#supported-chains">Supported Chains</NavLink>
+						<NavLink href="#status-lifecycle">Status Lifecycle</NavLink>
 						<NavLink href="#troubleshooting">Troubleshooting</NavLink>
 					</div>
 				</div>
@@ -80,38 +94,228 @@ function AgentContextPage() {
 				<div className="space-y-16">
 					<div className="flex items-center gap-12">
 						<Link to="/" className="body-2 text-muted hover:text-base transition-colors">
-							← Back to App
+							&larr; Back to App
 						</Link>
 					</div>
 					<div>
 						<h1 className="heading-2-semi-bold text-base">Context for Agents</h1>
 						<p className="body-1 text-muted mt-8">
-							Quickstart guide for AI agents to create payment intents using a JSON credential file.
+							Two ways to create payment intents: the{" "}
+							<a href="#skill" className="text-accent hover:underline">
+								ledger-intent CLI
+							</a>{" "}
+							(recommended) or the{" "}
+							<a href="#credential-file" className="text-accent hover:underline">
+								HTTP API
+							</a>{" "}
+							directly.
 						</p>
 					</div>
 					<div className="flex items-center gap-16 p-16 rounded-md bg-accent/10">
 						<p className="body-2 text-base">
-							<strong>Prerequisites:</strong>{" "}
-							<a
-								href="https://book.getfoundry.sh/getting-started/installation"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="text-accent hover:underline"
-							>
-								Foundry
-							</a>{" "}
-							(<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">cast</code>),{" "}
-							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">curl</code>, and{" "}
-							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">jq</code>.
+							<strong>Prerequisites:</strong> A credential file from the{" "}
+							<Link to="/settings" className="text-accent hover:underline">
+								Settings
+							</Link>{" "}
+							page (the human owner provisions your agent key with their Ledger device).
 						</p>
 					</div>
 				</div>
 
+				{/* ============================================================= */}
+				{/* SKILL SECTION                                                 */}
+				{/* ============================================================= */}
+
+				<Section id="skill" title="CLI Skill (Recommended)">
+					<p className="body-2 text-muted">
+						The <strong>ledger-intent</strong> CLI handles authentication, request signing, and
+						polling automatically. When you create an intent, the CLI returns a{" "}
+						<strong>shareable payment link</strong> — share it with the human so they can review and
+						approve the transaction on their Ledger device.
+					</p>
+
+					<div className="p-16 rounded-md bg-success/10 border border-success/20">
+						<p className="body-2 text-base">
+							<strong>Download the skill file</strong> and include it in your agent's context window
+							so it knows how to use the CLI:
+						</p>
+						<p className="body-2 mt-8">
+							<a
+								href="/agent-context/ledger-intent-skill.md"
+								download="ledger-intent-skill.md"
+								className="inline-flex items-center gap-8 px-16 py-8 rounded-md bg-accent text-on-accent body-2-semi-bold hover:bg-accent-hover transition-colors mt-8"
+							>
+								Download ledger-intent-skill.md
+							</a>
+						</p>
+					</div>
+				</Section>
+
+				<Section id="skill-install" title="Install">
+					<p className="body-2 text-muted">
+						Clone the repo and build, or install the CLI globally from the monorepo:
+					</p>
+					<CodeBlock language="bash" title="Install from source">
+						{`git clone https://github.com/brackets-fistfulayen/ledger-agent-intents.git
+cd ledger-agent-intents
+pnpm install && pnpm build
+
+# Run directly
+node packages/cli/bin/ledger-intent.js --help
+
+# Or link globally
+cd packages/cli && npm link
+ledger-intent --help`}
+					</CodeBlock>
+				</Section>
+
+				<Section id="skill-commands" title="Commands">
+					<CodeBlock language="bash" title="CLI commands">
+						{`# Create a payment intent
+ledger-intent send <amount> <token> to <address> [for "reason"] [--chain <id>] [--urgency <level>]
+
+# Check intent status
+ledger-intent status <intent-id>
+
+# List your intents
+ledger-intent list [--status <status>] [--limit <n>]
+
+# Poll until terminal state (confirmed, rejected, failed, expired)
+ledger-intent poll <intent-id> [--interval <seconds>] [--timeout <seconds>]
+
+# Check API connectivity (no credential required)
+ledger-intent health`}
+					</CodeBlock>
+
+					<SubSection title="Global options">
+						<div className="overflow-x-auto">
+							<table className="w-full border-collapse">
+								<thead>
+									<tr className="border-b border-muted">
+										<th className="text-left body-3-semi-bold text-muted-subtle py-8 pr-16">
+											Flag
+										</th>
+										<th className="text-left body-3-semi-bold text-muted-subtle py-8">
+											Description
+										</th>
+									</tr>
+								</thead>
+								<tbody className="body-2 text-muted">
+									<tr className="border-b border-muted/50">
+										<td className="py-8 pr-16">
+											<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
+												--credential &lt;path&gt;
+											</code>
+										</td>
+										<td className="py-8">Path to agent credential JSON file</td>
+									</tr>
+									<tr className="border-b border-muted/50">
+										<td className="py-8 pr-16">
+											<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
+												--api &lt;url&gt;
+											</code>
+										</td>
+										<td className="py-8">
+											API base URL (default:{" "}
+											<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
+												https://www.agentintents.io
+											</code>
+											)
+										</td>
+									</tr>
+									<tr className="border-b border-muted/50">
+										<td className="py-8 pr-16">
+											<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
+												--no-color
+											</code>
+										</td>
+										<td className="py-8">Disable colored output</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</SubSection>
+
+					<SubSection title="Credential resolution order">
+						<ol className="list-decimal list-inside space-y-4 body-2 text-muted">
+							<li>
+								<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
+									--credential &lt;path&gt;
+								</code>{" "}
+								flag
+							</li>
+							<li>
+								<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
+									AGENT_CREDENTIAL
+								</code>{" "}
+								environment variable
+							</li>
+							<li>
+								<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
+									./agent-credential.json
+								</code>{" "}
+								in the current directory
+							</li>
+							<li>
+								<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
+									~/.config/ledger-agent/credential.json
+								</code>
+							</li>
+						</ol>
+					</SubSection>
+				</Section>
+
+				<Section id="skill-examples" title="CLI Examples">
+					<CodeBlock language="bash" title="Common workflows">
+						{`# Pay for podcast work on Base (default chain)
+ledger-intent send 50 USDC to 0x1234567890abcdef1234567890abcdef12345678 \\
+  for "podcast intro music"
+
+# Small payment on Base Sepolia testnet
+ledger-intent send 0.01 USDC to 0xabcdefabcdefabcdefabcdefabcdefabcdefabcd \\
+  --chain 84532
+
+# Urgent payment
+ledger-intent send 100 USDC to 0x1234567890abcdef1234567890abcdef12345678 \\
+  --urgency high
+
+# Check status
+ledger-intent status int_1707048000_abc123
+
+# Wait for the user to sign (polls every 5s, times out after 5 min)
+ledger-intent poll int_1707048000_abc123
+
+# Wait longer with custom interval
+ledger-intent poll int_1707048000_abc123 --interval 10 --timeout 600
+
+# List pending intents
+ledger-intent list --status pending
+
+# Verify API is reachable
+ledger-intent health --api https://www.agentintents.io`}
+					</CodeBlock>
+				</Section>
+
+				{/* Divider */}
+				<div className="border-t border-[#30363d] pt-16">
+					<p className="body-2 text-muted-subtle">
+						If you prefer to call the API directly (without the CLI), continue below.
+					</p>
+				</div>
+
+				{/* ============================================================= */}
+				{/* API SECTION                                                    */}
+				{/* ============================================================= */}
+
 				{/* 1. Credential File */}
-				<Section id="credential-file" title="1. Credential File">
+				<Section id="credential-file" title="API: Credential File">
 					<p className="body-2 text-muted">
 						You need a JSON credential file with this shape. The human owner generates this file
-						when registering your agent from the web UI.
+						when registering your agent from the{" "}
+						<Link to="/settings" className="text-accent hover:underline">
+							Settings
+						</Link>{" "}
+						page.
 					</p>
 					<CodeBlock language="json" title="agent-credential.json">
 						{`{
@@ -136,11 +340,11 @@ function AgentContextPage() {
 				</Section>
 
 				{/* 2. AgentAuth Header */}
-				<Section id="agentauth-header" title="2. Build the AgentAuth Header">
+				<Section id="agentauth-header" title="API: Build the AgentAuth Header">
 					<p className="body-2 text-muted">
-						Every request to the API requires an{" "}
+						Every API request requires an{" "}
 						<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">Authorization</code>{" "}
-						header:
+						header. The CLI builds this automatically; this section is for direct HTTP callers.
 					</p>
 					<CodeBlock language="text" title="Header format">
 						{"Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>"}
@@ -164,8 +368,8 @@ function AgentContextPage() {
 										</code>
 									</td>
 									<td className="py-8">
-										Current Unix epoch in <strong>seconds</strong> as a string (must be within 5 min
-										of server time)
+										Current Unix epoch in <strong>seconds</strong> (must be within 5 min of server
+										time)
 									</td>
 								</tr>
 								<tr className="border-b border-muted/50">
@@ -176,9 +380,7 @@ function AgentContextPage() {
 										<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
 											cast keccak "$BODY"
 										</code>{" "}
-										— returns{" "}
-										<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">0x</code>
-										-prefixed keccak256 hash. For GET requests (no body), use the literal string{" "}
+										for POST. For GET, use the literal string{" "}
 										<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">0x</code>
 									</td>
 								</tr>
@@ -189,10 +391,7 @@ function AgentContextPage() {
 										</code>
 									</td>
 									<td className="py-8">
-										<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
-											{'cast wallet sign --private-key "$KEY" "$MESSAGE"'}
-										</code>{" "}
-										— EIP-191{" "}
+										EIP-191{" "}
 										<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
 											personal_sign
 										</code>{" "}
@@ -205,70 +404,37 @@ function AgentContextPage() {
 							</tbody>
 						</table>
 					</div>
-
-					<div className="p-16 rounded-md bg-accent/10">
-						<p className="body-2 text-base">
-							<strong>Important:</strong> All hex values (
-							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">bodyHash</code>,{" "}
-							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">signature</code>){" "}
-							<strong>must</strong> include the{" "}
-							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">0x</code> prefix.
-							Omitting it will result in a{" "}
-							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
-								401 Authentication failed
-							</code>{" "}
-							error.
-						</p>
-					</div>
-
-					<h3 className="heading-5-semi-bold text-base mt-24">Body hashing</h3>
-					<p className="body-2 text-muted">
-						The <code className="px-4 py-2 rounded-xs bg-muted text-base body-3">bodyHash</code> is
-						computed over the <strong>exact bytes</strong> sent in the request body. Write the JSON
-						body as a compact literal string (no extra whitespace between keys and values) to ensure
-						a deterministic hash.
-					</p>
 				</Section>
 
 				{/* 3. Send an Intent */}
-				<Section id="send-intent" title="3. Send an Intent">
+				<Section id="send-intent" title="API: Send an Intent">
 					<p className="body-2 text-muted">
-						<strong>
-							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
-								POST https://www.agentintents.io/api/intents
-							</code>
-						</strong>
+						<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
+							POST https://www.agentintents.io/api/intents
+						</code>
 					</p>
 
-					<h3 className="heading-5-semi-bold text-base">Request body</h3>
-					<CodeBlock language="json" title="Compact JSON body">
-						{
-							'{"agentId":"my-agent","agentName":"My Agent","details":{"type":"transfer","token":"USDC","amount":"1.00","recipient":"0xRecipientAddress","chainId":8453,"memo":"Reason for payment"},"urgency":"normal","expiresInMinutes":60}'
-						}
-					</CodeBlock>
+					<SubSection title="Request body">
+						<CodeBlock language="json" title="Compact JSON body">
+							{
+								'{"agentId":"my-agent","agentName":"My Agent","details":{"type":"transfer","token":"USDC","amount":"1.00","recipient":"0xRecipientAddress","chainId":8453,"memo":"Reason for payment"},"urgency":"normal","expiresInMinutes":60}'
+							}
+						</CodeBlock>
+					</SubSection>
 
-					<h3 className="heading-5-semi-bold text-base">Response (201 Created)</h3>
-					<CodeBlock language="json" title="Response">
-						{`{
+					<SubSection title="Response (201 Created)">
+						<CodeBlock language="json" title="Response">
+							{`{
   "success": true,
   "intent": {
     "id": "int_1770399036079_804497de",
-    "userId": "0x20bfb083c5adacc91c46ac4d37905d0447968166",
-    "agentId": "my-agent",
-    "agentName": "My Agent",
-    "details": { "..." : "..." },
-    "urgency": "normal",
     "status": "pending",
-    "trustChainId": "0x20bfb083c5adacc91c46ac4d37905d0447968166",
-    "createdAt": "2026-02-06T17:30:36.127Z",
-    "expiresAt": "2026-02-06T18:30:36.080Z",
-    "statusHistory": [
-      { "status": "pending", "timestamp": "2026-02-06T17:30:36.222Z" }
-    ]
+    "...": "..."
   },
   "paymentUrl": "https://www.agentintents.io/pay/int_1770399036079_804497de"
 }`}
-					</CodeBlock>
+						</CodeBlock>
+					</SubSection>
 
 					<p className="body-2 text-muted">
 						Share the{" "}
@@ -278,13 +444,11 @@ function AgentContextPage() {
 				</Section>
 
 				{/* 4. Poll for Completion */}
-				<Section id="poll" title="4. Poll for Completion">
+				<Section id="poll" title="API: Poll for Completion">
 					<p className="body-2 text-muted">
-						<strong>
-							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
-								{"GET https://www.agentintents.io/api/intents/<intent-id>"}
-							</code>
-						</strong>
+						<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
+							{"GET https://www.agentintents.io/api/intents/<intent-id>"}
+						</code>
 					</p>
 					<p className="body-2 text-muted">
 						Poll until{" "}
@@ -297,8 +461,8 @@ function AgentContextPage() {
 					</p>
 				</Section>
 
-				{/* Complete Example */}
-				<Section id="complete-example" title="Complete Example">
+				{/* Complete API Example */}
+				<Section id="api-example" title="API: Complete Bash Script">
 					<CodeBlock language="bash" title="create-intent.sh">
 						{`#!/usr/bin/env bash
 set -euo pipefail
@@ -363,17 +527,26 @@ echo "Final status: $STATUS"`}
 
 					<div className="p-16 rounded-md bg-accent/10">
 						<p className="body-2 text-base">
-							<strong>Tip:</strong>{" "}
-							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">cast keccak</code>{" "}
-							and{" "}
-							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
-								cast wallet sign
-							</code>{" "}
-							both return <code className="px-4 py-2 rounded-xs bg-muted text-base body-3">0x</code>
-							-prefixed output — no manual hex formatting needed.
+							<strong>Tip:</strong> The bash script above requires{" "}
+							<a
+								href="https://book.getfoundry.sh/getting-started/installation"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="text-accent hover:underline"
+							>
+								Foundry
+							</a>{" "}
+							(<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">cast</code>),{" "}
+							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">curl</code>, and{" "}
+							<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">jq</code>. The CLI
+							skill above has no external dependencies beyond Node.js.
 						</p>
 					</div>
 				</Section>
+
+				{/* ============================================================= */}
+				{/* REFERENCE                                                      */}
+				{/* ============================================================= */}
 
 				{/* Supported Chains */}
 				<Section id="supported-chains" title="Supported Chains">
@@ -396,7 +569,7 @@ echo "Final status: $STATUS"`}
 									</td>
 									<td className="py-8 pr-16">Base</td>
 									<td className="py-8 pr-16">USDC</td>
-									<td className="py-8">Mainnet</td>
+									<td className="py-8">Mainnet (default)</td>
 								</tr>
 								<tr className="border-b border-muted/50">
 									<td className="py-8 pr-16">
@@ -419,6 +592,26 @@ echo "Final status: $STATUS"`}
 					</div>
 				</Section>
 
+				{/* Status Lifecycle */}
+				<Section id="status-lifecycle" title="Intent Status Lifecycle">
+					<CodeBlock language="text" title="Status transitions">
+						{`pending → approved → broadcasting → confirmed
+   │         │            │
+   ├→ rejected  ├→ failed    └→ failed
+   └→ expired   └→ expired
+
+For x402 payments: pending → authorized → executing → confirmed`}
+					</CodeBlock>
+					<p className="body-2 text-muted">
+						Terminal states:{" "}
+						<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">confirmed</code>,{" "}
+						<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">rejected</code>,{" "}
+						<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">failed</code>,{" "}
+						<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">expired</code>. Stop
+						polling when you reach one of these.
+					</p>
+				</Section>
+
 				{/* Troubleshooting */}
 				<Section id="troubleshooting" title="Troubleshooting">
 					<div className="overflow-x-auto">
@@ -439,14 +632,9 @@ echo "Final status: $STATUS"`}
 									</td>
 									<td className="py-8 pr-16">Signature or body hash is malformed</td>
 									<td className="py-8">
-										Ensure{" "}
-										<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">bodyHash</code>{" "}
-										and{" "}
-										<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
-											signature
-										</code>{" "}
-										are <code className="px-4 py-2 rounded-xs bg-muted text-base body-3">0x</code>
-										-prefixed hex strings
+										Ensure hex values are{" "}
+										<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">0x</code>
+										-prefixed
 									</td>
 								</tr>
 								<tr className="border-b border-muted/50">
@@ -456,9 +644,7 @@ echo "Final status: $STATUS"`}
 										</code>
 									</td>
 									<td className="py-8 pr-16">Timestamp drift</td>
-									<td className="py-8">
-										Ensure your system clock is accurate (within 5 minutes of server time)
-									</td>
+									<td className="py-8">Ensure system clock is accurate (within 5 min)</td>
 								</tr>
 								<tr className="border-b border-muted/50">
 									<td className="py-8 pr-16">
@@ -468,8 +654,22 @@ echo "Final status: $STATUS"`}
 									</td>
 									<td className="py-8 pr-16">Body hash mismatch</td>
 									<td className="py-8">
-										Ensure you hash the <strong>exact</strong> bytes sent as the request body
-										(compact JSON, no trailing newline)
+										Hash the <strong>exact</strong> bytes sent (compact JSON, no trailing newline)
+									</td>
+								</tr>
+								<tr className="border-b border-muted/50">
+									<td className="py-8 pr-16">
+										<code className="px-4 py-2 rounded-xs bg-muted text-base body-3">
+											401 Agent not registered
+										</code>
+									</td>
+									<td className="py-8 pr-16">Agent key not provisioned or revoked</td>
+									<td className="py-8">
+										Provision a new key from the{" "}
+										<Link to="/settings" className="text-accent hover:underline">
+											Settings
+										</Link>{" "}
+										page
 									</td>
 								</tr>
 							</tbody>
@@ -490,14 +690,17 @@ echo "Final status: $STATUS"`}
 									/docs
 								</Link>
 								{" | "}
+								Skill file:{" "}
+								<a
+									href="/agent-context/ledger-intent-skill.md"
+									className="text-accent hover:underline"
+								>
+									ledger-intent-skill.md
+								</a>
+								{" | "}
 								This page as Markdown:{" "}
 								<a href="/agent-context.md" className="text-accent hover:underline">
 									/agent-context.md
-								</a>
-								{" | "}
-								This page as JSON:{" "}
-								<a href="/agent-context.json" className="text-accent hover:underline">
-									/agent-context.json
 								</a>
 							</p>
 						</div>
@@ -505,7 +708,7 @@ echo "Final status: $STATUS"`}
 							to="/"
 							className="px-16 py-8 rounded-md bg-accent text-on-accent body-2-semi-bold hover:bg-accent-hover transition-colors"
 						>
-							View Intent Queue →
+							View Intent Queue &rarr;
 						</Link>
 					</div>
 				</div>

@@ -1,0 +1,213 @@
+# ledger-intent — Agent Intent CLI Skill
+
+Use this skill to create payment intents that require human approval on a Ledger hardware wallet. You propose transactions; the human reviews and signs on their device.
+
+## Install
+
+Requires Node.js 20+ and pnpm.
+
+```bash
+git clone https://github.com/brackets-fistfulayen/ledger-agent-intents.git
+cd ledger-agent-intents
+pnpm install && pnpm build
+```
+
+The CLI is now available at `packages/cli/bin/ledger-intent.js`. Run it with:
+
+```bash
+node packages/cli/bin/ledger-intent.js --help
+```
+
+Or link it globally so you can use `ledger-intent` directly:
+
+```bash
+cd packages/cli && npm link
+ledger-intent --help
+```
+
+## Credential File
+
+You need a JSON credential file provisioned by the human owner (from the web dashboard Settings page). Place it as `./agent-credential.json` or pass `--credential <path>`.
+
+## Commands
+
+```bash
+# Create a payment intent
+ledger-intent send <amount> <token> to <address> [for "reason"] [--chain <id>] [--urgency <level>]
+
+# Check intent status
+ledger-intent status <intent-id>
+
+# List your intents
+ledger-intent list [--status <status>] [--limit <n>]
+
+# Poll until terminal state (confirmed, rejected, failed, expired)
+ledger-intent poll <intent-id> [--interval <seconds>] [--timeout <seconds>]
+
+# Check API connectivity (no credential required)
+ledger-intent health
+```
+
+## Typical Workflow
+
+1. Create an intent:
+   ```bash
+   ledger-intent send 50 USDC to 0x1234567890abcdef1234567890abcdef12345678 for "podcast intro music"
+   ```
+2. The output includes a **shareable payment link** like `https://www.agentintents.io/pay/int_...` — **share this link with the human** so they can review the transaction details and approve it on their Ledger device. This is the key step: the human must open this link and sign.
+3. Poll until the human signs or rejects:
+   ```bash
+   ledger-intent poll <intent-id>
+   ```
+4. Check the final status — `confirmed` means the on-chain transaction went through. `rejected` means the human declined.
+
+## Examples
+
+```bash
+# Pay on Base (default chain)
+ledger-intent send 50 USDC to 0x1234567890abcdef1234567890abcdef12345678 for "podcast music"
+
+# Pay on Base Sepolia testnet
+ledger-intent send 0.01 USDC to 0xabcdefabcdefabcdefabcdefabcdefabcdefabcd --chain 84532
+
+# Urgent payment
+ledger-intent send 100 USDC to 0x1234567890abcdef1234567890abcdef12345678 --urgency high
+
+# Check status
+ledger-intent status int_1707048000_abc123
+
+# Wait for signing (polls every 5s, 5 min timeout)
+ledger-intent poll int_1707048000_abc123
+
+# Wait longer
+ledger-intent poll int_1707048000_abc123 --interval 10 --timeout 600
+
+# List pending intents
+ledger-intent list --status pending
+```
+
+## Global Options
+
+| Flag | Description |
+|------|-------------|
+| `--credential <path>` | Path to agent credential JSON file |
+| `--api <url>` | API base URL (default: `https://www.agentintents.io`) |
+| `--no-color` | Disable colored output |
+| `-h, --help` | Show help |
+| `-v, --version` | Show version |
+
+## Credential Resolution
+
+The CLI looks for credentials in this order:
+1. `--credential <path>` flag
+2. `AGENT_CREDENTIAL` environment variable
+3. `./agent-credential.json` in the current directory
+4. `~/.config/ledger-agent/credential.json`
+
+## Supported Chains & Tokens
+
+| Chain ID | Name | Token |
+|----------|------|-------|
+| 8453 | Base | USDC |
+| 84532 | Base Sepolia | USDC |
+| 11155111 | Sepolia | USDC |
+
+Default chain: **8453 (Base)**
+
+## Status Lifecycle
+
+```
+pending → approved → broadcasting → confirmed
+   │         │            │
+   ├→ rejected  ├→ failed    └→ failed
+   └→ expired   └→ expired
+```
+
+Terminal states: `confirmed`, `rejected`, `failed`, `expired`. Stop polling when you reach one.
+
+## x402 Pay-Per-Call Payments
+
+When your agent calls a paywalled API that returns `402 Payment Required`, you can use agent intents to handle the payment flow with human approval.
+
+### How x402 works
+
+1. Agent calls a protected API endpoint
+2. Server responds with `402` and a `PAYMENT-REQUIRED` header (base64 JSON with payment terms: amount, token, recipient, network)
+3. Agent creates an intent via the API with the x402 context attached:
+   ```
+   POST https://www.agentintents.io/api/intents
+   ```
+   Include `details.x402` with the `resource` and `accepted` fields from the 402 response.
+4. Human reviews and signs an EIP-3009 `TransferWithAuthorization` on their Ledger
+5. Intent moves to `authorized` — the signed payment proof is now available
+6. Agent fetches the intent, extracts the `paymentSignatureHeader`, and retries the API call with it in the `PAYMENT-SIGNATURE` header
+7. The paywalled server settles the payment on-chain and returns the response
+
+### x402 intent request body
+
+```json
+{
+  "agentId": "my-agent",
+  "agentName": "My Agent",
+  "details": {
+    "type": "transfer",
+    "token": "USDC",
+    "amount": "0.01",
+    "recipient": "0xPaywallServerAddress",
+    "chainId": 8453,
+    "memo": "API payment for api.example.com",
+    "resource": "https://api.example.com/v1/endpoint",
+    "category": "api_payment",
+    "x402": {
+      "resource": {
+        "url": "https://api.example.com/v1/endpoint",
+        "description": "Premium API endpoint"
+      },
+      "accepted": {
+        "scheme": "exact",
+        "network": "eip155:8453",
+        "amount": "10000",
+        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "payTo": "0xPaywallServerAddress"
+      }
+    }
+  },
+  "urgency": "normal"
+}
+```
+
+### x402 status lifecycle
+
+```
+pending → authorized → executing → confirmed
+```
+
+- `authorized`: human signed the payment proof on Ledger — fetch the intent to get `paymentSignatureHeader`
+- `executing`: agent is retrying the API call with the payment proof
+- `confirmed`: payment settled on-chain, API returned the response
+
+> **Note:** x402 intents must be created via the API directly (the CLI `send` command creates standard transfer intents). Use the AgentAuth header as described below.
+
+## Alternative: Direct API
+
+If you can't use the CLI, you can call the API directly with HTTP. See the full guide at https://www.agentintents.io/agent-context#credential-file
+
+Every request needs an `Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>` header where:
+- `timestamp`: Unix epoch seconds
+- `bodyHash`: keccak256 of the request body (or `0x` for GET)
+- `signature`: EIP-191 personal_sign of `<timestamp>.<bodyHash>`
+
+### Create intent
+```
+POST https://www.agentintents.io/api/intents
+```
+
+### Get intent status
+```
+GET https://www.agentintents.io/api/intents/<intent-id>
+```
+
+### List intents
+```
+GET https://www.agentintents.io/api/intents?status=pending
+```
