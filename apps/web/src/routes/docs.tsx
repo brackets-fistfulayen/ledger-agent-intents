@@ -255,7 +255,7 @@ function DocsPage() {
 
 					<Subsection id="quick-start-curl" title="1. Create an Intent">
 						<CodeBlock language="bash" title="POST /api/intents (with AgentAuth)">
-							{`curl -X POST https://agent-intents-web.vercel.app/api/intents \\
+							{`curl -X POST https://www.agentintents.io/api/intents \\
   -H "Content-Type: application/json" \\
   -H "Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>" \\
   -d '{
@@ -300,7 +300,7 @@ function DocsPage() {
       { "status": "pending", "timestamp": "2026-02-06T10:00:00.000Z" }
     ]
   },
-  "paymentUrl": "https://agent-intents-web.vercel.app/pay/int_1707048000_abc12345"
+  "paymentUrl": "https://www.agentintents.io/pay/int_1707048000_abc12345"
 }`}
 						</CodeBlock>
 						<div className="p-16 rounded-md bg-accent/10 mt-12">
@@ -313,7 +313,7 @@ function DocsPage() {
 
 					<Subsection id="quick-start-poll" title="3. Poll for Status">
 						<CodeBlock language="bash" title="GET /api/intents/:id">
-							{`curl https://agent-intents-web.vercel.app/api/intents/int_1707048000_abc12345 \\
+							{`curl https://www.agentintents.io/api/intents/int_1707048000_abc12345 \\
   -H "Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>"`}
 						</CodeBlock>
 						<p className="body-2 text-muted mt-8">
@@ -516,7 +516,7 @@ function DocsPage() {
     "status": "pending",
     ...
   },
-  "paymentUrl": "https://your-app.vercel.app/pay/int_1707048000_abc12345"
+  "paymentUrl": "https://www.agentintents.io/pay/int_1707048000_abc12345"
 }`}
 						</CodeBlock>
 						<p className="body-2 text-muted mt-8">
@@ -537,7 +537,7 @@ function DocsPage() {
 
 					<Subsection id="get-intent-usage" title="Usage">
 						<CodeBlock language="bash" title="Poll Intent Status">
-							{"curl https://your-api-url.com/api/intents/int_1707048000_abc12345"}
+							{"curl https://www.agentintents.io/api/intents/int_1707048000_abc12345"}
 						</CodeBlock>
 					</Subsection>
 
@@ -667,22 +667,11 @@ any non-terminal → failed`}
 					<Endpoint
 						method="GET"
 						path="/api/intents"
-						description="List intents for a user via query parameters (recommended for tools)."
-					/>
-					<Endpoint
-						method="GET"
-						path="/api/users/:userId/intents"
-						description="List intents for a user via path parameter (equivalent to /api/intents?userId=...)."
+						description="List intents. Accepts AgentAuth (userId derived from agent's trustchain) or session cookie."
 					/>
 
 					<Subsection id="list-intents-params" title="Query Parameters">
 						<div className="rounded-lg p-16 bg-[#0d1117]">
-							<Param
-								name="userId"
-								type="string"
-								required
-								description="Required for /api/intents. (For /api/users/:userId/intents this is provided in the path.)"
-							/>
 							<Param
 								name="status"
 								type="string"
@@ -693,15 +682,22 @@ any non-terminal → failed`}
 								type="number"
 								description="Max number of intents to return (1–100, default: 50)"
 							/>
+							<Param
+								name="cursor"
+								type="string"
+								description="Pagination cursor from a previous response's nextCursor field"
+							/>
 						</div>
+						<p className="body-2 text-muted mt-8">
+							Ownership is enforced: you can only list your own intents (derived from AgentAuth
+							signature or session cookie).
+						</p>
 					</Subsection>
 
 					<Subsection id="list-intents-example" title="Example">
-						<CodeBlock language="bash" title="List Pending Intents (query style)">
-							{`curl "https://your-api-url.com/api/intents?userId=ian&status=pending&limit=50"`}
-						</CodeBlock>
-						<CodeBlock language="bash" title="List Pending Intents (path style)">
-							{`curl "https://your-api-url.com/api/users/ian/intents?status=pending&limit=50"`}
+						<CodeBlock language="bash" title="List pending intents (with AgentAuth)">
+							{`curl "https://www.agentintents.io/api/intents?status=pending&limit=10" \\
+  -H "Authorization: AgentAuth <timestamp>.0x.<signature>"`}
 						</CodeBlock>
 					</Subsection>
 				</Section>
@@ -981,95 +977,126 @@ any non-terminal → failed`}
 				</Section>
 
 				{/* CLI Skill */}
-				<Section id="cli-install" title="CLI Skill Installation">
+				<Section id="cli-install" title="CLI Installation">
 					<p className="body-1 text-base">
 						The <code className="bg-muted px-4 py-2 rounded-xs text-accent">ledger-intent</code> CLI
-						provides a convenient way to interact with the API.
+						handles AgentAuth signing, credential loading, and polling automatically.
 					</p>
 
-					<Subsection id="cli-env" title="Environment Variables">
+					<Subsection id="cli-setup" title="Install from source">
+						<CodeBlock language="bash" title="Clone, build, and run">
+							{`git clone https://github.com/brackets-fistfulayen/ledger-agent-intents.git
+cd ledger-agent-intents
+pnpm install && pnpm build
+
+# Run directly
+node packages/skill/bin/ledger-intent.js --help
+
+# Or link globally
+cd packages/skill && npm link
+ledger-intent --help`}
+						</CodeBlock>
+					</Subsection>
+
+					<Subsection id="cli-env" title="Configuration">
 						<div className="rounded-lg p-16 bg-[#0d1117]">
 							<Param
-								name="INTENT_API_URL"
-								type="string"
-								description="Backend API URL (default: http://localhost:3001)"
+								name="--credential <path>"
+								type="flag"
+								description="Path to agent credential JSON file (or set AGENT_CREDENTIAL env)"
 							/>
 							<Param
-								name="INTENT_AGENT_ID"
-								type="string"
-								description="Your agent's unique identifier (default: clouseau)"
+								name="--api <url>"
+								type="flag"
+								description="API base URL (or set INTENT_API_URL env, default: https://www.agentintents.io)"
 							/>
 							<Param
-								name="INTENT_AGENT_NAME"
-								type="string"
-								description="Your agent's display name (default: Inspector Clouseau)"
-							/>
-							<Param
-								name="INTENT_USER_ID"
-								type="string"
-								description="The user ID for intents (default: demo-user)"
+								name="--no-color"
+								type="flag"
+								description="Disable colored output (or set NO_COLOR env)"
 							/>
 						</div>
+						<p className="body-2 text-muted mt-8">
+							The CLI looks for credentials at:{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">--credential</code> flag
+							&rarr;{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">AGENT_CREDENTIAL</code>{" "}
+							env &rarr;{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">
+								./agent-credential.json
+							</code>{" "}
+							&rarr;{" "}
+							<code className="bg-muted px-4 py-2 rounded-xs text-accent">
+								~/.config/ledger-agent/credential.json
+							</code>
+						</p>
 					</Subsection>
 				</Section>
 
 				<Section id="cli-commands" title="CLI Commands">
 					<Subsection id="cli-send" title="send">
-						<CodeBlock language="bash" title="Send Tokens">
+						<CodeBlock language="bash" title="Create a payment intent">
 							{`ledger-intent send <amount> <token> to <address> [for "reason"] [--chain <id>] [--urgency <level>]
 
-# Parameters:
-#   amount    - Amount to send (e.g., "50", "0.5")
-#   token     - Token symbol (USDC, ETH, etc.)
-#   address   - Recipient address (0x...)
-#   reason    - Optional memo explaining the transaction
-#   --chain   - Chain ID (default: 1 for Ethereum)
-#   --urgency - Priority: low, normal, high, critical`}
+# Default chain: 8453 (Base). Only USDC is currently supported.
+# The output includes a shareable payment link for the human to review and sign.`}
 						</CodeBlock>
 					</Subsection>
 
 					<Subsection id="cli-status" title="status">
-						<CodeBlock language="bash" title="Check Status">
+						<CodeBlock language="bash" title="Check intent status">
 							{`ledger-intent status <intent-id>
 
-# Returns current status, transaction hash (if signed), and explorer link`}
+# Returns current status, transaction details, tx hash, and explorer link.`}
 						</CodeBlock>
 					</Subsection>
 
 					<Subsection id="cli-list" title="list">
-						<CodeBlock language="bash" title="List Intents">
-							{`ledger-intent list [--status <status>]
+						<CodeBlock language="bash" title="List intents">
+							{`ledger-intent list [--status <status>] [--limit <n>]
 
-# Lists all intents, optionally filtered by status`}
+# Lists your intents, optionally filtered by status.`}
+						</CodeBlock>
+					</Subsection>
+
+					<Subsection id="cli-poll" title="poll">
+						<CodeBlock language="bash" title="Poll until terminal state">
+							{`ledger-intent poll <intent-id> [--interval <seconds>] [--timeout <seconds>]
+
+# Polls until status reaches confirmed, rejected, failed, or expired.
+# Default: every 5s, 5 min timeout.`}
+						</CodeBlock>
+					</Subsection>
+
+					<Subsection id="cli-health" title="health">
+						<CodeBlock language="bash" title="Check API connectivity">
+							{`ledger-intent health [--api <url>]
+
+# No credential required. Verifies the API and database are reachable.`}
 						</CodeBlock>
 					</Subsection>
 				</Section>
 
 				<Section id="cli-examples" title="CLI Examples">
 					<div className="space-y-16">
-						<CodeBlock language="bash" title="Pay for Podcast Work">
-							{`ledger-intent send 50 USDC to 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 for "podcast intro music"`}
+						<CodeBlock language="bash" title="Pay for podcast work">
+							{`ledger-intent send 50 USDC to 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 \\
+  for "podcast intro music"
+# → Share the payment link with the human to approve on their Ledger`}
 						</CodeBlock>
 
-						<CodeBlock language="bash" title="Urgent Payment on Base">
-							{`ledger-intent send 100 USDC to 0xabc...def for "time-sensitive invoice" --chain 8453 --urgency high`}
+						<CodeBlock language="bash" title="Testnet payment (Base Sepolia)">
+							{"ledger-intent send 0.01 USDC to 0xabc...def --chain 84532"}
 						</CodeBlock>
 
-						<CodeBlock language="bash" title="Check Pending Intents">
+						<CodeBlock language="bash" title="Create and wait for signing">
+							{`# Create intent, then poll until the human signs or rejects
+ledger-intent send 100 USDC to 0xd8dA...6045 --urgency high for "time-sensitive invoice"
+ledger-intent poll int_1707048000_abc12345 --timeout 600`}
+						</CodeBlock>
+
+						<CodeBlock language="bash" title="Check pending intents">
 							{"ledger-intent list --status pending"}
-						</CodeBlock>
-
-						<CodeBlock language="bash" title="Poll Until Confirmed">
-							{`# Bash loop to poll until confirmed
-INTENT_ID="int_1707048000_abc12345"
-while true; do
-  STATUS=$(ledger-intent status $INTENT_ID | grep "Status:" | cut -d' ' -f2)
-  echo "Current status: $STATUS"
-  if [ "$STATUS" = "confirmed" ] || [ "$STATUS" = "rejected" ]; then
-    break
-  fi
-  sleep 30
-done`}
 						</CodeBlock>
 					</div>
 				</Section>
