@@ -71,7 +71,6 @@ export class IntentApiClient {
 		return this.parseJson<IntentResponse>(res);
 	}
 
-	/** GET /api/users/:userId/intents */
 	async listIntents(opts?: {
 		status?: IntentStatus;
 		limit?: number;
@@ -81,7 +80,7 @@ export class IntentApiClient {
 		if (opts?.limit) params.set("limit", String(opts.limit));
 
 		const qs = params.toString();
-		const path = `/api/users/${this.trustchainId}/intents${qs ? `?${qs}` : ""}`;
+		const path = `/api/intents${qs ? `?${qs}` : ""}`;
 		const authHeader = await buildAgentAuthHeader(this.privateKey, "GET");
 
 		const res = await this.fetch(path, {

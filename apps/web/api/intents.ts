@@ -44,25 +44,33 @@ const VALID_STATUSES: IntentStatus[] = [
 
 export default methodRouter({
 	GET: async (req: VercelRequest, res: VercelResponse) => {
-		// Require authenticated session
-		let session: { sessionId: string; walletAddress: string };
-		try {
-			session = await requireSession(req);
-		} catch {
-			authError(req, res, "Authentication required", 401);
-			return;
+		// Accept either session auth (web UI) or AgentAuth (CLI)
+		let walletAddress: string;
+		const authHeader = req.headers.authorization;
+
+		if (authHeader?.startsWith("AgentAuth ")) {
+			try {
+				const { member } = await verifyAgentAuth(req);
+				walletAddress = member.trustchainId;
+			} catch {
+				authError(req, res, "Authentication failed", 401);
+				return;
+			}
+		} else {
+			try {
+				const session = await requireSession(req);
+				walletAddress = session.walletAddress;
+			} catch {
+				authError(req, res, "Authentication required", 401);
+				return;
+			}
 		}
 
-		const userId = getQueryParam(req, "userId");
+		const userId = getQueryParam(req, "userId") ?? walletAddress;
 
-		if (!userId) {
-			jsonError(res, "Missing required query parameter: userId", 400);
-			return;
-		}
-
-		// Enforce ownership: users can only list their own intents
-		if (userId.toLowerCase() !== session.walletAddress) {
-			authError(req, res, "You can only list your own intents", 403, session.walletAddress);
+		// Enforce ownership: callers can only list their own intents
+		if (userId.toLowerCase() !== walletAddress) {
+			authError(req, res, "You can only list your own intents", 403, walletAddress);
 			return;
 		}
 
@@ -75,7 +83,7 @@ export default methodRouter({
 		const limit = getQueryNumber(req, "limit", 50, 1, 100);
 		const cursor = getQueryParam(req, "cursor");
 
-		const page = await withDbRlsContext({ currentUser: session.walletAddress }, async (client) =>
+		const page = await withDbRlsContext({ currentUser: walletAddress }, async (client) =>
 			getIntentsByUser({ userId, status, limit, cursor }, client.sql),
 		);
 		jsonSuccess(res, page);
