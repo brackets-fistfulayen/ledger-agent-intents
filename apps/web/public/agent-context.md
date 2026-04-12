@@ -1,8 +1,46 @@
-# Agent Quickstart — Create a Payment Intent
+# Agent Quickstart — Create Payment Intents
+
+Two ways to create payment intents: the **ledger-intent CLI** (recommended) or the **HTTP API** directly.
+
+**Prerequisite:** A credential JSON file from the Settings page (the human owner provisions your agent key with their Ledger device).
+
+---
+
+## Option 1: CLI Skill (Recommended)
+
+Download the full skill file: [ledger-intent-skill.md](/agent-context/ledger-intent-skill.md)
+
+### Install
+
+```bash
+git clone https://github.com/brackets-fistfulayen/ledger-agent-intents.git
+cd ledger-agent-intents
+pnpm install && pnpm build
+node packages/skill/bin/ledger-intent.js --help
+```
+
+### Quick example
+
+```bash
+# Create an intent
+ledger-intent send 50 USDC to 0x1234...5678 for "podcast music" --credential ./agent-credential.json
+
+# Poll until the human signs
+ledger-intent poll <intent-id> --credential ./agent-credential.json
+
+# List your intents
+ledger-intent list --status pending --credential ./agent-credential.json
+```
+
+The CLI handles AgentAuth signing, credential loading, and polling automatically.
+
+---
+
+## Option 2: Direct HTTP API
 
 **Prerequisites:** [Foundry](https://book.getfoundry.sh/getting-started/installation) (`cast`), `curl`, and `jq`.
 
-## 1. Credential File
+### 1. Credential File
 
 You need a JSON credential file with this shape:
 
@@ -21,7 +59,7 @@ The human owner generates this file when registering your agent from the web UI.
 
 > **Security:** Never commit this file to version control. Add it to `.gitignore` and restrict file permissions (`chmod 600`). The `privateKey` field is a secret — treat it like a password.
 
-## 2. Build the AgentAuth Header
+### 2. Build the AgentAuth Header
 
 Every request to the API requires an `Authorization` header:
 
@@ -41,35 +79,25 @@ Authorization: AgentAuth <timestamp>.<bodyHash>.<signature>
 
 The `bodyHash` is computed over the **exact bytes** sent in the request body. Write the JSON body as a compact literal string (no extra whitespace between keys and values) to ensure a deterministic hash.
 
-## 3. Send an Intent
+### 3. Send an Intent
 
 **`POST https://www.agentintents.io/api/intents`**
 
-### Request body
+#### Request body
 
 ```json
 {"agentId":"my-agent","agentName":"My Agent","details":{"type":"transfer","token":"USDC","amount":"1.00","recipient":"0xRecipientAddress","chainId":8453,"memo":"Reason for payment"},"urgency":"normal","expiresInMinutes":60}
 ```
 
-### Response (`201 Created`)
+#### Response (`201 Created`)
 
 ```json
 {
   "success": true,
   "intent": {
     "id": "int_1770399036079_804497de",
-    "userId": "0x20bfb083c5adacc91c46ac4d37905d0447968166",
-    "agentId": "my-agent",
-    "agentName": "My Agent",
-    "details": { ... },
-    "urgency": "normal",
     "status": "pending",
-    "trustChainId": "0x20bfb083c5adacc91c46ac4d37905d0447968166",
-    "createdAt": "2026-02-06T17:30:36.127Z",
-    "expiresAt": "2026-02-06T18:30:36.080Z",
-    "statusHistory": [
-      { "status": "pending", "timestamp": "2026-02-06T17:30:36.222Z" }
-    ]
+    "...": "..."
   },
   "paymentUrl": "https://www.agentintents.io/pay/int_1770399036079_804497de"
 }
@@ -77,7 +105,7 @@ The `bodyHash` is computed over the **exact bytes** sent in the request body. Wr
 
 Share the `paymentUrl` with the human so they can review and sign the transaction.
 
-## 4. Poll for Completion
+### 4. Poll for Completion
 
 **`GET https://www.agentintents.io/api/intents/<intent-id>`**
 
@@ -85,7 +113,7 @@ Poll until `status` is one of the terminal states: `confirmed`, `rejected`, `fai
 
 ---
 
-## Complete Example
+## Complete Bash Example
 
 ```bash
 #!/usr/bin/env bash
@@ -153,11 +181,24 @@ echo "Final status: $STATUS"
 
 ## Supported Chains
 
-| Chain ID   | Name         | Token | Notes   |
-|------------|--------------|-------|---------|
-| 8453       | Base         | USDC  | Mainnet |
-| 84532      | Base Sepolia | USDC  | Testnet |
-| 11155111   | Sepolia      | USDC  | Testnet |
+| Chain ID   | Name         | Token | Notes           |
+|------------|--------------|-------|-----------------|
+| 8453       | Base         | USDC  | Mainnet (default) |
+| 84532      | Base Sepolia | USDC  | Testnet         |
+| 11155111   | Sepolia      | USDC  | Testnet         |
+
+## Status Lifecycle
+
+```
+pending → approved → broadcasting → confirmed
+   │         │            │
+   ├→ rejected  ├→ failed    └→ failed
+   └→ expired   └→ expired
+
+For x402 payments: pending → authorized → executing → confirmed
+```
+
+Terminal states: `confirmed`, `rejected`, `failed`, `expired`.
 
 ## Troubleshooting
 
@@ -166,3 +207,4 @@ echo "Final status: $STATUS"
 | `401 Authentication failed` | Signature or body hash is malformed | Ensure `bodyHash` and `signature` are `0x`-prefixed hex strings |
 | `401 Authentication failed` | Timestamp drift | Ensure your system clock is accurate (within 5 minutes of server time) |
 | `401 Authentication failed` | Body hash mismatch | Ensure you hash the **exact** bytes sent as the request body (compact JSON, no trailing newline) |
+| `401 Agent not registered` | Agent key not provisioned or revoked | Provision a new key from the Settings page |
