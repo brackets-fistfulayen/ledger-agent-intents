@@ -12,16 +12,16 @@ cd ledger-agent-intents
 pnpm install && pnpm build
 ```
 
-The CLI is now available at `packages/skill/bin/ledger-intent.js`. Run it with:
+The CLI is now available at `packages/cli/bin/ledger-intent.js`. Run it with:
 
 ```bash
-node packages/skill/bin/ledger-intent.js --help
+node packages/cli/bin/ledger-intent.js --help
 ```
 
 Or link it globally so you can use `ledger-intent` directly:
 
 ```bash
-cd packages/skill && npm link
+cd packages/cli && npm link
 ledger-intent --help
 ```
 

@@ -15,13 +15,13 @@ pnpm install && pnpm build
 Run with:
 
 ```bash
-node packages/skill/bin/ledger-intent.js --help
+node packages/cli/bin/ledger-intent.js --help
 ```
 
 Or link globally:
 
 ```bash
-cd packages/skill && npm link
+cd packages/cli && npm link
 ledger-intent --help
 ```
 

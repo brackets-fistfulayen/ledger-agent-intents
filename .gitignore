@@ -8,7 +8,7 @@ build/
 # Ignore dist in apps and packages but not in packages/ledger-button*
 apps/**/dist/
 packages/shared/dist/
-packages/skill/dist/
+packages/cli/dist/
 .next/
 out/
 *.tsbuildinfo

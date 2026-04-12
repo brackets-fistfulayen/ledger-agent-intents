@@ -40,7 +40,7 @@ cd apps/web && pnpm db:migrate
   - `db/migrations/` — PostgreSQL migration scripts (run in order 001-004)
 - **`apps/backend/`** — Standalone Express dev server with in-memory stores (mirrors Vercel API endpoints for local development)
 - **`packages/shared/`** — Pure TypeScript: types, constants, intent status state machine, chain/token definitions. Zero dependencies.
-- **`packages/skill/`** — OpenClaw CLI skill (`ledger-intent` command)
+- **`packages/cli/`** — OpenClaw CLI skill (`ledger-intent` command)
 
 ### Key Patterns
 

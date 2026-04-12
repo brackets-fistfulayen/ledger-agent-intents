@@ -16,7 +16,7 @@ Download the full skill file: [ledger-intent-skill.md](/agent-context/ledger-int
 git clone https://github.com/brackets-fistfulayen/ledger-agent-intents.git
 cd ledger-agent-intents
 pnpm install && pnpm build
-node packages/skill/bin/ledger-intent.js --help
+node packages/cli/bin/ledger-intent.js --help
 ```
 
 ### Quick example

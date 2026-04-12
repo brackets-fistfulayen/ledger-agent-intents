@@ -188,13 +188,7 @@ importers:
         specifier: ^4.0.18
         version: 4.0.18(@edge-runtime/vm@3.2.0)(@types/node@20.19.31)(jiti@1.21.7)(terser@5.46.0)(tsx@4.21.0)
 
-  packages/shared:
-    devDependencies:
-      typescript:
-        specifier: ^5.7.0
-        version: 5.9.3
-
-  packages/skill:
+  packages/cli:
     dependencies:
       '@agent-intents/shared':
         specifier: workspace:*
@@ -212,6 +206,12 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.0.18(@edge-runtime/vm@3.2.0)(@types/node@20.19.31)(jiti@1.21.7)(terser@5.46.0)(tsx@4.21.0)
+
+  packages/shared:
+    devDependencies:
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
 
 packages:
 

@@ -1,5 +1,5 @@
 {
-	"name": "@agent-intents/skill",
+	"name": "@agent-intents/cli",
 	"version": "0.2.0",
 	"private": true,
 	"type": "module",
