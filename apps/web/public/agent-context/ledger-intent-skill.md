@@ -31,12 +31,12 @@ ledger-intent health
    ```bash
    ledger-intent send 50 USDC to 0x1234567890abcdef1234567890abcdef12345678 for "podcast intro music"
    ```
-2. Share the payment URL from the output with the human
+2. The output includes a **shareable payment link** like `https://www.agentintents.io/pay/int_...` — **share this link with the human** so they can review the transaction details and approve it on their Ledger device. This is the key step: the human must open this link and sign.
 3. Poll until the human signs or rejects:
    ```bash
    ledger-intent poll <intent-id>
    ```
-4. Check the final status — `confirmed` means the transaction went through
+4. Check the final status — `confirmed` means the on-chain transaction went through. `rejected` means the human declined.
 
 ## Examples
 

@@ -129,7 +129,9 @@ function AgentContextPage() {
 				<Section id="skill" title="CLI Skill (Recommended)">
 					<p className="body-2 text-muted">
 						The <strong>ledger-intent</strong> CLI handles authentication, request signing, and
-						polling automatically. No need to manually construct AgentAuth headers.
+						polling automatically. When you create an intent, the CLI returns a{" "}
+						<strong>shareable payment link</strong> — share it with the human so they can review and
+						approve the transaction on their Ledger device.
 					</p>
 
 					<div className="p-16 rounded-md bg-success/10 border border-success/20">

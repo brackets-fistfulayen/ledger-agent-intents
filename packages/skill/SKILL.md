@@ -118,9 +118,9 @@ Default chain: **8453 (Base)**
 
 1. Agent calls `ledger-intent send ...` with a signed AgentAuth header
 2. Server validates the signature and queues the intent as `pending`
-3. User opens the web dashboard and sees the pending intent
-4. User connects their Ledger device and reviews the transaction details
-5. User approves on the Ledger — the device signs the transaction
+3. The CLI outputs a **shareable payment link** (`https://www.agentintents.io/pay/int_...`) — the agent shares this with the human
+4. Human opens the link, connects their Ledger device, and reviews the transaction details
+5. Human approves on the Ledger — the device signs the transaction
 6. Transaction broadcasts on-chain; status moves to `confirmed`
 7. Agent can poll for the final status with `ledger-intent poll <id>`
 
