@@ -2,6 +2,29 @@
 
 Submit payment intents for Ledger hardware signing. Agents propose transactions; users review and sign on their Ledger device.
 
+## Install
+
+Requires Node.js 20+ and pnpm.
+
+```bash
+git clone https://github.com/brackets-fistfulayen/ledger-agent-intents.git
+cd ledger-agent-intents
+pnpm install && pnpm build
+```
+
+Run with:
+
+```bash
+node packages/skill/bin/ledger-intent.js --help
+```
+
+Or link globally:
+
+```bash
+cd packages/skill && npm link
+ledger-intent --help
+```
+
 ## Setup
 
 1. Provision an agent key in the web dashboard (Settings > Agent Keys)

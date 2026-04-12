@@ -2,9 +2,32 @@
 
 Use this skill to create payment intents that require human approval on a Ledger hardware wallet. You propose transactions; the human reviews and signs on their device.
 
-## Setup
+## Install
 
-You need a credential JSON file provisioned by the human owner. It should be at `./agent-credential.json` or passed via `--credential <path>`.
+Requires Node.js 20+ and pnpm.
+
+```bash
+git clone https://github.com/brackets-fistfulayen/ledger-agent-intents.git
+cd ledger-agent-intents
+pnpm install && pnpm build
+```
+
+The CLI is now available at `packages/skill/bin/ledger-intent.js`. Run it with:
+
+```bash
+node packages/skill/bin/ledger-intent.js --help
+```
+
+Or link it globally so you can use `ledger-intent` directly:
+
+```bash
+cd packages/skill && npm link
+ledger-intent --help
+```
+
+## Credential File
+
+You need a JSON credential file provisioned by the human owner (from the web dashboard Settings page). Place it as `./agent-credential.json` or pass `--credential <path>`.
 
 ## Commands
 
