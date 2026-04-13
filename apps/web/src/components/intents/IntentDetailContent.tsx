@@ -1,5 +1,6 @@
 import { StatusBadge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
+import { decodeCalldata, getFunctionSelector } from "@/lib/calldata-decoder";
 import { encodeERC20Transfer } from "@/lib/erc20";
 import { useLedger } from "@/lib/ledger-provider";
 import { cn, formatAddress, formatTimeAgo } from "@/lib/utils";
@@ -18,6 +19,8 @@ import {
 	SUPPORTED_TOKENS,
 	type SupportedChainId,
 	type X402PaymentPayload,
+	isContractCallIntent,
+	isTransferIntent,
 } from "@agent-intents/shared";
 import { Button, Tag } from "@ledgerhq/lumen-ui-react";
 import { Check, Copy } from "@ledgerhq/lumen-ui-react/symbols";
@@ -207,28 +210,48 @@ function UrgencyBadge({ urgency }: { urgency: string }) {
 
 function HeroSection({ intent }: { intent: Intent }) {
 	const { details } = intent;
-	const isX402 = !!details.x402?.accepted;
-
-	// For x402, derive chain from the x402 network
-	const x402ChainId = isX402 ? parseEip155ChainId(details.x402?.accepted?.network ?? "") : null;
-	const effectiveChainId = (
-		isX402 && x402ChainId ? x402ChainId : details.chainId
-	) as SupportedChainId;
+	const effectiveChainId = details.chainId as SupportedChainId;
 	const chain = SUPPORTED_CHAINS[effectiveChainId];
 
-	// Format amount - for x402 use atomic amount conversion
+	if (isContractCallIntent(details)) {
+		const decoded = decodeCalldata(details.data);
+		return (
+			<div className="flex flex-col items-center gap-8 py-16">
+				<div className="body-3-semi-bold text-warning uppercase tracking-wide">Contract Call</div>
+				<div className="heading-2-semi-bold text-base">{decoded?.label ?? "Unknown Function"}</div>
+				{details.value && details.value !== "0" && details.value !== "0x0" && (
+					<div className="body-1 text-muted">{details.value} wei ETH</div>
+				)}
+				<div className="flex items-center gap-8">
+					<ChainLogo chainId={effectiveChainId} />
+					<span className="body-2 text-muted">on {chain?.name ?? `Chain ${effectiveChainId}`}</span>
+				</div>
+				<div className="flex items-center gap-8 mt-8">
+					<StatusBadge status={intent.status} />
+					<UrgencyBadge urgency={intent.urgency} />
+				</div>
+			</div>
+		);
+	}
+
+	// Transfer intent
+	const isX402 = !!(isTransferIntent(details) && details.x402?.accepted);
+	const x402ChainId = isX402 ? parseEip155ChainId(details.x402?.accepted?.network ?? "") : null;
+	const displayChainId = (
+		isX402 && x402ChainId ? x402ChainId : details.chainId
+	) as SupportedChainId;
+	const displayChain = SUPPORTED_CHAINS[displayChainId];
+
 	let displayAmount = details.amount;
 	let displayToken = details.token;
 	if (isX402 && details.x402?.accepted) {
 		const accepted = details.x402.accepted;
-		// USDC has 6 decimals
 		displayAmount = formatAtomicAmount(accepted.amount, 6);
-		displayToken = "USDC"; // x402 EVM exact scheme uses USDC
+		displayToken = "USDC";
 	}
 
 	return (
 		<div className="flex flex-col items-center gap-8 py-16">
-			{/* Label for x402 API payments */}
 			{isX402 && (
 				<div className="body-3-semi-bold text-interactive uppercase tracking-wide">API Payment</div>
 			)}
@@ -236,8 +259,10 @@ function HeroSection({ intent }: { intent: Intent }) {
 				{displayAmount} {displayToken}
 			</div>
 			<div className="flex items-center gap-8">
-				<ChainLogo chainId={effectiveChainId} />
-				<span className="body-2 text-muted">on {chain?.name ?? `Chain ${effectiveChainId}`}</span>
+				<ChainLogo chainId={displayChainId} />
+				<span className="body-2 text-muted">
+					on {displayChain?.name ?? `Chain ${displayChainId}`}
+				</span>
 			</div>
 			<div className="flex items-center gap-8 mt-8">
 				<StatusBadge status={intent.status} />
@@ -253,6 +278,44 @@ function HeroSection({ intent }: { intent: Intent }) {
 
 function RecipientSection({ intent }: { intent: Intent }) {
 	const { details } = intent;
+
+	if (isContractCallIntent(details)) {
+		const decoded = decodeCalldata(details.data);
+		const selector = getFunctionSelector(details.data);
+		return (
+			<div className="rounded-lg bg-muted-transparent p-16 flex flex-col gap-12">
+				<div>
+					<div className="body-3 text-muted mb-6">Contract</div>
+					<div className="flex items-center justify-between gap-8">
+						<code className="font-mono body-2 text-base break-all">{details.to}</code>
+						<CopyButton text={details.to} />
+					</div>
+				</div>
+				{decoded ? (
+					<div>
+						<div className="body-3 text-muted mb-6">Function</div>
+						<span className="body-2 text-base">{decoded.description}</span>
+					</div>
+				) : (
+					<div>
+						<div className="body-3 text-muted mb-6">Function Selector</div>
+						<code className="font-mono body-2 text-warning">{selector ?? "Unknown"}</code>
+						<p className="body-3 text-warning mt-4">Unknown function — review calldata carefully</p>
+					</div>
+				)}
+				<div>
+					<div className="body-3 text-muted mb-6">
+						Calldata ({Math.floor((details.data.length - 2) / 2)} bytes)
+					</div>
+					<code className="font-mono body-3 text-muted break-all block max-h-[120px] overflow-y-auto">
+						{details.data}
+					</code>
+				</div>
+			</div>
+		);
+	}
+
+	if (!isTransferIntent(details)) return null;
 
 	return (
 		<div className="rounded-lg bg-muted-transparent p-16">
@@ -276,6 +339,7 @@ function RecipientSection({ intent }: { intent: Intent }) {
 
 function X402PaymentSection({ intent }: { intent: Intent }) {
 	const { details } = intent;
+	if (!isTransferIntent(details)) return null;
 	const x402 = details.x402;
 
 	if (!x402?.accepted || !x402?.resource) return null;
@@ -347,6 +411,7 @@ function X402PaymentSection({ intent }: { intent: Intent }) {
 
 function SettlementReceiptSection({ intent }: { intent: Intent }) {
 	const { details } = intent;
+	if (!isTransferIntent(details)) return null;
 	const receipt = details.x402?.settlementReceipt;
 
 	if (!receipt) return null;
@@ -424,7 +489,9 @@ function SettlementReceiptSection({ intent }: { intent: Intent }) {
 
 function MerchantSection({ intent }: { intent: Intent }) {
 	const { details } = intent;
-	const { merchant, category, memo } = details;
+	const merchant = isTransferIntent(details) ? details.merchant : undefined;
+	const category = isTransferIntent(details) ? details.category : undefined;
+	const { memo } = details;
 
 	if (!merchant && !category && !memo) return null;
 
@@ -482,7 +549,7 @@ function AgentSection({ intent }: { intent: Intent }) {
 				<span className="body-3 text-muted">{formatTimeAgo(intent.createdAt)}</span>
 			</div>
 
-			{details.resource && (
+			{isTransferIntent(details) && details.resource && (
 				<div className="body-3 text-muted truncate" title={details.resource}>
 					Resource: {details.resource}
 				</div>
@@ -503,8 +570,14 @@ function TechnicalDetailsSection({ intent }: { intent: Intent }) {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const { details } = intent;
 
-	const tokenInfo = SUPPORTED_TOKENS[details.chainId as SupportedChainId]?.[details.token];
-	const tokenAddress = (details.tokenAddress as string | undefined) ?? tokenInfo?.address;
+	const tokenInfo = isTransferIntent(details)
+		? SUPPORTED_TOKENS[details.chainId as SupportedChainId]?.[details.token]
+		: undefined;
+	const tokenAddress = isTransferIntent(details)
+		? ((details.tokenAddress as string | undefined) ?? tokenInfo?.address)
+		: isContractCallIntent(details)
+			? details.to
+			: undefined;
 
 	return (
 		<div className="border-t border-muted-subtle pt-16">
@@ -593,15 +666,21 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 	const isWrongChain = walletChainId !== null && walletChainId !== intentChainId;
 	const isPending = intent.status === "pending";
 
-	const tokenInfo = SUPPORTED_TOKENS[intentChainId]?.[details.token];
-	const tokenAddress =
-		(details.tokenAddress as `0x${string}` | undefined) ??
-		(tokenInfo?.address as `0x${string}` | undefined);
+	const transferDetails = isTransferIntent(details) ? details : null;
+	const tokenInfo = transferDetails
+		? SUPPORTED_TOKENS[intentChainId]?.[transferDetails.token]
+		: undefined;
+	const tokenAddress = transferDetails
+		? ((transferDetails.tokenAddress as `0x${string}` | undefined) ??
+			(tokenInfo?.address as `0x${string}` | undefined))
+		: undefined;
 	const tokenDecimals = tokenInfo?.decimals ?? 6;
-	const isX402 = !!details.x402?.accepted;
+	const isX402 = !!transferDetails?.x402?.accepted;
 
 	// Compute x402 chain ID for proper chain mismatch detection
-	const x402ChainId = isX402 ? parseEip155ChainId(details.x402?.accepted?.network ?? "") : null;
+	const x402ChainId = isX402
+		? parseEip155ChainId(transferDetails?.x402?.accepted?.network ?? "")
+		: null;
 	const effectiveChainId = isX402 && x402ChainId ? x402ChainId : intentChainId;
 	const effectiveChain = SUPPORTED_CHAINS[effectiveChainId as SupportedChainId];
 	const isEffectiveWrongChain = walletChainId !== null && walletChainId !== effectiveChainId;
@@ -622,7 +701,7 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 				return;
 			}
 
-			const x402 = details.x402;
+			const x402 = transferDetails?.x402;
 
 			// Strong validation of x402 requirements
 			const validation = validateX402ForSigning(x402?.resource, x402?.accepted);
@@ -795,36 +874,52 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 			return;
 		}
 
-		// Check chain mismatch for standard transfers
+		// Check chain mismatch for standard transfers and contract calls
 		if (isWrongChain) {
 			setError(`Please switch to ${chain?.name ?? "the correct network"} to sign`);
-			return;
-		}
-
-		if (!tokenAddress) {
-			setError(`Unknown token address for ${details.token}`);
-			return;
-		}
-
-		const encodeResult = encodeERC20Transfer(
-			details.recipient as `0x${string}`,
-			details.amount,
-			tokenDecimals,
-		);
-
-		if (!encodeResult.success) {
-			setError(encodeResult.error);
 			return;
 		}
 
 		setIsSigning(true);
 
 		try {
-			const txHash = await sendTransaction({
-				to: tokenAddress,
-				data: encodeResult.data,
-				value: "0x0",
-			});
+			let txHash: string;
+
+			if (isContractCallIntent(details)) {
+				txHash = await sendTransaction({
+					to: details.to,
+					data: details.data,
+					value: details.value ?? "0x0",
+				});
+			} else if (isTransferIntent(details)) {
+				if (!tokenAddress) {
+					setError(`Unknown token address for ${details.token}`);
+					setIsSigning(false);
+					return;
+				}
+
+				const encodeResult = encodeERC20Transfer(
+					details.recipient as `0x${string}`,
+					details.amount,
+					tokenDecimals,
+				);
+
+				if (!encodeResult.success) {
+					setError(encodeResult.error);
+					setIsSigning(false);
+					return;
+				}
+
+				txHash = await sendTransaction({
+					to: tokenAddress,
+					data: encodeResult.data,
+					value: "0x0",
+				});
+			} else {
+				setError("Unsupported intent type");
+				setIsSigning(false);
+				return;
+			}
 
 			await updateStatus.mutateAsync({
 				id: intent.id,
@@ -932,15 +1027,14 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 // =============================================================================
 
 export function IntentDetailContent({ intent }: IntentDetailContentProps) {
-	const isX402 = !!intent.details.x402?.accepted;
-	const hasSettlementReceipt = !!intent.details.x402?.settlementReceipt;
+	const transferDetails = isTransferIntent(intent.details) ? intent.details : null;
+	const isX402 = !!transferDetails?.x402?.accepted;
+	const hasSettlementReceipt = !!transferDetails?.x402?.settlementReceipt;
 
 	return (
 		<div className="flex flex-col gap-16">
 			<HeroSection intent={intent} />
-			{/* Show settlement receipt if available (for confirmed x402 payments) */}
 			{hasSettlementReceipt && <SettlementReceiptSection intent={intent} />}
-			{/* Show x402 payment details for API payments, recipient for standard transfers */}
 			{isX402 ? <X402PaymentSection intent={intent} /> : <RecipientSection intent={intent} />}
 			<MerchantSection intent={intent} />
 			<AgentSection intent={intent} />

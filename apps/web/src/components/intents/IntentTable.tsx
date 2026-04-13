@@ -1,5 +1,6 @@
 import { StatusBadge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
+import { decodeCalldata } from "@/lib/calldata-decoder";
 import { encodeERC20Transfer } from "@/lib/erc20";
 import { useLedger } from "@/lib/ledger-provider";
 import { cn, formatAddress } from "@/lib/utils";
@@ -15,6 +16,8 @@ import {
 	SUPPORTED_TOKENS,
 	type SupportedChainId,
 	type X402PaymentPayload,
+	isContractCallIntent,
+	isTransferIntent,
 } from "@agent-intents/shared";
 import { Button } from "@ledgerhq/lumen-ui-react";
 import { useState } from "react";
@@ -253,13 +256,17 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 	// Check chain mismatch - only if we know the wallet chain
 	const isWrongChain = walletChainId !== null && walletChainId !== intentChainId;
 
-	// Get token info
-	const tokenInfo = SUPPORTED_TOKENS[intentChainId]?.[details.token];
-	const tokenAddress =
-		(details.tokenAddress as `0x${string}` | undefined) ??
-		(tokenInfo?.address as `0x${string}` | undefined);
+	// Transfer-specific fields (only when type is transfer)
+	const transferDetails = isTransferIntent(details) ? details : null;
+	const tokenInfo = transferDetails
+		? SUPPORTED_TOKENS[intentChainId]?.[transferDetails.token]
+		: undefined;
+	const tokenAddress = transferDetails
+		? ((transferDetails.tokenAddress as `0x${string}` | undefined) ??
+			(tokenInfo?.address as `0x${string}` | undefined))
+		: undefined;
 	const tokenDecimals = tokenInfo?.decimals ?? 6;
-	const isX402 = !!details.x402?.accepted;
+	const isX402 = !!transferDetails?.x402?.accepted;
 
 	// Shortened intent ID: first 8 chars + ... + last 4 chars
 	const shortId = `${intent.id.slice(0, 8)}...${intent.id.slice(-4)}`;
@@ -284,7 +291,7 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 				return;
 			}
 
-			const x402 = details.x402;
+			const x402 = transferDetails?.x402;
 
 			// Strong validation of x402 requirements
 			const validation = validateX402ForSigning(x402?.resource, x402?.accepted);
@@ -436,36 +443,52 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 			return;
 		}
 
-		// Check chain mismatch for standard transfers
+		// Check chain mismatch for standard transfers and contract calls
 		if (isWrongChain) {
 			setError(`Please switch to ${chain?.name ?? "the correct network"} to sign`);
-			return;
-		}
-
-		if (!tokenAddress) {
-			setError(`Unknown token address for ${details.token}`);
-			return;
-		}
-
-		const encodeResult = encodeERC20Transfer(
-			details.recipient as `0x${string}`,
-			details.amount,
-			tokenDecimals,
-		);
-
-		if (!encodeResult.success) {
-			setError(encodeResult.error);
 			return;
 		}
 
 		setIsSigning(true);
 
 		try {
-			const txHash = await sendTransaction({
-				to: tokenAddress,
-				data: encodeResult.data,
-				value: "0x0",
-			});
+			let txHash: string;
+
+			if (isContractCallIntent(details)) {
+				txHash = await sendTransaction({
+					to: details.to,
+					data: details.data,
+					value: details.value ?? "0x0",
+				});
+			} else if (isTransferIntent(details)) {
+				if (!tokenAddress) {
+					setError(`Unknown token address for ${details.token}`);
+					setIsSigning(false);
+					return;
+				}
+
+				const encodeResult = encodeERC20Transfer(
+					details.recipient as `0x${string}`,
+					details.amount,
+					tokenDecimals,
+				);
+
+				if (!encodeResult.success) {
+					setError(encodeResult.error);
+					setIsSigning(false);
+					return;
+				}
+
+				txHash = await sendTransaction({
+					to: tokenAddress,
+					data: encodeResult.data,
+					value: "0x0",
+				});
+			} else {
+				setError("Unsupported intent type");
+				setIsSigning(false);
+				return;
+			}
 
 			await updateStatus.mutateAsync({
 				id: intent.id,
@@ -564,26 +587,42 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 
 				{/* To */}
 				<td className="py-20 px-24">
-					<div className="flex flex-col gap-2">
-						<AddressWithTooltip address={details.recipient}>
+					{isTransferIntent(details) && (
+						<div className="flex flex-col gap-2">
+							<AddressWithTooltip address={details.recipient}>
+								<code className="font-mono body-2 text-base cursor-default">
+									{formatAddress(details.recipient)}
+								</code>
+							</AddressWithTooltip>
+							{details.recipientEns && (
+								<span className="body-3 text-muted">{details.recipientEns}</span>
+							)}
+						</div>
+					)}
+					{isContractCallIntent(details) && (
+						<AddressWithTooltip address={details.to}>
 							<code className="font-mono body-2 text-base cursor-default">
-								{formatAddress(details.recipient)}
+								{formatAddress(details.to)}
 							</code>
 						</AddressWithTooltip>
-						{details.recipientEns && (
-							<span className="body-3 text-muted">{details.recipientEns}</span>
-						)}
-					</div>
+					)}
 				</td>
 
 				{/* Amount */}
 				<td className="py-20 px-24">
-					<div className="flex items-center gap-8">
-						<span className="body-1-semi-bold text-base">
-							{details.amount} {details.token}
+					{isTransferIntent(details) && (
+						<div className="flex items-center gap-8">
+							<span className="body-1-semi-bold text-base">
+								{details.amount} {details.token}
+							</span>
+							{details.token === "USDC" && <UsdcLogo />}
+						</div>
+					)}
+					{isContractCallIntent(details) && (
+						<span className="body-2 text-muted">
+							{decodeCalldata(details.data)?.label ?? "Contract Call"}
 						</span>
-						{details.token === "USDC" && <UsdcLogo />}
-					</div>
+					)}
 				</td>
 
 				{/* Created At */}

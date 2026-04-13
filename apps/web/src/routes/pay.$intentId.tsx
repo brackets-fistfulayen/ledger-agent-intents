@@ -42,7 +42,7 @@ function PayPage() {
 		account.toLowerCase() === intent.userId.toLowerCase();
 
 	const isPending = intent?.status === "pending";
-	const isX402 = !!intent?.details.x402?.accepted;
+	const isX402 = !!(intent?.details.type === "transfer" && intent.details.x402?.accepted);
 
 	return (
 		<div className="flex flex-col items-center gap-32">

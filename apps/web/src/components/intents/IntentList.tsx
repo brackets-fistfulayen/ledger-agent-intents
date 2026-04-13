@@ -2,7 +2,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { useLedger } from "@/lib/ledger-provider";
 import { useWalletAuth } from "@/lib/wallet-auth";
 import { intentsQueryOptions } from "@/queries/intents";
-import type { Intent } from "@agent-intents/shared";
+import { type Intent, isTransferIntent } from "@agent-intents/shared";
 import { AmountDisplay, type FormattedValue } from "@ledgerhq/lumen-ui-react";
 import { useQuery } from "@tanstack/react-query";
 import { IntentTable } from "./IntentTable";
@@ -30,8 +30,11 @@ function sortIntents(intents: Intent[]): Intent[] {
  */
 function calculatePendingTotal(intents: Intent[]): number {
 	return intents
-		.filter((i) => i.status === "pending")
-		.reduce((sum, i) => sum + Number.parseFloat(i.details.amount), 0);
+		.filter((i) => i.status === "pending" && isTransferIntent(i.details))
+		.reduce((sum, i) => {
+			if (!isTransferIntent(i.details)) return sum;
+			return sum + Number.parseFloat(i.details.amount);
+		}, 0);
 }
 
 /**
