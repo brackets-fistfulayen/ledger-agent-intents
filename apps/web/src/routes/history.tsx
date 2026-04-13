@@ -2,6 +2,7 @@ import { IntentDetailDialog } from "@/components/intents/IntentDetailDialog";
 import { StatusBadge } from "@/components/ui/Badge";
 import { ChainLogo } from "@/components/ui/ChainLogo";
 import { Spinner } from "@/components/ui/Spinner";
+import { TokenLogo } from "@/components/ui/TokenLogo";
 import { useLedger } from "@/lib/ledger-provider";
 import { formatAddress } from "@/lib/utils";
 import { useWalletAuth } from "@/lib/wallet-auth";
@@ -305,7 +306,7 @@ function HistoryRow({
 						<span className="body-2-semi-bold text-base">
 							{details.amount} {details.token}
 						</span>
-						{details.token === "USDC" && <UsdcLogo />}
+						<TokenLogo ticker={details.token} size={20} />
 					</>
 				) : (
 					<span className="body-3 text-muted">Contract Call</span>

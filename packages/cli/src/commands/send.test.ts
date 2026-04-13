@@ -11,10 +11,9 @@ describe("parseSendArgs", () => {
 		]);
 		expect(result.amount).toBe("50");
 		expect(result.token).toBe("USDC");
-		expect(result.tokenAddress).toBe("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
 		expect(result.recipient).toBe("0x1234567890abcdef1234567890abcdef12345678");
-		expect(result.chainId).toBe(8453); // default
-		expect(result.urgency).toBe("normal"); // default
+		expect(result.chainId).toBe(8453);
+		expect(result.urgency).toBe("normal");
 		expect(result.memo).toBeUndefined();
 	});
 
@@ -32,10 +31,15 @@ describe("parseSendArgs", () => {
 			"high",
 		]);
 		expect(result.amount).toBe("0.01");
-		expect(result.token).toBe("USDC"); // uppercased
+		expect(result.token).toBe("USDC");
 		expect(result.chainId).toBe(84532);
 		expect(result.urgency).toBe("high");
 		expect(result.memo).toBe("podcast music");
+	});
+
+	it("accepts any token symbol (resolution happens in handleSend)", () => {
+		const result = parseSendArgs(["1", "WETH", "to", "0x1234567890abcdef1234567890abcdef12345678"]);
+		expect(result.token).toBe("WETH");
 	});
 
 	it("throws on missing 'to' keyword", () => {
@@ -65,12 +69,6 @@ describe("parseSendArgs", () => {
 				"1",
 			]),
 		).toThrow("Unsupported chain");
-	});
-
-	it("throws on unsupported token", () => {
-		expect(() =>
-			parseSendArgs(["50", "ETH", "to", "0x1234567890abcdef1234567890abcdef12345678"]),
-		).toThrow("Unsupported token");
 	});
 
 	it("throws on invalid urgency", () => {

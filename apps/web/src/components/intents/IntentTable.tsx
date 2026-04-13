@@ -1,5 +1,6 @@
 import { StatusBadge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
+import { TokenLogo } from "@/components/ui/TokenLogo";
 import { decodeCalldata } from "@/lib/calldata-decoder";
 import { encodeERC20Transfer } from "@/lib/erc20";
 import { useLedger } from "@/lib/ledger-provider";
@@ -10,10 +11,10 @@ import {
 	validateX402ForSigning,
 } from "@/lib/x402-validation";
 import { useUpdateIntentStatus } from "@/queries/intents";
+import { useTokenInfo } from "@/queries/tokens";
 import {
 	type Intent,
 	SUPPORTED_CHAINS,
-	SUPPORTED_TOKENS,
 	type SupportedChainId,
 	type X402PaymentPayload,
 	isContractCallIntent,
@@ -258,14 +259,12 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 
 	// Transfer-specific fields (only when type is transfer)
 	const transferDetails = isTransferIntent(details) ? details : null;
-	const tokenInfo = transferDetails
-		? SUPPORTED_TOKENS[intentChainId]?.[transferDetails.token]
-		: undefined;
+	const { data: resolvedToken } = useTokenInfo(intentChainId, transferDetails?.token ?? "");
 	const tokenAddress = transferDetails
 		? ((transferDetails.tokenAddress as `0x${string}` | undefined) ??
-			(tokenInfo?.address as `0x${string}` | undefined))
+			(resolvedToken?.address as `0x${string}` | undefined))
 		: undefined;
-	const tokenDecimals = tokenInfo?.decimals ?? 6;
+	const tokenDecimals = resolvedToken?.decimals ?? 6;
 	const isX402 = !!transferDetails?.x402?.accepted;
 
 	// Shortened intent ID: first 8 chars + ... + last 4 chars
@@ -616,7 +615,7 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 							<span className="body-1-semi-bold text-base">
 								{details.amount} {details.token}
 							</span>
-							{details.token === "USDC" && <UsdcLogo />}
+							<TokenLogo ticker={details.token} size={20} />
 						</div>
 					) : isContractCallIntent(details) ? (
 						<span className="body-2 text-muted">
