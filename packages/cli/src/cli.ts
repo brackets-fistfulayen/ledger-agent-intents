@@ -3,9 +3,11 @@ import { loadCredential } from "./lib/credential.js";
 import { CLIError } from "./lib/errors.js";
 import { formatError } from "./lib/format.js";
 
+import { handleBalance } from "./commands/balance.js";
 import { handleCall } from "./commands/call.js";
 import { handleContext } from "./commands/context.js";
 import { handleHealth } from "./commands/health.js";
+import { handleHistory } from "./commands/history.js";
 import { handleList } from "./commands/list.js";
 import { handlePoll } from "./commands/poll.js";
 import { handleSend } from "./commands/send.js";
@@ -59,6 +61,8 @@ COMMANDS
   status <intent-id>                                    Get intent status
   list [--status <status>] [--limit <n>]                List your intents
   poll <intent-id> [--interval <s>] [--timeout <s>]     Poll until terminal state
+  balance [--chain <id>] [--token <ticker>]             Show wallet balances
+  history [--limit <n>]                                 Show recent operations
   health                                                Check API connectivity
   context                                               Print skill file for agent context
 
@@ -136,6 +140,12 @@ async function main(): Promise<void> {
 			break;
 		case "poll":
 			await handlePoll(flags.commandArgs, client);
+			break;
+		case "balance":
+			await handleBalance(flags.commandArgs, credential);
+			break;
+		case "history":
+			await handleHistory(flags.commandArgs, client);
 			break;
 		default:
 			console.error(`Unknown command: ${flags.command}`);
