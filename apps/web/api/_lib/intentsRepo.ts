@@ -344,9 +344,10 @@ export async function getIntentsByUser(
 
 	return {
 		intents: pageRows.map((row) => rowToIntent(row, historyMap.get(row.id) ?? [])),
-		nextCursor: rows.length > pageSize && pageRows.length > 0
-			? encodeIntentCursor(pageRows[pageRows.length - 1]!)
-			: undefined,
+		nextCursor:
+			rows.length > pageSize && pageRows.length > 0
+				? encodeIntentCursor(pageRows[pageRows.length - 1]!)
+				: undefined,
 	};
 }
 
