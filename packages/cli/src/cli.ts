@@ -3,6 +3,7 @@ import { loadCredential } from "./lib/credential.js";
 import { CLIError } from "./lib/errors.js";
 import { formatError } from "./lib/format.js";
 
+import { handleCall } from "./commands/call.js";
 import { handleHealth } from "./commands/health.js";
 import { handleList } from "./commands/list.js";
 import { handlePoll } from "./commands/poll.js";
@@ -52,11 +53,12 @@ USAGE
   ledger-intent <command> [options]
 
 COMMANDS
-  send <amount> <token> to <address> [for "reason"]   Create a payment intent
-  status <intent-id>                                   Get intent status
-  list [--status <status>] [--limit <n>]               List your intents
-  poll <intent-id> [--interval <s>] [--timeout <s>]    Poll until terminal state
-  health                                               Check API connectivity
+  send <amount> <token> to <address> [for "reason"]    Create a transfer intent
+  call <address> <calldata> [--value <wei>]             Create a contract call intent
+  status <intent-id>                                    Get intent status
+  list [--status <status>] [--limit <n>]                List your intents
+  poll <intent-id> [--interval <s>] [--timeout <s>]     Poll until terminal state
+  health                                                Check API connectivity
 
 GLOBAL OPTIONS
   --credential <path>    Path to agent credential JSON file
@@ -72,10 +74,11 @@ ENVIRONMENT
 EXAMPLES
   ledger-intent send 50 USDC to 0x1234...5678 for "podcast music"
   ledger-intent send 0.01 USDC to 0xabc...def --chain 84532
+  ledger-intent call 0xContract... 0xa9059cbb... --memo "swap tokens"
   ledger-intent status int_1707048000_abc123
   ledger-intent poll int_1707048000_abc123 --timeout 600
   ledger-intent list --status pending
-  ledger-intent health --api https://your-app.vercel.app
+  ledger-intent health --api https://www.agentintents.io
 `);
 }
 
@@ -115,6 +118,9 @@ async function main(): Promise<void> {
 	switch (flags.command) {
 		case "send":
 			await handleSend(flags.commandArgs, client, credential);
+			break;
+		case "call":
+			await handleCall(flags.commandArgs, client, credential);
 			break;
 		case "status":
 			await handleStatus(flags.commandArgs[0], client);

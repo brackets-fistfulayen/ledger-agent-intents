@@ -57,12 +57,33 @@ const transferIntentSchema = z
 	})
 	.passthrough();
 
+/** Contract call intent details */
+const contractCallIntentSchema = z
+	.object({
+		type: z.literal("contract"),
+		to: z.string().regex(/^0x[a-fA-F0-9]{40}$/, "Invalid contract address"),
+		data: z
+			.string()
+			.regex(/^0x[a-fA-F0-9]*$/, "Invalid calldata hex")
+			.min(10, "Calldata must include a function selector"),
+		value: z.string().optional(),
+		chainId: z.number().int().positive(),
+		memo: z.string().optional(),
+	})
+	.passthrough();
+
+/** Discriminated union of intent detail schemas */
+const intentDetailsSchema = z.discriminatedUnion("type", [
+	transferIntentSchema,
+	contractCallIntentSchema,
+]);
+
 const urgencySchema = z.enum(["low", "normal", "high", "critical"]).optional();
 
 export const createIntentRequestSchema = z.object({
 	agentId: z.string().min(1, "agentId is required"),
 	agentName: z.string().optional(),
-	details: transferIntentSchema,
+	details: intentDetailsSchema,
 	urgency: urgencySchema,
 	expiresInMinutes: z.number().int().positive().optional(),
 });

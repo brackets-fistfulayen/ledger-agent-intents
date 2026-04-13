@@ -1,5 +1,5 @@
 import type { Intent, IntentStatus } from "@agent-intents/shared";
-import { getChainName } from "@agent-intents/shared";
+import { getChainName, isContractCallIntent, isTransferIntent } from "@agent-intents/shared";
 
 function ansi(code: string): (text: string) => string {
 	return (text) => {
@@ -48,14 +48,26 @@ export function statusLabel(status: IntentStatus): string {
 }
 
 export function formatIntent(intent: Intent): string {
+	const { details } = intent;
 	const lines: string[] = [];
 	lines.push(`${colors.bold("Intent:")} ${intent.id}`);
 	lines.push(`  Status:    ${statusLabel(intent.status)}`);
-	lines.push(`  Amount:    ${colors.bold(intent.details.amount)} ${intent.details.token}`);
-	lines.push(`  To:        ${intent.details.recipient}`);
-	lines.push(`  Chain:     ${getChainName(intent.details.chainId)} (${intent.details.chainId})`);
-	if (intent.details.memo) {
-		lines.push(`  Memo:      ${intent.details.memo}`);
+
+	if (isTransferIntent(details)) {
+		lines.push(`  Amount:    ${colors.bold(details.amount)} ${details.token}`);
+		lines.push(`  To:        ${details.recipient}`);
+	} else if (isContractCallIntent(details)) {
+		lines.push(`  Type:      ${colors.yellow("Contract Call")}`);
+		lines.push(`  Contract:  ${details.to}`);
+		lines.push(`  Data:      ${details.data.slice(0, 22)}...`);
+		if (details.value && details.value !== "0") {
+			lines.push(`  Value:     ${details.value} wei`);
+		}
+	}
+
+	lines.push(`  Chain:     ${getChainName(details.chainId)} (${details.chainId})`);
+	if (details.memo) {
+		lines.push(`  Memo:      ${details.memo}`);
 	}
 	if (intent.agentName) {
 		lines.push(`  Agent:     ${intent.agentName}`);
@@ -74,11 +86,22 @@ export function formatIntent(intent: Intent): string {
 }
 
 export function formatIntentRow(intent: Intent): string {
+	const { details } = intent;
 	const status = statusLabel(intent.status);
-	const amount = `${intent.details.amount} ${intent.details.token}`;
-	const to = `${intent.details.recipient.slice(0, 10)}...`;
-	const memo = intent.details.memo ? ` "${intent.details.memo}"` : "";
-	return `${status}  ${intent.id}\n   ${amount} -> ${to}${memo}`;
+	const memo = details.memo ? ` "${details.memo}"` : "";
+
+	if (isTransferIntent(details)) {
+		const amount = `${details.amount} ${details.token}`;
+		const to = `${details.recipient.slice(0, 10)}...`;
+		return `${status}  ${intent.id}\n   ${amount} -> ${to}${memo}`;
+	}
+	if (isContractCallIntent(details)) {
+		const to = `${details.to.slice(0, 10)}...`;
+		const selector = details.data.slice(0, 10);
+		return `${status}  ${intent.id}\n   Contract ${to} ${selector}${memo}`;
+	}
+
+	return `${status}  ${intent.id}${memo}`;
 }
 
 export function formatError(err: unknown): string {

@@ -13,6 +13,7 @@ import {
 	type IntentStatus,
 	type X402PaymentPayload,
 	getExplorerTxUrl,
+	isTransferIntent,
 } from "@agent-intents/shared";
 import cors from "cors";
 import express from "express";
@@ -94,9 +95,12 @@ app.post("/api/intents", (req, res) => {
 		const intent = createIntent(body, userId);
 		intents.set(intent.id, intent);
 
-		console.log(
-			`[Intent Created] ${intent.id} by ${intent.agentName}: ${intent.details.amount} ${intent.details.token} to ${intent.details.recipient}`,
-		);
+		const d = intent.details;
+		const summary =
+			d.type === "transfer"
+				? `${d.amount} ${d.token} to ${d.recipient}`
+				: `contract call to ${d.to}`;
+		console.log(`[Intent Created] ${intent.id} by ${intent.agentName}: ${summary}`);
 
 		res.status(201).json({ success: true, intent });
 	} catch (error) {
@@ -197,7 +201,7 @@ app.post("/api/intents/status", (req, res) => {
 		intent.reviewedAt = now;
 	}
 
-	if (paymentSignatureHeader || paymentPayload) {
+	if ((paymentSignatureHeader || paymentPayload) && isTransferIntent(intent.details)) {
 		const existing = intent.details.x402;
 		const base = paymentPayload
 			? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }
@@ -259,7 +263,7 @@ app.patch("/api/intents/:id/status", (req, res) => {
 	}
 
 	// Persist x402 proof data inside the details blob if provided
-	if (paymentSignatureHeader || paymentPayload) {
+	if ((paymentSignatureHeader || paymentPayload) && isTransferIntent(intent.details)) {
 		const existing = intent.details.x402;
 		const base = paymentPayload
 			? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }
