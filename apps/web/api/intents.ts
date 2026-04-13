@@ -166,21 +166,8 @@ export default methodRouter({
 			return;
 		}
 
-		// Auto-expire any existing pending intents from the same agent so the
-		// queue doesn't accumulate duplicates when an agent recreates intents.
-		try {
-			const superseded = await withDbRlsContext({ currentUser: userId }, async (client) =>
-				supersedePendingIntents(body.agentId, userId, client),
-			);
-			if (superseded > 0) {
-				logger.info(
-					{ agentId: body.agentId, count: superseded },
-					"Superseded pending intents from same agent",
-				);
-			}
-		} catch (err) {
-			logger.warn({ err, agentId: body.agentId }, "Failed to supersede pending intents");
-		}
+		// Intents pile up intentionally -- agents can have multiple pending intents.
+		// The cron job handles expiration after 24h (or the custom expiresInMinutes).
 
 		// Generate ID
 		const id = `int_${Date.now()}_${uuidv4().slice(0, 8)}`;
