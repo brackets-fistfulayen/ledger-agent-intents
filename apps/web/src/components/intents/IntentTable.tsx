@@ -587,7 +587,7 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 
 				{/* To */}
 				<td className="py-20 px-24">
-					{isTransferIntent(details) && (
+					{isTransferIntent(details) ? (
 						<div className="flex flex-col gap-2">
 							<AddressWithTooltip address={details.recipient}>
 								<code className="font-mono body-2 text-base cursor-default">
@@ -598,30 +598,32 @@ function IntentRow({ intent, onSelectIntent }: IntentRowProps) {
 								<span className="body-3 text-muted">{details.recipientEns}</span>
 							)}
 						</div>
-					)}
-					{isContractCallIntent(details) && (
+					) : isContractCallIntent(details) ? (
 						<AddressWithTooltip address={details.to}>
 							<code className="font-mono body-2 text-base cursor-default">
 								{formatAddress(details.to)}
 							</code>
 						</AddressWithTooltip>
+					) : (
+						<span className="body-2 text-muted">—</span>
 					)}
 				</td>
 
 				{/* Amount */}
 				<td className="py-20 px-24">
-					{isTransferIntent(details) && (
+					{isTransferIntent(details) ? (
 						<div className="flex items-center gap-8">
 							<span className="body-1-semi-bold text-base">
 								{details.amount} {details.token}
 							</span>
 							{details.token === "USDC" && <UsdcLogo />}
 						</div>
-					)}
-					{isContractCallIntent(details) && (
+					) : isContractCallIntent(details) ? (
 						<span className="body-2 text-muted">
 							{decodeCalldata(details.data)?.label ?? "Contract Call"}
 						</span>
+					) : (
+						<span className="body-2 text-muted">—</span>
 					)}
 				</td>
 
