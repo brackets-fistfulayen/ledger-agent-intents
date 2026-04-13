@@ -299,8 +299,10 @@ export class X402Client {
 			return null;
 		}
 
-		// Extract payment signature
-		const paymentSignatureHeader = authorizedIntent.details.x402?.paymentSignatureHeader;
+		// Extract payment signature (x402 only applies to transfer intents)
+		const details = authorizedIntent.details;
+		const paymentSignatureHeader =
+			details.type === "transfer" ? details.x402?.paymentSignatureHeader : undefined;
 		if (!paymentSignatureHeader) {
 			console.error("No payment signature header found");
 			return null;

@@ -7,7 +7,7 @@ import { formatAddress } from "@/lib/utils";
 import { useWalletAuth } from "@/lib/wallet-auth";
 import { intentsQueryOptions } from "@/queries/intents";
 import type { Intent, SupportedChainId } from "@agent-intents/shared";
-import { SUPPORTED_CHAINS } from "@agent-intents/shared";
+import { SUPPORTED_CHAINS, isContractCallIntent, isTransferIntent } from "@agent-intents/shared";
 import { AmountDisplay, type FormattedValue } from "@ledgerhq/lumen-ui-react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -66,7 +66,10 @@ function HistoryPage() {
 	const successfulIntents = completedIntents?.filter((i) => SUCCESS_STATUSES.has(i.status));
 	const successCount = successfulIntents?.length ?? 0;
 	const totalSpent =
-		successfulIntents?.reduce((sum, i) => sum + Number.parseFloat(i.details.amount), 0) ?? 0;
+		successfulIntents?.reduce((sum, i) => {
+			if (!isTransferIntent(i.details)) return sum;
+			return sum + Number.parseFloat(i.details.amount);
+		}, 0) ?? 0;
 
 	return (
 		<div className="flex flex-col gap-32">
@@ -264,13 +267,22 @@ function HistoryRow({
 			<div className="flex flex-col gap-2 flex-1 min-w-0">
 				<div className="flex items-center gap-8">
 					<span className="body-2-semi-bold text-base truncate">
-						{details.memo || `${details.amount} ${details.token} transfer`}
+						{details.memo ||
+							(isTransferIntent(details)
+								? `${details.amount} ${details.token} transfer`
+								: "Contract call")}
 					</span>
 				</div>
 				<div className="flex items-center gap-8">
 					<span className="body-3 text-muted">{account ? formatAddress(account) : "—"}</span>
 					<span className="body-3 text-muted-subtle">→</span>
-					<span className="body-3 text-muted">{formatAddress(details.recipient)}</span>
+					<span className="body-3 text-muted">
+						{isTransferIntent(details)
+							? formatAddress(details.recipient)
+							: isContractCallIntent(details)
+								? formatAddress(details.to)
+								: "—"}
+					</span>
 					{chain && (
 						<>
 							<span className="body-3 text-muted-subtle">·</span>
@@ -288,10 +300,16 @@ function HistoryRow({
 
 			{/* Amount + USDC logo */}
 			<div className="flex items-center justify-end gap-8 shrink-0 w-96">
-				<span className="body-2-semi-bold text-base">
-					{details.amount} {details.token}
-				</span>
-				{details.token === "USDC" && <UsdcLogo />}
+				{isTransferIntent(details) ? (
+					<>
+						<span className="body-2-semi-bold text-base">
+							{details.amount} {details.token}
+						</span>
+						{details.token === "USDC" && <UsdcLogo />}
+					</>
+				) : (
+					<span className="body-3 text-muted">Contract Call</span>
+				)}
 			</div>
 
 			{/* Status */}

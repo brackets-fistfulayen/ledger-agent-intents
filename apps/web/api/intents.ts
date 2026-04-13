@@ -1,5 +1,5 @@
-import type { IntentStatus, TransferIntent } from "@agent-intents/shared";
-import { isSupportedChain } from "@agent-intents/shared";
+import type { IntentDetails, IntentStatus } from "@agent-intents/shared";
+import { isSupportedChain, isTransferIntent } from "@agent-intents/shared";
 /**
  * Intents endpoint
  *
@@ -117,17 +117,25 @@ export default methodRouter({
 			jsonError(res, "Unsupported chain ID", 400);
 			return;
 		}
-		if (!isAddress(body.details.recipient)) {
-			jsonError(res, "Invalid recipient address", 400);
-			return;
-		}
-		if (
-			typeof body.details.amount !== "string" ||
-			body.details.amount.length === 0 ||
-			Number.isNaN(Number(body.details.amount))
-		) {
-			jsonError(res, "Invalid amount", 400);
-			return;
+
+		if (body.details.type === "transfer") {
+			if (!isAddress(body.details.recipient)) {
+				jsonError(res, "Invalid recipient address", 400);
+				return;
+			}
+			if (
+				typeof body.details.amount !== "string" ||
+				body.details.amount.length === 0 ||
+				Number.isNaN(Number(body.details.amount))
+			) {
+				jsonError(res, "Invalid amount", 400);
+				return;
+			}
+		} else if (body.details.type === "contract") {
+			if (!isAddress(body.details.to)) {
+				jsonError(res, "Invalid contract address", 400);
+				return;
+			}
 		}
 
 		// Rate limiting: max N intents per agent per minute (fail closed)
@@ -158,21 +166,8 @@ export default methodRouter({
 			return;
 		}
 
-		// Auto-expire any existing pending intents from the same agent so the
-		// queue doesn't accumulate duplicates when an agent recreates intents.
-		try {
-			const superseded = await withDbRlsContext({ currentUser: userId }, async (client) =>
-				supersedePendingIntents(body.agentId, userId, client),
-			);
-			if (superseded > 0) {
-				logger.info(
-					{ agentId: body.agentId, count: superseded },
-					"Superseded pending intents from same agent",
-				);
-			}
-		} catch (err) {
-			logger.warn({ err, agentId: body.agentId }, "Failed to supersede pending intents");
-		}
+		// Intents pile up intentionally -- agents can have multiple pending intents.
+		// The cron job handles expiration after 24h (or the custom expiresInMinutes).
 
 		// Generate ID
 		const id = `int_${Date.now()}_${uuidv4().slice(0, 8)}`;
@@ -189,7 +184,7 @@ export default methodRouter({
 					userId,
 					agentId: body.agentId,
 					agentName: body.agentName ?? body.agentId,
-					details: body.details as unknown as TransferIntent,
+					details: body.details as unknown as IntentDetails,
 					urgency: body.urgency ?? "normal",
 					expiresAt,
 					trustChainId,
@@ -204,16 +199,30 @@ export default methodRouter({
 		const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost:3000";
 		const paymentUrl = `${proto}://${host}/pay/${intent.id}`;
 
-		logger.info(
-			{
-				intentId: intent.id,
-				agentName: intent.agentName,
-				amount: intent.details.amount,
-				token: intent.details.token,
-				recipient: intent.details.recipient,
-			},
-			"Intent created",
-		);
+		if (isTransferIntent(intent.details)) {
+			logger.info(
+				{
+					intentId: intent.id,
+					agentName: intent.agentName,
+					type: "transfer",
+					amount: intent.details.amount,
+					token: intent.details.token,
+					recipient: intent.details.recipient,
+				},
+				"Intent created",
+			);
+		} else {
+			logger.info(
+				{
+					intentId: intent.id,
+					agentName: intent.agentName,
+					type: intent.details.type,
+					to: intent.details.to,
+					dataLength: intent.details.data.length,
+				},
+				"Intent created",
+			);
+		}
 
 		jsonSuccess(res, { intent, paymentUrl }, 201);
 	},

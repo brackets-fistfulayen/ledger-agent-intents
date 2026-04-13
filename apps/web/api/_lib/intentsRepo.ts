@@ -12,12 +12,14 @@ export class IntentStatusConflictError extends Error {
 
 import {
 	type Intent,
+	type IntentDetails,
 	type IntentStatus,
 	type IntentUrgency,
 	type TransferIntent,
 	type X402PaymentPayload,
 	type X402SettlementReceipt,
 	getExplorerTxUrl,
+	isTransferIntent,
 	isValidTransition,
 } from "@agent-intents/shared";
 import { type DbClient, type DbExecutor, sql } from "./db.js";
@@ -27,7 +29,7 @@ interface IntentRow {
 	user_id: string;
 	agent_id: string;
 	agent_name: string;
-	details: TransferIntent;
+	details: IntentDetails;
 	urgency: IntentUrgency;
 	status: IntentStatus;
 	created_at: Date;
@@ -84,7 +86,8 @@ function decodeIntentCursor(cursor: string): { id: string; createdAt: Date } {
 
 function rowToIntent(row: IntentRow, history: StatusHistoryRow[]): Intent {
 	let effectiveStatus: IntentStatus = row.status;
-	const x402ExpiresAt = row.details?.x402?.expiresAt ?? row.expires_at?.toISOString();
+	const x402 = isTransferIntent(row.details) ? row.details.x402 : undefined;
+	const x402ExpiresAt = x402?.expiresAt ?? row.expires_at?.toISOString();
 	if (
 		x402ExpiresAt &&
 		(row.status === "authorized" || row.status === "approved") &&
@@ -119,7 +122,7 @@ function rowToIntent(row: IntentRow, history: StatusHistoryRow[]): Intent {
 }
 
 export function sanitizeIntent(intent: Intent): Intent {
-	if (!intent.details.x402) return intent;
+	if (!isTransferIntent(intent.details) || !intent.details.x402) return intent;
 
 	const {
 		paymentSignatureHeader: _sig,
@@ -222,7 +225,7 @@ export async function createIntent(
 		userId: string;
 		agentId: string;
 		agentName: string;
-		details: TransferIntent;
+		details: IntentDetails;
 		urgency: IntentUrgency;
 		expiresAt?: string;
 		trustChainId?: string;
@@ -361,8 +364,8 @@ function buildAuditNote(
 		txHash?: string;
 	},
 ): string | null {
-	const isX402 = !!intentRow.details?.x402;
-	if (!isX402 && !userNote) return userNote ?? null;
+	const x402 = isTransferIntent(intentRow.details) ? intentRow.details.x402 : undefined;
+	if (!x402 && !userNote) return userNote ?? null;
 
 	const context: Record<string, unknown> = {};
 
@@ -379,7 +382,7 @@ function buildAuditNote(
 	}
 
 	if (status === "confirmed") {
-		const receipt = params.settlementReceipt ?? intentRow.details?.x402?.settlementReceipt;
+		const receipt = params.settlementReceipt ?? x402?.settlementReceipt;
 		if (receipt) {
 			context.txHash = receipt.txHash;
 			context.network = receipt.network;
@@ -392,14 +395,13 @@ function buildAuditNote(
 
 	if (status === "failed") {
 		context.reason = userNote ?? "Unknown failure";
-		const x402 = intentRow.details?.x402;
 		if (x402?.accepted?.network) {
 			context.network = x402.accepted.network;
 		}
 	}
 
 	if (status === "executing") {
-		context.resource = intentRow.details?.x402?.resource?.url;
+		context.resource = x402?.resource?.url;
 	}
 
 	if (Object.keys(context).length === 0) return userNote ?? null;
@@ -453,7 +455,10 @@ export async function updateIntentStatus(
 	try {
 		await client.sql`BEGIN`;
 
-		if (paymentSignatureHeader || paymentPayload || settlementReceipt) {
+		if (
+			(paymentSignatureHeader || paymentPayload || settlementReceipt) &&
+			isTransferIntent(intentRow.details)
+		) {
 			const existingX402 = intentRow.details.x402;
 			const base = paymentPayload
 				? { resource: paymentPayload.resource, accepted: paymentPayload.accepted }

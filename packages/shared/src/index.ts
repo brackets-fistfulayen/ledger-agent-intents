@@ -189,6 +189,27 @@ export interface TransferIntent {
 	x402?: X402Context;
 }
 
+// Smart contract call intent
+export interface ContractCallIntent {
+	type: "contract";
+	to: string; // Target contract address (0x-prefixed)
+	data: string; // Hex-encoded calldata (0x-prefixed)
+	value?: string; // Native ETH value in wei, defaults to "0"
+	chainId: number;
+	memo?: string;
+}
+
+// Discriminated union of all intent detail types
+export type IntentDetails = TransferIntent | ContractCallIntent;
+
+export function isTransferIntent(details: IntentDetails): details is TransferIntent {
+	return details.type === "transfer";
+}
+
+export function isContractCallIntent(details: IntentDetails): details is ContractCallIntent {
+	return details.type === "contract";
+}
+
 // Base intent structure
 export interface Intent {
 	id: string;
@@ -196,8 +217,8 @@ export interface Intent {
 	agentId: string; // Which agent created this (e.g., 'clouseau')
 	agentName: string; // Display name (e.g., 'Inspector Clouseau')
 
-	// Intent details (union for different types)
-	details: TransferIntent; // Expand to union as we add types
+	// Intent details (discriminated union on 'type')
+	details: IntentDetails;
 
 	// Metadata
 	urgency: IntentUrgency;
@@ -263,7 +284,7 @@ export interface RegisterAgentResponse {
 export interface CreateIntentRequest {
 	agentId: string;
 	agentName: string;
-	details: TransferIntent;
+	details: IntentDetails;
 	urgency?: IntentUrgency;
 	expiresInMinutes?: number;
 }

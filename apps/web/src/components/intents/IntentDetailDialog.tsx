@@ -30,8 +30,13 @@ export function IntentDetailDialog({ intent, open, onOpenChange }: IntentDetailD
 	if (!intent) return null;
 
 	const handleClose = () => onOpenChange(false);
-	const isX402 = !!intent.details.x402?.accepted;
-	const dialogTitle = isX402 ? "Authorize API Payment" : "Review Transfer";
+	const isX402 = intent.details.type === "transfer" && !!intent.details.x402?.accepted;
+	const isContract = intent.details.type === "contract";
+	const dialogTitle = isX402
+		? "Authorize API Payment"
+		: isContract
+			? "Review Contract Call"
+			: "Review Transfer";
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
