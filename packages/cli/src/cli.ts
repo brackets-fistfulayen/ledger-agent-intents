@@ -4,6 +4,7 @@ import { CLIError } from "./lib/errors.js";
 import { formatError } from "./lib/format.js";
 
 import { handleCall } from "./commands/call.js";
+import { handleContext } from "./commands/context.js";
 import { handleHealth } from "./commands/health.js";
 import { handleList } from "./commands/list.js";
 import { handlePoll } from "./commands/poll.js";
@@ -59,6 +60,7 @@ COMMANDS
   list [--status <status>] [--limit <n>]                List your intents
   poll <intent-id> [--interval <s>] [--timeout <s>]     Poll until terminal state
   health                                                Check API connectivity
+  context                                               Print skill file for agent context
 
 GLOBAL OPTIONS
   --credential <path>    Path to agent credential JSON file
@@ -97,9 +99,13 @@ async function main(): Promise<void> {
 
 	const flags = parseGlobalFlags(args);
 
-	// Health doesn't need credentials
+	// Commands that don't need credentials
 	if (flags.command === "health") {
 		await handleHealth(flags.apiUrl);
+		return;
+	}
+	if (flags.command === "context") {
+		handleContext();
 		return;
 	}
 
