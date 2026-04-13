@@ -4,6 +4,7 @@ import {
 	SUPPORTED_TOKENS,
 	type SupportedChainId,
 	isSupportedChain,
+	resolveToken,
 } from "@agent-intents/shared";
 import type { IntentApiClient } from "../lib/api-client.js";
 import type { AgentCredentialFile } from "../lib/credential.js";
@@ -15,7 +16,6 @@ const VALID_URGENCIES = ["low", "normal", "high", "critical"] as const;
 interface SendArgs {
 	amount: string;
 	token: string;
-	tokenAddress: string;
 	recipient: string;
 	memo?: string;
 	chainId: number;
@@ -23,7 +23,6 @@ interface SendArgs {
 }
 
 export function parseSendArgs(args: string[]): SendArgs {
-	// Expected: <amount> <token> to <address> [for "reason"] [--chain <id>] [--urgency <level>]
 	if (args.length < 4 || args[2] !== "to") {
 		throw new CLIError(
 			'Usage: ledger-intent send <amount> <token> to <address> [for "reason"] [--chain <id>] [--urgency <level>]',
@@ -42,7 +41,7 @@ export function parseSendArgs(args: string[]): SendArgs {
 	}
 
 	let memo: string | undefined;
-	let chainId = 8453; // Default: Base mainnet
+	let chainId = 8453;
 	let urgency: IntentUrgency = "normal";
 
 	for (let i = 4; i < args.length; i++) {
@@ -65,7 +64,6 @@ export function parseSendArgs(args: string[]): SendArgs {
 		}
 	}
 
-	// Validate chain
 	if (!isSupportedChain(chainId)) {
 		const supported = Object.entries(SUPPORTED_CHAINS)
 			.map(([id, c]) => `${id} (${c.name})`)
@@ -73,15 +71,7 @@ export function parseSendArgs(args: string[]): SendArgs {
 		throw new CLIError(`Unsupported chain: ${chainId}. Supported: ${supported}`);
 	}
 
-	// Validate token on chain and resolve address
-	const chainTokens = SUPPORTED_TOKENS[chainId as SupportedChainId];
-	const tokenInfo = chainTokens?.[token];
-	if (!tokenInfo) {
-		const available = chainTokens ? Object.keys(chainTokens).join(", ") : "none";
-		throw new CLIError(`Unsupported token ${token} on chain ${chainId}. Available: ${available}`);
-	}
-
-	return { amount, token, tokenAddress: tokenInfo.address, recipient, memo, chainId, urgency };
+	return { amount, token, recipient, memo, chainId, urgency };
 }
 
 export async function handleSend(
@@ -89,7 +79,25 @@ export async function handleSend(
 	client: IntentApiClient,
 	credential: AgentCredentialFile,
 ): Promise<void> {
-	const { amount, token, tokenAddress, recipient, memo, chainId, urgency } = parseSendArgs(args);
+	const { amount, token, recipient, memo, chainId, urgency } = parseSendArgs(args);
+
+	// Resolve token: check SUPPORTED_TOKENS first, then Ledger API
+	const staticEntry = SUPPORTED_TOKENS[chainId as SupportedChainId]?.[token];
+	let tokenAddress: string;
+
+	if (staticEntry) {
+		tokenAddress = staticEntry.address;
+	} else {
+		const resolved = await resolveToken(chainId, token);
+		if (!resolved) {
+			throw new CLIError(
+				`Token ${token} not found on chain ${chainId}. Checked built-in tokens and Ledger crypto-assets API.`,
+			);
+		}
+		tokenAddress = resolved.address;
+		console.log(colors.dim(`Resolved ${token}: ${resolved.name ?? token} (${tokenAddress})`));
+	}
+
 	const agentId = `agent-${credential.label.toLowerCase().replace(/\s+/g, "-")}`;
 
 	const request: CreateIntentRequest = {

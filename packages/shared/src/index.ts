@@ -321,16 +321,19 @@ export const SUPPORTED_CHAINS = {
 		name: "Base",
 		symbol: "ETH",
 		explorer: "https://basescan.org",
+		network: "base",
 	},
 	11155111: {
 		name: "Sepolia",
 		symbol: "ETH",
 		explorer: "https://sepolia.etherscan.io",
+		network: "ethereum",
 	},
 	84532: {
 		name: "Base Sepolia",
 		symbol: "ETH",
 		explorer: "https://sepolia.basescan.org",
+		network: "base_sepolia",
 	},
 } as const;
 
@@ -404,6 +407,25 @@ export function getChainName(chainId: number): string {
 	return chain?.name ?? "Unknown";
 }
 
+/**
+ * Get the Ledger crypto-assets API network name for a chain ID.
+ */
+export function getChainNetwork(chainId: number): string | undefined {
+	const chain = SUPPORTED_CHAINS[chainId as SupportedChainId];
+	return chain?.network;
+}
+
+// =============================================================================
+// Token Info (resolved from SUPPORTED_TOKENS or Ledger API)
+// =============================================================================
+
+export interface TokenInfo {
+	address: string;
+	decimals: number;
+	name?: string;
+	ticker: string;
+}
+
 // =============================================================================
 // Utility Functions
 // =============================================================================
@@ -463,3 +485,9 @@ export function extractDomain(url: string): string {
 		return url;
 	}
 }
+
+// =============================================================================
+// Token Resolution (re-exported from separate module)
+// =============================================================================
+
+export { resolveToken, resolveTokenByAddress } from "./token-resolution.js";

@@ -13,10 +13,10 @@ import {
 	validateX402ForSigning,
 } from "@/lib/x402-validation";
 import { useUpdateIntentStatus } from "@/queries/intents";
+import { useTokenInfo } from "@/queries/tokens";
 import {
 	type Intent,
 	SUPPORTED_CHAINS,
-	SUPPORTED_TOKENS,
 	type SupportedChainId,
 	type X402PaymentPayload,
 	isContractCallIntent,
@@ -570,11 +570,8 @@ function TechnicalDetailsSection({ intent }: { intent: Intent }) {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const { details } = intent;
 
-	const tokenInfo = isTransferIntent(details)
-		? SUPPORTED_TOKENS[details.chainId as SupportedChainId]?.[details.token]
-		: undefined;
 	const tokenAddress = isTransferIntent(details)
-		? ((details.tokenAddress as string | undefined) ?? tokenInfo?.address)
+		? (details.tokenAddress as string | undefined)
 		: isContractCallIntent(details)
 			? details.to
 			: undefined;
@@ -667,14 +664,12 @@ function IntentActions({ intent, onClose }: IntentActionsProps) {
 	const isPending = intent.status === "pending";
 
 	const transferDetails = isTransferIntent(details) ? details : null;
-	const tokenInfo = transferDetails
-		? SUPPORTED_TOKENS[intentChainId]?.[transferDetails.token]
-		: undefined;
+	const { data: resolvedToken } = useTokenInfo(intentChainId, transferDetails?.token ?? "");
 	const tokenAddress = transferDetails
 		? ((transferDetails.tokenAddress as `0x${string}` | undefined) ??
-			(tokenInfo?.address as `0x${string}` | undefined))
+			(resolvedToken?.address as `0x${string}` | undefined))
 		: undefined;
-	const tokenDecimals = tokenInfo?.decimals ?? 6;
+	const tokenDecimals = resolvedToken?.decimals ?? 6;
 	const isX402 = !!transferDetails?.x402?.accepted;
 
 	// Compute x402 chain ID for proper chain mismatch detection

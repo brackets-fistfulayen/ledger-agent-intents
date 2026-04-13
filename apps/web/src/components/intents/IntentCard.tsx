@@ -5,10 +5,10 @@ import { encodeERC20Transfer } from "@/lib/erc20";
 import { useLedger } from "@/lib/ledger-provider";
 import { cn, formatAddress, formatTimeAgo } from "@/lib/utils";
 import { useUpdateIntentStatus } from "@/queries/intents";
+import { useTokenInfo } from "@/queries/tokens";
 import {
 	type Intent,
 	SUPPORTED_CHAINS,
-	SUPPORTED_TOKENS,
 	type SupportedChainId,
 	isContractCallIntent,
 	isTransferIntent,
@@ -34,6 +34,9 @@ export function IntentCard({ intent }: IntentCardProps) {
 	const isWrongChain = walletChainId !== intentChainId;
 	const isPending = intent.status === "pending";
 
+	const transferDetails = isTransferIntent(details) ? details : null;
+	const { data: resolvedToken } = useTokenInfo(intentChainId, transferDetails?.token ?? "");
+
 	const handleSign = async () => {
 		setError(null);
 
@@ -54,11 +57,10 @@ export function IntentCard({ intent }: IntentCardProps) {
 					value: details.value ?? "0x0",
 				});
 			} else if (isTransferIntent(details)) {
-				const tokenInfo = SUPPORTED_TOKENS[intentChainId]?.[details.token];
 				const tokenAddress =
 					(details.tokenAddress as `0x${string}` | undefined) ??
-					(tokenInfo?.address as `0x${string}` | undefined);
-				const tokenDecimals = tokenInfo?.decimals ?? 6;
+					(resolvedToken?.address as `0x${string}` | undefined);
+				const tokenDecimals = resolvedToken?.decimals ?? 6;
 
 				if (!tokenAddress) {
 					setError(`Unknown token address for ${details.token}`);
