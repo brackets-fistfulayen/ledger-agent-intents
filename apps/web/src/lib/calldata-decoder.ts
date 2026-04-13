@@ -34,11 +34,106 @@ const ERC20_ABI: Abi = [
 	},
 ];
 
+const SWAP_ROUTER_ABI: Abi = [
+	{
+		type: "function",
+		name: "exactInputSingle",
+		inputs: [
+			{
+				name: "params",
+				type: "tuple",
+				components: [
+					{ name: "tokenIn", type: "address" },
+					{ name: "tokenOut", type: "address" },
+					{ name: "fee", type: "uint24" },
+					{ name: "recipient", type: "address" },
+					{ name: "deadline", type: "uint256" },
+					{ name: "amountIn", type: "uint256" },
+					{ name: "amountOutMinimum", type: "uint256" },
+					{ name: "sqrtPriceLimitX96", type: "uint160" },
+				],
+			},
+		],
+		outputs: [{ name: "amountOut", type: "uint256" }],
+		stateMutability: "payable",
+	},
+	{
+		type: "function",
+		name: "exactInput",
+		inputs: [
+			{
+				name: "params",
+				type: "tuple",
+				components: [
+					{ name: "path", type: "bytes" },
+					{ name: "recipient", type: "address" },
+					{ name: "deadline", type: "uint256" },
+					{ name: "amountIn", type: "uint256" },
+					{ name: "amountOutMinimum", type: "uint256" },
+				],
+			},
+		],
+		outputs: [{ name: "amountOut", type: "uint256" }],
+		stateMutability: "payable",
+	},
+	{
+		type: "function",
+		name: "exactOutputSingle",
+		inputs: [
+			{
+				name: "params",
+				type: "tuple",
+				components: [
+					{ name: "tokenIn", type: "address" },
+					{ name: "tokenOut", type: "address" },
+					{ name: "fee", type: "uint24" },
+					{ name: "recipient", type: "address" },
+					{ name: "deadline", type: "uint256" },
+					{ name: "amountOut", type: "uint256" },
+					{ name: "amountInMaximum", type: "uint256" },
+					{ name: "sqrtPriceLimitX96", type: "uint160" },
+				],
+			},
+		],
+		outputs: [{ name: "amountIn", type: "uint256" }],
+		stateMutability: "payable",
+	},
+	{
+		type: "function",
+		name: "exactOutput",
+		inputs: [
+			{
+				name: "params",
+				type: "tuple",
+				components: [
+					{ name: "path", type: "bytes" },
+					{ name: "recipient", type: "address" },
+					{ name: "deadline", type: "uint256" },
+					{ name: "amountOut", type: "uint256" },
+					{ name: "amountInMaximum", type: "uint256" },
+				],
+			},
+		],
+		outputs: [{ name: "amountIn", type: "uint256" }],
+		stateMutability: "payable",
+	},
+];
+
 const MULTICALL_ABI: Abi = [
 	{
 		type: "function",
 		name: "multicall",
 		inputs: [{ name: "data", type: "bytes[]" }],
+		outputs: [{ type: "bytes[]", name: "" }],
+		stateMutability: "payable",
+	},
+	{
+		type: "function",
+		name: "multicall",
+		inputs: [
+			{ name: "deadline", type: "uint256" },
+			{ name: "data", type: "bytes[]" },
+		],
 		outputs: [{ type: "bytes[]", name: "" }],
 		stateMutability: "payable",
 	},
@@ -63,9 +158,23 @@ const KNOWN_ABIS: KnownAbi[] = [
 		},
 	},
 	{
+		label: "Swap",
+		abi: SWAP_ROUTER_ABI,
+		describe: (fn, args) => {
+			const params = args[0] as Record<string, unknown>;
+			if (fn === "exactInputSingle" || fn === "exactOutputSingle") {
+				return `${fn}: ${fmtAddr(params.tokenIn as string)} → ${fmtAddr(params.tokenOut as string)}`;
+			}
+			return fn;
+		},
+	},
+	{
 		label: "Multicall",
 		abi: MULTICALL_ABI,
-		describe: (_fn, args) => `Multicall with ${(args[0] as unknown[]).length} calls`,
+		describe: (_fn, args) => {
+			const data = Array.isArray(args[0]) ? args[0] : args[1];
+			return `Multicall with ${(data as unknown[]).length} calls`;
+		},
 	},
 ];
 
